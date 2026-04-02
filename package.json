@@ -12,7 +12,8 @@
     "web": "pnpm --filter @subaspedia/mobile web",
     "lint": "biome lint .",
     "format": "biome format --write .",
-    "sst": "pnpm --filter @subaspedia/infra run"
+    "sst": "pnpm --filter @subaspedia/infra run",
+    "rnr": "cd apps/mobile && pnpx @react-native-reusables/cli@latest"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.10"
