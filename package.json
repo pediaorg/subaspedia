@@ -1,16 +1,10 @@
 {
-	"name": "da1",
+	"name": "subaspedia",
 	"version": "0.0.0",
 	"private": true,
 	"scripts": {
-		"deploy": "wrangler deploy",
-		"dev": "wrangler dev",
-		"start": "wrangler dev"
-	},
-	"devDependencies": {
-		"@cloudflare/workers-types": "^4.20260402.1",
-		"@types/node": "^25.5.0",
-		"typescript": "^5.5.2",
-		"wrangler": "^4.80.0"
+		"dev": "pnpm -r dev",
+		"build": "pnpm -r build",
+		"deploy": "pnpm -r deploy"
 	}
 }
