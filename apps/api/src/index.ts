@@ -1,5 +1,7 @@
 import { Hono } from "hono";
 
+export { AuctionRoom } from "./durable-objects/auction";
+
 export type Env = Record<string, unknown>;
 
 const app = new Hono<{ Bindings: Env }>();
