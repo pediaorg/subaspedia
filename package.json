@@ -11,7 +11,8 @@
     "ios": "pnpm --filter @subaspedia/mobile ios",
     "web": "pnpm --filter @subaspedia/mobile web",
     "lint": "biome lint .",
-    "format": "biome format --write ."
+    "format": "biome format --write .",
+    "sst": "pnpm --filter @subaspedia/infra run"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.10"
