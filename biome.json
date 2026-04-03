@@ -45,7 +45,11 @@
         "noDoubleEquals": "warn"
       },
       "style": {},
-      "correctness": {}
+      "correctness": {
+        "noUnusedVariables": "off",
+        "noUnusedImports": "off",
+        "noUnusedFunctionParameters": "off"
+      }
     }
   },
   "javascript": {
