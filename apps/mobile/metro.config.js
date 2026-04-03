@@ -14,4 +14,4 @@ config.resolver.nodeModulesPaths = [
 ];
 config.resolver.sourceExts = [...config.resolver.sourceExts, "mjs", "cjs"];
 
-module.exports = withNativeWind(config, { input: "./global.css", inlineRem: 16 });
+module.exports = withNativeWind(config);

@@ -1,4 +1,4 @@
-import "../global.css";
+import "../styles/global.css";
 
 import { PortalHost } from "@rn-primitives/portal";
 import { Stack } from "expo-router";
