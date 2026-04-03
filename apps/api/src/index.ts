@@ -1,5 +1,7 @@
 import { RPCHandler } from "@orpc/server/fetch";
 import { Hono } from "hono";
+import { cors } from "hono/cors";
+import { secureHeaders } from "hono/secure-headers";
 
 import { createDb } from "./db";
 import { AuctionRoom } from "./durable-objects/auction";
@@ -15,6 +17,9 @@ export type Env = {
 const app = new Hono<{ Bindings: Env }>();
 
 const rpcHandler = new RPCHandler(router);
+
+app.use(cors());
+app.use(secureHeaders());
 
 app.get("/", c => c.text("Subaspedia API"));
 

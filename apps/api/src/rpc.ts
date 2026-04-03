@@ -1,17 +1,16 @@
 import type { RouterClient } from "@orpc/server";
-import { os } from "@orpc/server";
-import type { BaseSQLiteDatabase } from "drizzle-orm/sqlite-core";
 
-export type Context = {
-  db: BaseSQLiteDatabase<"async", unknown>;
-};
+import { pub } from "./context";
+import { countriesRouter } from "./routers/countries";
 
-const pub = os.$context<Context>();
+export type { Context } from "./context";
+export { pub } from "./context";
 
 export const router = {
   health: pub.handler(async () => {
     return { status: "ok" as const };
   }),
+  countries: countriesRouter,
 };
 
 export type Router = typeof router;

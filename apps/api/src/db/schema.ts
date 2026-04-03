@@ -243,3 +243,4 @@ export const auctionRecords = sqliteTable(
     check("chk_record_commission", sql`${t.commission} > 0.01`),
   ],
 );
+
