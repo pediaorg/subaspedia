@@ -1,13 +1,18 @@
 import { Hono } from "hono";
 
-export { AuctionRoom } from "./durable-objects/auction";
+import { AuctionRoom } from "./durable-objects/auction";
 
-export type Env = Record<string, unknown>;
+export { AuctionRoom };
+
+export type Env = {
+  DB: D1Database;
+  AUCTION_ROOM: DurableObjectNamespace<AuctionRoom>;
+};
 
 const app = new Hono<{ Bindings: Env }>();
 
-app.get("/", (c) => c.text("Subaspedia API"));
+app.get("/", c => c.text("Subaspedia API"));
 
-app.get("/auctions/:id/ws", (c) => c.text("TODO", 501));
+app.get("/auctions/:id/ws", c => c.text("TODO", 501));
 
 export default app;

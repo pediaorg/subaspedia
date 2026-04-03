@@ -1,7 +1,5 @@
-import type { DurableObjectState } from "@cloudflare/workers-types";
-
 export class AuctionRoom implements DurableObject {
-  constructor(private state: DurableObjectState) {}
+  readonly [Rpc.__DURABLE_OBJECT_BRAND] = undefined as never;
 
   async fetch(request: Request): Promise<Response> {
     return new Response("TODO", { status: 501 });

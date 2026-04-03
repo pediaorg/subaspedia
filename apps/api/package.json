@@ -7,12 +7,18 @@
     "dev": "wrangler dev",
     "start": "wrangler dev",
     "lint": "biome lint .",
-    "format": "biome format --write ."
+    "format": "biome format --write .",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "wrangler d1 migrations apply subaspedia-db --local",
+    "db:push": "drizzle-kit push",
+    "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
+    "drizzle-orm": "1.0.0-beta.20",
     "hono": "^4.7.11"
   },
   "devDependencies": {
+    "drizzle-kit": "1.0.0-beta.20",
     "@cloudflare/workers-types": "^4.20260402.1",
     "@types/node": "^25.5.0",
     "typescript": "^5.5.2",

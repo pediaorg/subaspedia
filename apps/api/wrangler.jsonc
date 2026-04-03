@@ -8,6 +8,13 @@
     "enabled": true
   },
   "upload_source_maps": true,
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "subaspedia-db",
+      "database_id": ""
+    }
+  ],
   "durable_objects": {
     "bindings": [
       {
