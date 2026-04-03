@@ -1,0 +1,12 @@
+import { createORPCClient } from "@orpc/client";
+import { RPCLink } from "@orpc/client/fetch";
+import { createTanstackQueryUtils } from "@orpc/tanstack-query";
+import type { AppClient } from "@subaspedia/api/rpc";
+
+const link = new RPCLink({
+  url: `${process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:8787"}/rpc`,
+});
+
+const client = createORPCClient<AppClient>(link);
+
+export const orpc = createTanstackQueryUtils(client);

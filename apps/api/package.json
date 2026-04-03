@@ -2,6 +2,9 @@
   "name": "@subaspedia/api",
   "version": "0.0.0",
   "private": true,
+  "exports": {
+    "./rpc": "./src/rpc.ts"
+  },
   "scripts": {
     "deploy": "wrangler deploy",
     "dev": "wrangler dev",
@@ -14,13 +17,15 @@
     "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
+    "@orpc/server": "^1.13.13",
     "drizzle-orm": "1.0.0-beta.20",
-    "hono": "^4.7.11"
+    "hono": "^4.7.11",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
-    "drizzle-kit": "1.0.0-beta.20",
     "@cloudflare/workers-types": "^4.20260402.1",
     "@types/node": "^25.5.0",
+    "drizzle-kit": "1.0.0-beta.20",
     "typescript": "^5.5.2",
     "wrangler": "^4.80.0"
   }
