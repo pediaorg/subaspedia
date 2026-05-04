@@ -3,6 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
+    "prepare": "lefthook install",
     "dev": "pnpm -r --parallel dev",
     "build": "pnpm -r build",
     "deploy": "pnpm -r deploy",
@@ -19,6 +20,7 @@
     "rnr": "cd apps/mobile && pnpx @react-native-reusables/cli@latest"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.4.14"
+    "@biomejs/biome": "^2.4.14",
+    "lefthook": "^2.1.6"
   }
 }
