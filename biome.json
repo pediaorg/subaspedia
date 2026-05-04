@@ -34,9 +34,11 @@
           "level": "on",
           "options": {
             "groups": [
-              [":BUN:", ":NODE:", ":PACKAGE_WITH_PROTOCOL:", ":PACKAGE:"],
+              [":BUN:", ":NODE:", ":PACKAGE_WITH_PROTOCOL:"],
               ":BLANK_LINE:",
-              ["@subaspedia/**", "@/**", ":ALIAS:"],
+              [":PACKAGE:", "!@subaspedia/**"],
+              ":BLANK_LINE:",
+              ["@subaspedia/**", ":ALIAS:"],
               ":BLANK_LINE:",
               [":PATH:"]
             ]

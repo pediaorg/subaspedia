@@ -6,7 +6,7 @@
     "strict": true,
     "skipLibCheck": true,
     "paths": {
-      "@infra/*": ["./*"]
+      "@/infra/*": ["./*"]
     }
   }
 }

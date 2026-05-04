@@ -4,8 +4,8 @@
     "strict": true,
     "paths": {
       "@/*": ["./*"],
-      "@mobile/*": ["./*"],
-      "@api/*": ["../api/src/*"]
+      "@/mobile/*": ["./*"],
+      "@/api/*": ["../api/src/*"]
     }
   },
   "include": [

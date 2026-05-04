@@ -39,7 +39,7 @@
     "types": ["@cloudflare/workers-types", "node"],
 
     "paths": {
-      "@api/*": ["./src/*"]
+      "@/api/*": ["./src/*"]
     }
   },
   "include": ["src/**/*.ts"]
