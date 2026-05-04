@@ -90,6 +90,9 @@
   "css": {
     "formatter": {
       "indentWidth": 2
+    },
+    "parser": {
+      "tailwindDirectives": true
     }
   },
   "overrides": [

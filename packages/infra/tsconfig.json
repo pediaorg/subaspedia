@@ -4,6 +4,9 @@
     "module": "es2022",
     "moduleResolution": "Bundler",
     "strict": true,
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "paths": {
+      "@infra/*": ["./*"]
+    }
   }
 }
