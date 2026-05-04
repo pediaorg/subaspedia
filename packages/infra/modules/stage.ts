@@ -2,17 +2,19 @@ export const stage = $app.stage;
 export const isProduction = stage === "production";
 export const isPreview = stage.startsWith("pr-");
 
-export const ZONE_NAME = "casareski.com";
+export const ZONE_NAME = "subaspedia.casareski.com";
 
-export function webDomainFor(s: string): string {
-  if (s === "production") return `app.${ZONE_NAME}`;
-  return `${s}.${ZONE_NAME}`;
+export function getWebDomain(stage: string): string {
+  if (stage === "production") return ZONE_NAME;
+
+  return `${stage}.${ZONE_NAME}`;
 }
 
-export function apiDomainFor(s: string): string {
-  if (s === "production") return `api.${ZONE_NAME}`;
-  return `${s}-api.${ZONE_NAME}`;
+export function getApiDomain(stage: string): string {
+  if (stage === "production") return `api.${ZONE_NAME}`;
+
+  return `api.${stage}.${ZONE_NAME}`;
 }
 
-export const webDomain = webDomainFor(stage);
-export const apiDomain = apiDomainFor(stage);
+export const webDomain = getWebDomain(stage);
+export const apiDomain = getApiDomain(stage);
