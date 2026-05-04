@@ -1,8 +1,8 @@
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 
-import { countries } from "../db/schema";
 import { pub } from "../context";
+import { countries } from "../db/schema";
 
 export const countriesRouter = {
   list: pub.handler(async ({ context }) => {

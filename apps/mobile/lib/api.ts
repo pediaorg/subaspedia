@@ -18,53 +18,57 @@ type InputArg<TInput> = undefined extends TInput
   ? [input?: TInput]
   : [input: TInput];
 
-type HookifyProcedure<P> = P extends ProcedureUtils<
-  infer _Ctx,
-  infer TInput,
-  infer TOutput,
-  infer TError
->
-  ? {
-      useQuery: <TSelect = TOutput>(
-        ...args: [
-          ...InputArg<TInput>,
-          opts?: Partial<
-            Omit<UseQueryOptions<TOutput, TError, TSelect>, "queryKey" | "queryFn">
+type HookifyProcedure<P> =
+  P extends ProcedureUtils<
+    infer _Ctx,
+    infer TInput,
+    infer TOutput,
+    infer TError
+  >
+    ? {
+        useQuery: <TSelect = TOutput>(
+          ...args: [
+            ...InputArg<TInput>,
+            opts?: Partial<
+              Omit<
+                UseQueryOptions<TOutput, TError, TSelect>,
+                "queryKey" | "queryFn"
+              >
+            >,
+          ]
+        ) => ReturnType<typeof useQuery<TOutput, TError, TSelect>>;
+
+        useSuspenseQuery: <TSelect = TOutput>(
+          ...args: [
+            ...InputArg<TInput>,
+            opts?: Partial<
+              Omit<
+                UseSuspenseQueryOptions<TOutput, TError, TSelect>,
+                "queryKey" | "queryFn"
+              >
+            >,
+          ]
+        ) => ReturnType<typeof useSuspenseQuery<TOutput, TError, TSelect>>;
+
+        useInfiniteQuery: (
+          input: (pageParam: unknown) => TInput,
+          opts: Omit<
+            UseInfiniteQueryOptions<TOutput, TError>,
+            "queryKey" | "queryFn"
           >,
-        ]
-      ) => ReturnType<typeof useQuery<TOutput, TError, TSelect>>;
+        ) => ReturnType<typeof useInfiniteQuery>;
 
-      useSuspenseQuery: <TSelect = TOutput>(
-        ...args: [
-          ...InputArg<TInput>,
-          opts?: Partial<
-            Omit<
-              UseSuspenseQueryOptions<TOutput, TError, TSelect>,
-              "queryKey" | "queryFn"
-            >
-          >,
-        ]
-      ) => ReturnType<typeof useSuspenseQuery<TOutput, TError, TSelect>>;
+        useMutation: <TContext = unknown>(
+          opts?: Partial<UseMutationOptions<TOutput, TError, TInput, TContext>>,
+        ) => ReturnType<typeof useMutation<TOutput, TError, TInput, TContext>>;
 
-      useInfiniteQuery: (
-        input: (pageParam: unknown) => TInput,
-        opts: Omit<
-          UseInfiniteQueryOptions<TOutput, TError>,
-          "queryKey" | "queryFn"
-        >,
-      ) => ReturnType<typeof useInfiniteQuery>;
-
-      useMutation: <TContext = unknown>(
-        opts?: Partial<UseMutationOptions<TOutput, TError, TInput, TContext>>,
-      ) => ReturnType<typeof useMutation<TOutput, TError, TInput, TContext>>;
-
-      queryKey: P extends { queryKey: infer F } ? F : never;
-      queryOptions: P extends { queryOptions: infer F } ? F : never;
-      infiniteOptions: P extends { infiniteOptions: infer F } ? F : never;
-      mutationOptions: P extends { mutationOptions: infer F } ? F : never;
-      call: P extends { call: infer F } ? F : never;
-    }
-  : { [K in keyof P]: HookifyProcedure<P[K]> };
+        queryKey: P extends { queryKey: infer F } ? F : never;
+        queryOptions: P extends { queryOptions: infer F } ? F : never;
+        infiniteOptions: P extends { infiniteOptions: infer F } ? F : never;
+        mutationOptions: P extends { mutationOptions: infer F } ? F : never;
+        call: P extends { call: infer F } ? F : never;
+      }
+    : { [K in keyof P]: HookifyProcedure<P[K]> };
 
 const HOOKS = new Set([
   "useQuery",
