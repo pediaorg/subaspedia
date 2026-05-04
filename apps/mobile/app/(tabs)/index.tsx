@@ -1,12 +1,9 @@
-import { useQuery } from "@tanstack/react-query";
 import { ActivityIndicator, FlatList, Text, View } from "react-native";
 
-import { orpc } from "@/lib/orpc";
+import { api } from "@/lib/api";
 
 export default function HomeScreen() {
-  const { data, isLoading, error } = useQuery(
-    orpc.countries.list.queryOptions(),
-  );
+  const { data, isLoading, error } = api.countries.list.useQuery();
 
   return (
     <View className="flex-1 bg-white p-4">
