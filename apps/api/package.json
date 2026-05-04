@@ -11,22 +11,22 @@
     "start": "wrangler dev",
     "lint": "biome lint .",
     "format": "biome format --write .",
-    "db:generate": "drizzle-kit generate",
-    "db:migrate": "wrangler d1 migrations apply subaspedia-db --local",
-    "db:push": "drizzle-kit push",
-    "db:studio": "drizzle-kit studio"
+    "generate": "drizzle-kit generate",
+    "migrate": "wrangler d1 migrations apply subaspedia-db --local",
+    "push": "drizzle-kit push",
+    "studio": "drizzle-kit studio"
   },
   "dependencies": {
-    "@orpc/server": "^1.13.13",
+    "@orpc/server": "^1.14.1",
     "drizzle-orm": "1.0.0-beta.20",
-    "hono": "^4.7.11",
-    "zod": "^4.3.6"
+    "hono": "^4.12.16",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "^4.20260402.1",
-    "@types/node": "^25.5.0",
+    "@cloudflare/workers-types": "^4.20260504.1",
+    "@types/node": "^25.6.0",
     "drizzle-kit": "1.0.0-beta.20",
-    "typescript": "^5.5.2",
-    "wrangler": "^4.80.0"
+    "typescript": "^6.0.0",
+    "wrangler": "^4.87.0"
   }
 }

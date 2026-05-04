@@ -170,3 +170,7 @@ dist
 
 .sst
 .sst/*
+
+# expo stuff
+
+.expo

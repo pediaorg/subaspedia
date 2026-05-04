@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
-    "dev": "pnpm -r dev",
+    "dev": "pnpm -r --parallel dev",
     "build": "pnpm -r build",
     "deploy": "pnpm -r deploy",
     "start": "pnpm --filter @subaspedia/mobile start",
@@ -13,9 +13,12 @@
     "lint": "biome lint .",
     "format": "biome format --write .",
     "sst": "pnpm --filter @subaspedia/infra run",
+    "eas": "pnpm --filter @subaspedia/mobile exec eas",
+    "wrangler": "pnpm --filter @subaspedia/api exec wrangler",
+    "db": "pnpm --filter @subaspedia/api run",
     "rnr": "cd apps/mobile && pnpx @react-native-reusables/cli@latest"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.4.10"
+    "@biomejs/biome": "^2.4.14"
   }
 }

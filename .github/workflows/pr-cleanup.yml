@@ -1,0 +1,44 @@
+name: PR cleanup
+
+on:
+  pull_request:
+    types: [closed]
+
+concurrency:
+  group: pr-preview-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  remove:
+    name: Tear down preview
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_DEFAULT_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_REGION: us-east-1
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Compute stage
+        id: stage
+        env:
+          HEAD_REF: ${{ github.head_ref }}
+        run: |
+          SLUG=$(printf '%s' "$HEAD_REF" | tr '[:upper:]' '[:lower:]' | sed 's|[^a-z0-9]|-|g' | cut -c1-32 | sed 's|-$||')
+          echo "stage=pr-$SLUG" >> "$GITHUB_OUTPUT"
+      - name: SST install providers
+        run: pnpm sst install
+      - name: SST remove
+        env:
+          STAGE: ${{ steps.stage.outputs.stage }}
+        run: pnpm sst remove --stage "$STAGE"

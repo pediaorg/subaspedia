@@ -5,12 +5,13 @@
   "scripts": {
     "deploy": "sst deploy",
     "remove": "sst remove",
-    "setup": "sst install"
+    "install": "sst install",
+    "secret": "sst secret"
   },
   "dependencies": {
-    "sst": "^3.0.0"
+    "sst": "^4.0.0"
   },
   "devDependencies": {
-    "typescript": "^5.5.2"
+    "typescript": "^6.0.0"
   }
 }
