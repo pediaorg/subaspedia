@@ -8,7 +8,7 @@ export function auctionDurableObject(
   workerArgs.migrations = {
     oldTag: undefined,
     newTag: AUCTION_DO_MIGRATION_TAG,
-    newClasses: [AUCTION_DO_CLASS],
+    newSqliteClasses: [AUCTION_DO_CLASS],
   };
   workerArgs.bindings = $output(workerArgs.bindings).apply(existing => [
     ...(existing ?? []),
