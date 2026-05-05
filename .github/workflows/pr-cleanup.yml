@@ -38,4 +38,14 @@ jobs:
       - name: SST remove
         env:
           STAGE: ${{ steps.stage.outputs.stage }}
-        run: pnpm sst remove --stage "$STAGE"
+        run: pnpm sst remove --stage "$STAGE" --print-logs
+      - name: Dump SST logs
+        if: always()
+        run: |
+          if [ -f packages/infra/.sst/log/sst.log ]; then
+            echo "::group::sst.log"
+            cat packages/infra/.sst/log/sst.log
+            echo "::endgroup::"
+          else
+            echo "no sst.log found"
+          fi

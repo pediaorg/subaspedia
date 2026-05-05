@@ -52,11 +52,21 @@ jobs:
           JWT_SEED: ${{ secrets.JWT_SECRET }}
         run: |
           JWT_SECRET=$(printf '%s' "$STAGE" | openssl dgst -sha256 -hmac "$JWT_SEED" -hex | awk '{print $NF}')
-          pnpm sst secret set JwtSecret "$JWT_SECRET" --stage "$STAGE"
+          pnpm sst secret set JwtSecret "$JWT_SECRET" --stage "$STAGE" --print-logs
+      - name: Dump SST logs
+        if: always()
+        run: |
+          if [ -f packages/infra/.sst/log/sst.log ]; then
+            echo "::group::sst.log"
+            cat packages/infra/.sst/log/sst.log
+            echo "::endgroup::"
+          else
+            echo "no sst.log found"
+          fi
       - name: SST deploy preview
         env:
           STAGE: ${{ steps.stage.outputs.stage }}
-        run: pnpm sst deploy --stage "$STAGE"
+        run: pnpm sst deploy --stage "$STAGE" --print-logs
       - name: Install EAS CLI
         run: npm i -g eas-cli
       - name: Build preview APK

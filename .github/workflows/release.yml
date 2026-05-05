@@ -32,9 +32,19 @@ jobs:
       - name: Push secrets
         env:
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
-        run: pnpm sst secret set JwtSecret "$JWT_SECRET" --stage production
+        run: pnpm sst secret set JwtSecret "$JWT_SECRET" --stage production --print-logs
+      - name: Dump SST logs
+        if: always()
+        run: |
+          if [ -f packages/infra/.sst/log/sst.log ]; then
+            echo "::group::sst.log"
+            cat packages/infra/.sst/log/sst.log
+            echo "::endgroup::"
+          else
+            echo "no sst.log found"
+          fi
       - name: SST deploy
-        run: pnpm sst deploy --stage production
+        run: pnpm sst deploy --stage production --print-logs
 
   release:
     name: Build APK & GitHub release
