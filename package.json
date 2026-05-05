@@ -23,7 +23,8 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.14",
-    "lefthook": "^2.1.6"
+    "lefthook": "^2.1.6",
+    "sst": "^4.0.0"
   },
   "engines": {
     "node": ">=24"
