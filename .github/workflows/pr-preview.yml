@@ -45,7 +45,7 @@ jobs:
             echo "api_url=https://api.pr-$SLUG.casareski.com"
           } >> "$GITHUB_OUTPUT"
       - name: SST install providers
-        run: pnpm sst install
+        run: pnpm sst setup
       - name: Push secrets
         env:
           STAGE: ${{ steps.stage.outputs.stage }}

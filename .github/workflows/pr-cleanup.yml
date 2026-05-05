@@ -34,7 +34,7 @@ jobs:
           SLUG=$(printf '%s' "$HEAD_REF" | tr '[:upper:]' '[:lower:]' | sed 's|[^a-z0-9]|-|g' | cut -c1-32 | sed 's|-$||')
           echo "stage=pr-$SLUG" >> "$GITHUB_OUTPUT"
       - name: SST install providers
-        run: pnpm sst install
+        run: pnpm sst setup
       - name: SST remove
         env:
           STAGE: ${{ steps.stage.outputs.stage }}

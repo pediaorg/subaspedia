@@ -28,7 +28,7 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - name: SST install providers
-        run: pnpm sst install
+        run: pnpm sst setup
       - name: Push secrets
         env:
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
