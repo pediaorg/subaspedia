@@ -7,6 +7,8 @@
     "dev": "pnpm -r --parallel dev",
     "build": "pnpm -r build",
     "deploy": "pnpm -r deploy",
+    "go": "pnpm --filter @subaspedia/mobile go",
+    "go:tunnel": "pnpm go --tunnel",
     "start": "pnpm --filter @subaspedia/mobile start",
     "android": "pnpm --filter @subaspedia/mobile android",
     "ios": "pnpm --filter @subaspedia/mobile ios",
