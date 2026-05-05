@@ -8,8 +8,6 @@ Mientras Infisical no esté integrado, los secrets viven en **GitHub → Setting
 |---|---|---|
 | `CLOUDFLARE_API_TOKEN` | SST deploy de Workers, Pages, D1, DO | CF dashboard → My Profile → API Tokens. Permisos: `Account:Workers Scripts:Edit`, `Account:D1:Edit`, `Account:Workers KV Storage:Edit`, `Zone:Workers Routes:Edit` (si se usa CF for SaaS también `Account:SSL and Certificates:Edit`). |
 | `CLOUDFLARE_ACCOUNT_ID` | Account scope de SST y wrangler | CF dashboard → cualquier dominio → sidebar "Account ID". |
-| `AWS_ACCESS_KEY_ID` | Provider AWS para Route 53 records | IAM user con policy `AmazonRoute53FullAccess` (o más restringida a la zona `casareski.com`). |
-| `AWS_SECRET_ACCESS_KEY` | Idem | Idem |
 | `EXPO_TOKEN` | EAS build local en CI (acceso al proyecto Expo) | `expo.dev` → Account Settings → Access Tokens. |
 | `JWT_SECRET` | Firma de JWT en la API | Generar con `openssl rand -base64 48`. Distinto por entorno si se quiere; SST lo pushea por stage con `sst secret set`. |
 

@@ -9,16 +9,13 @@
         "buildType": "apk"
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://api.casareski.com"
+        "EXPO_PUBLIC_API_URL": "https://api.subaspedia.casareski.com"
       }
     },
     "preview": {
       "distribution": "internal",
       "android": {
         "buildType": "apk"
-      },
-      "env": {
-        "EXPO_PUBLIC_API_URL": ""
       }
     }
   }
