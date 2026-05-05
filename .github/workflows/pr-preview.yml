@@ -49,8 +49,10 @@ jobs:
       - name: Push secrets
         env:
           STAGE: ${{ steps.stage.outputs.stage }}
-          JWT_SECRET: ${{ secrets.JWT_SECRET }}
-        run: pnpm sst secret set JwtSecret "$JWT_SECRET" --stage "$STAGE"
+          JWT_SEED: ${{ secrets.JWT_SECRET }}
+        run: |
+          JWT_SECRET=$(printf '%s' "$STAGE" | openssl dgst -sha256 -hmac "$JWT_SEED" -hex | awk '{print $NF}')
+          pnpm sst secret set JwtSecret "$JWT_SECRET" --stage "$STAGE"
       - name: SST deploy preview
         env:
           STAGE: ${{ steps.stage.outputs.stage }}
