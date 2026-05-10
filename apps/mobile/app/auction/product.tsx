@@ -21,7 +21,7 @@ import { Separator } from "@/components/ui/separator";
 import { Text } from "@/components/ui/text";
 import { Textarea } from "@/components/ui/textarea";
 
-const MAX_IMAGES = 6;
+const MIN_IMAGES = 6;
 
 const CATEGORIES = [
   { value: "common", label: "Común" },
@@ -44,7 +44,7 @@ export default function PostProduct() {
   const [images, setImages] = React.useState<
     { id: string; uri: string | null }[]
   >(() =>
-    Array.from({ length: MAX_IMAGES }, (_, i) => ({
+    Array.from({ length: MIN_IMAGES }, (_, i) => ({
       id: `slot-${i}`,
       uri: null,
     })),
@@ -64,26 +64,34 @@ export default function PostProduct() {
 
   return (
     <>
-      <Stack.Screen options={{ title: "Subastar un producto" }} />
+      <Stack.Screen options={{ headerShown: false }} />
       <ScrollView
         className="flex-1"
         contentContainerClassName="gap-4 p-4 pb-12"
         keyboardShouldPersistTaps="handled"
       >
-        <Text variant="h3">Subastar un producto</Text>
+        <Text variant="h3" className="font-bold text-center">
+          Subastar un producto
+        </Text>
 
-        <View className="bg-muted/60 border-border flex-row gap-2 rounded-lg border p-3">
-          <Alert icon={Info}>
-            <AlertTitle>
+        <Separator className="bg-[#D9D9D9]" />
+
+        <View className="bg-[#748EA2] drop-shadow-md/40 flex-row items-center gap-2 rounded-lg p-3">
+          <Alert
+            icon={Info}
+            iconClassName="text-white"
+            className="border-none items-center"
+          >
+            <AlertTitle className="text-white">
               La empresa puede designar una colección cuando el lote tiene
               numerosos artículos
             </AlertTitle>
           </Alert>
         </View>
 
-        <Card>
+        <Card className="bg-white drop-shadow-md/40 border-none">
           <CardHeader>
-            <CardTitle>Datos</CardTitle>
+            <CardTitle className="text-2xl font-bold">Datos</CardTitle>
           </CardHeader>
           <CardContent className="gap-4">
             <Field label="Nombre del objeto">
@@ -91,6 +99,7 @@ export default function PostProduct() {
                 value={name}
                 onChangeText={setName}
                 placeholder="Ej. Cuadro firmado"
+                className="bg-[#BBDEFC] border-none"
               />
             </Field>
 
@@ -99,10 +108,10 @@ export default function PostProduct() {
                 value={category}
                 onValueChange={option => setCategory(option ?? undefined)}
               >
-                <SelectTrigger className="w-full">
+                <SelectTrigger className="w-full bg-[#BBDEFC] border-none">
                   <SelectValue placeholder="Seleccionar categoría" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="bg-white border-none drop-shadow-lg">
                   {CATEGORIES.map(c => (
                     <SelectItem key={c.value} value={c.value} label={c.label}>
                       {c.label}
@@ -119,6 +128,7 @@ export default function PostProduct() {
                   onChangeText={setStock}
                   keyboardType="number-pad"
                   placeholder="0"
+                  className="bg-[#BBDEFC] border-none"
                 />
               </Field>
               <Field label="Precio" className="flex-1">
@@ -127,6 +137,7 @@ export default function PostProduct() {
                   onChangeText={setPrice}
                   keyboardType="decimal-pad"
                   placeholder="0,00"
+                  className="bg-[#BBDEFC] border-none"
                 />
               </Field>
             </View>
@@ -136,17 +147,18 @@ export default function PostProduct() {
                 value={description}
                 onChangeText={setDescription}
                 placeholder="Detalles del objeto"
+                className="bg-[#BBDEFC] border-none"
               />
             </Field>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="bg-[#1E88E5] drop-shadow-md/40 border-none">
           <CardHeader className="flex-row items-center justify-between">
-            <CardTitle>Imágenes</CardTitle>
-            <Text className="text-muted-foreground text-sm">
-              máx. {MAX_IMAGES}
-            </Text>
+            <CardTitle className="text-white text-2xl font-bold">
+              Imágenes
+            </CardTitle>
+            <Text className="text-white text-sm">mín. {MIN_IMAGES}</Text>
           </CardHeader>
           <CardContent className="gap-3">
             <View className="flex-row flex-wrap gap-3">
@@ -166,16 +178,18 @@ export default function PostProduct() {
                 />
               ))}
             </View>
-            <Text className="text-muted-foreground text-xs">
-              Seleccioná hasta {MAX_IMAGES} imágenes del producto. (
-              {filledImages}/{MAX_IMAGES})
+            <Text className="text-white text-xs">
+              Seleccioná hasta {MIN_IMAGES} imágenes del producto. (
+              {filledImages}/{MIN_IMAGES})
             </Text>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="bg-white border-none drop-shadow-md/40">
           <CardHeader>
-            <CardTitle>Dato de interés</CardTitle>
+            <CardTitle className="text-2xl font-bold">
+              Dato de interés
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <Field label="Ingresá un dato importante sobre el objeto">
@@ -183,14 +197,17 @@ export default function PostProduct() {
                 value={interest}
                 onChangeText={setInterest}
                 placeholder="Ej. firmado por el autor"
+                className="bg-[#BBDEFC] border-none"
               />
             </Field>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="bg-[#1E88E5] drop-shadow-md/40 border-none">
           <CardHeader>
-            <CardTitle>Términos y condiciones</CardTitle>
+            <CardTitle className="text-2xl font-bold text-white">
+              Términos y condiciones
+            </CardTitle>
           </CardHeader>
           <CardContent className="gap-3">
             <CheckRow checked={acceptConditions} onChange={setAcceptConditions}>
@@ -205,7 +222,7 @@ export default function PostProduct() {
               ningún impedimento legal, judicial o administrativo para ser
               subastado
             </CheckRow>
-            <Separator className="my-1" />
+            <Separator className="my-1 bg-white" />
             <CheckRow checked={acceptTerms} onChange={setAcceptTerms}>
               Acepto los términos y condiciones.
             </CheckRow>
@@ -218,11 +235,14 @@ export default function PostProduct() {
             // submit
           }}
           size="lg"
+          className="bg-[#0D47A1] border-0 rounded-2xl py-4 shadow-none focus:outline-none focus-visible:ring-0 focus-visible:border-transparent"
         >
-          <Text>Enviar a revisión</Text>
+          <Text className="text-white font-bold text-base">
+            Enviar a revisión
+          </Text>
         </Button>
 
-        <Text className="text-muted-foreground text-center text-xs">
+        <Text className="text-[#0D47A1] text-center text-xs">
           La publicación quedará pendiente hasta que un agente de la plataforma
           la revise.
         </Text>
@@ -258,12 +278,12 @@ function ImageSlot({
   return (
     <Pressable
       onPress={onPress}
-      className="border-border bg-muted/40 active:bg-muted aspect-square w-[30%] items-center justify-center rounded-md border border-dashed"
+      className="border-white bg-muted/40 active:bg-muted aspect-square w-[30%] items-center justify-center rounded-md border border-dashed"
     >
       {uri ? (
         <Text className="text-muted-foreground text-xs">Imagen</Text>
       ) : (
-        <Icon as={Plus} size={20} className="text-muted-foreground" />
+        <Icon as={Plus} size={20} className="text-white" />
       )}
     </Pressable>
   );
@@ -284,9 +304,16 @@ function CheckRow({
       className="flex-row items-start gap-3"
     >
       <View className="pt-0.5">
-        <Checkbox checked={checked} onCheckedChange={onChange} />
+        <Checkbox
+          checked={checked}
+          onCheckedChange={onChange}
+          className="border-white"
+          checkedClassName="border-white"
+          indicatorClassName="bg-white"
+          iconClassName="text-black"
+        />
       </View>
-      <Text className="flex-1 text-sm">{children}</Text>
+      <Text className="flex-1 text-white text-sm">{children}</Text>
     </Pressable>
   );
 }
