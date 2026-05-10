@@ -4,9 +4,7 @@
   "private": true,
   "scripts": {
     "prepare": "lefthook install",
-    "dev": "pnpm -r --parallel dev",
-    "build": "pnpm -r build",
-    "deploy": "pnpm -r deploy",
+    "dev": "turbo run dev",
     "go": "pnpm --filter @subaspedia/mobile go",
     "go:tunnel": "pnpm go --tunnel",
     "start": "pnpm --filter @subaspedia/mobile start",
@@ -24,7 +22,8 @@
   "devDependencies": {
     "@biomejs/biome": "^2.4.14",
     "lefthook": "^2.1.6",
-    "sst": "^4.0.0"
+    "sst": "^4.0.0",
+    "turbo": "^2.9.12"
   },
   "engines": {
     "node": ">=24"
