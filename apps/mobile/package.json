@@ -3,7 +3,7 @@
   "main": "expo-router/entry",
   "version": "1.0.0",
   "scripts": {
-    "dev": "cross-env CI=1 expo start --web",
+    "dev": "expo start --web",
     "go": "expo start --go --port 8082",
     "android": "expo start --android",
     "ios": "expo start --ios",
