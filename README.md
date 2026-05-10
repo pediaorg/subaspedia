@@ -56,8 +56,6 @@ pnpm web         # web target
 | Script          | Descripción                          |
 | --------------- | ------------------------------------ |
 | `pnpm dev`      | Levanta todos los workspaces         |
-| `pnpm build`    | Build en todos los workspaces        |
-| `pnpm deploy`   | Deploy en todos los workspaces       |
 | `pnpm lint`     | Biome lint                           |
 | `pnpm format`   | Biome format --write                 |
 | `pnpm sst`      | Proxy a SST (`packages/infra`)       |
