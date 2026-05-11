@@ -10,7 +10,6 @@ export const api = new sst.cloudflare.Worker("Api", {
   link: [db, ...secrets],
   environment: {
     WEB_ORIGIN: `https://${webDomain}`,
-    JWT_SECRET: jwtSecret.value,
   },
   transform: {
     worker: workerArgs => {
@@ -29,6 +28,10 @@ export const api = new sst.cloudflare.Worker("Api", {
           invocationLogs: true,
         },
       };
+      workerArgs.bindings = $output(workerArgs.bindings).apply(existing => [
+        ...(existing ?? []),
+        { type: "secret_text", name: "JWT_SECRET", text: jwtSecret.value },
+      ]);
       auctionDurableObject(workerArgs);
     },
   },

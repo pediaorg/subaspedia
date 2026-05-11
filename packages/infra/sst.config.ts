@@ -13,7 +13,6 @@ export default $config({
   },
   async run() {
     await import("./modules/secrets");
-    await import("./modules/zone");
 
     const { db } = await import("./modules/database");
     const { api } = await import("./modules/api");
