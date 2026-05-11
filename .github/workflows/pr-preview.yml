@@ -31,7 +31,25 @@ jobs:
         with:
           node-version: 24
           cache: pnpm
-      - run: pnpm install --frozen-lockfile
+      - name: Cache node_modules
+        uses: actions/cache@v4
+        with:
+          path: |
+            node_modules
+            apps/*/node_modules
+            packages/*/node_modules
+          key: node-modules-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+      - run: pnpm install --frozen-lockfile --prefer-offline
+      - name: Cache SST providers
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.pulumi
+            packages/infra/.sst/platform
+            packages/infra/.sst/plugins
+          key: sst-providers-${{ runner.os }}-${{ hashFiles('packages/infra/sst.config.ts', 'packages/infra/package.json') }}
+          restore-keys: |
+            sst-providers-${{ runner.os }}-
       - name: Compute stage
         id: stage
         env:
@@ -67,13 +85,6 @@ jobs:
           STAGE: ${{ steps.stage.outputs.stage }}
         run: pnpm sst deploy --stage "$STAGE" --print-logs
 
-      - name: Persist D1 id as SST secret
-        env:
-          STAGE: ${{ steps.stage.outputs.stage }}
-        run: |
-          DB_ID=$(pnpm sst outputs --stage "$STAGE" --json | jq -r '.db')
-          pnpm sst secret set DbId "$DB_ID" --stage "$STAGE"
-
       - name: Comment preview URLs (APK building)
         uses: marocchino/sticky-pull-request-comment@v2
         with:
@@ -101,17 +112,15 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
 
-      - name: SST install providers
-        run: pnpm sst setup
-
-      - name: Read D1 id from SST secret
+      - name: Resolve D1 database id
         id: d1
         env:
           STAGE: ${{ needs.deploy.outputs.stage }}
         run: |
-          DB_ID=$(pnpm sst secret list --stage "$STAGE" --show 2>/dev/null | awk -F'=' '/^DbId=/{print $2}')
-          if [ -z "$DB_ID" ]; then
-            echo "::error::Secret 'DbId' no encontrado en stage '$STAGE'."
+          DB_NAME="subaspedia-$STAGE"
+          DB_ID=$(pnpm wrangler d1 list --json | jq -r --arg n "$DB_NAME" '.[] | select(.name==$n) | .uuid')
+          if [ -z "$DB_ID" ] || [ "$DB_ID" = "null" ]; then
+            echo "::error::No existe la D1 '$DB_NAME'."
             exit 1
           fi
           echo "db_id=$DB_ID" >> "$GITHUB_OUTPUT"
