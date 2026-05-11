@@ -1,0 +1,58 @@
+name: PR reset
+
+on:
+  workflow_dispatch:
+    inputs:
+      stage:
+        description: Stage a remover (pr-foo, juani, ...). NO usar 'production'.
+        required: true
+        type: string
+      confirm:
+        description: Escribí el nombre del stage de nuevo para confirmar
+        required: true
+        type: string
+
+concurrency:
+  group: pr-reset-${{ inputs.stage }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  reset:
+    name: sst remove
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_DEFAULT_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - name: Guard against production and confirm match
+        env:
+          STAGE: ${{ inputs.stage }}
+          CONFIRM: ${{ inputs.confirm }}
+        run: |
+          if [ "$STAGE" = "production" ]; then
+            echo "::error::Este workflow no puede resetear production."
+            exit 1
+          fi
+          if [ "$STAGE" != "$CONFIRM" ]; then
+            echo "::error::El campo de confirmación no coincide con el stage."
+            exit 1
+          fi
+
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --prefer-offline
+
+      - name: SST install providers
+        run: pnpm sst setup
+
+      - name: Remove stage
+        env:
+          STAGE: ${{ inputs.stage }}
+        run: pnpm sst remove --stage "$STAGE" --print-logs
