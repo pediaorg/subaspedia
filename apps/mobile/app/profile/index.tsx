@@ -19,7 +19,7 @@ import { Separator } from "@/components/ui/separator";
 
 export default function Profile() {
   return (
-    <View className="flex-1 px-4 gap-6">
+    <View className="flex-1 px-4 gap-6 py-16">
       {/* header */}
       <View>
         <Text>header</Text>
@@ -37,16 +37,18 @@ export default function Profile() {
           ></AvatarImage>
         </Avatar>
         <Card className="bg-blue-400 mt-20 p-5">
-          <View className="mt-15 flex-row gap-2">
+          <View className="mt-16 flex-row gap-2">
             <View>
               <Text className="text-white text-xl font-bold">
                 Juan I. Casareski
               </Text>
               <Text className="text-gray-300">jcasareski@uade.edu.ar</Text>
             </View>
-            <Badge className="self-start flex-row mt-1.5 h-5 w-24 bg-amber-300">
-              <CircleStarIcon className="ml-[-12]" />
-              <Text className="font-bold text-xs ml-5">ORO</Text>
+            <Badge className="self-start flex-row justify-between mt-1.5 h-5 w-24 bg-amber-300">
+              {" "}
+              {/*Aca, tendría que recibir un parametro para el color y la tag*/}
+              <CircleStarIcon className="aboslute size-4" />
+              <Text className="font-bold text-xs">BRONCE</Text>
             </Badge>
           </View>
           <View className="flex-row gap-5 ">
@@ -82,7 +84,7 @@ export default function Profile() {
         />
         <MenuItem
           icon={Settings}
-          label="Configuración de la app"
+          label="Configuración"
           link="/profile/settings"
         />
       </View>

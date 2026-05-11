@@ -14,12 +14,12 @@ export function MenuItem({ icon: Icon, label, link }: MenuItemProps) {
   return (
     <View className="w-full">
       <Link href={link} asChild>
-        <Pressable className="flex-row gap-2">
-          <Icon className="color-blue-900" />
-          <Text className="font-bold text-lg text-blue-900">{label}</Text>
+        <Pressable className="flex-row gap-2 ml-10">
+          <Icon className="color-blue-900 size-8" />
+          <Text className="font-bold text-2xl text-blue-900">{label}</Text>
         </Pressable>
       </Link>
-      <Separator className="my-3 bg-gray-500" />
+      <Separator className="mt-3 bg-gray-500" />
     </View>
   );
 }
