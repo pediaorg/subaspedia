@@ -5,7 +5,50 @@ export * from "./types";
 
 export const ACCESS_TTL = 60 * 15; // 15 min
 export const REFRESH_TTL = 60 * 60 * 24 * 30; // 30 días
+export const REFRESH_COOKIE = "refresh_token";
 const PBKDF2_ITERATIONS = 100_000;
+
+export type CookieDirective = {
+  name: string;
+  value: string;
+  options?: {
+    httpOnly?: boolean;
+    secure?: boolean;
+    sameSite?: "Strict" | "Lax" | "None";
+    maxAge?: number;
+    path?: string;
+  };
+};
+
+export function serializeCookie({
+  name,
+  value,
+  options = {},
+}: CookieDirective) {
+  const parts = [`${name}=${encodeURIComponent(value)}`];
+  if (options.maxAge !== undefined) parts.push(`Max-Age=${options.maxAge}`);
+  parts.push(`Path=${options.path ?? "/"}`);
+  if (options.httpOnly) parts.push("HttpOnly");
+  if (options.secure) parts.push("Secure");
+  if (options.sameSite) parts.push(`SameSite=${options.sameSite}`);
+  return parts.join("; ");
+}
+
+export function parseRefreshCookie(header: string | null): string | null {
+  if (!header) return null;
+  for (const part of header.split(";")) {
+    const [k, ...rest] = part.trim().split("=");
+    if (k === REFRESH_COOKIE) return decodeURIComponent(rest.join("="));
+  }
+  return null;
+}
+
+export function getRefreshCookieSafely(cookie: string | null) {
+  // Le hace mimick a schema.safeParse
+  return cookie
+    ? { success: true as const, data: cookie as string, error: null }
+    : { success: false as const, data: null, error: true };
+}
 
 export const credentials = z.object({
   email: z.email().toLowerCase(),
@@ -79,6 +122,14 @@ export async function verifyPassword(
     diff |= computed.charCodeAt(i) ^ hashHex.charCodeAt(i);
   }
   return diff === 0;
+}
+
+export async function issueAccessToken(userId: number, secret: string) {
+  const now = Math.floor(Date.now() / 1000);
+  return sign(
+    { sub: userId, type: "access", iat: now, exp: now + ACCESS_TTL },
+    secret,
+  );
 }
 
 export async function issueTokens(userId: number, secret: string) {

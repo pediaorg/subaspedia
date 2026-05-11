@@ -1,15 +1,33 @@
 import { ORPCError } from "@orpc/server";
-import { sign } from "hono/jwt";
 
-import { pub, refreshed } from "@/api/context";
+import { authed, pub, refreshed } from "@/api/context";
 import { users } from "@/api/db/schema";
 import {
-  ACCESS_TTL,
+  REFRESH_COOKIE,
+  REFRESH_TTL,
   credentials,
   hashPassword,
+  issueAccessToken,
   issueTokens,
   verifyPassword,
 } from "@/api/lib/auth";
+
+function pushRefreshCookie(
+  context: { cookieJar: { name: string; value: string; options?: object }[] },
+  refreshToken: string,
+) {
+  context.cookieJar.push({
+    name: REFRESH_COOKIE,
+    value: refreshToken,
+    options: {
+      httpOnly: true,
+      secure: true,
+      sameSite: "None",
+      maxAge: REFRESH_TTL,
+      path: "/",
+    },
+  });
+}
 
 export const authRouter = {
   register: pub.input(credentials).handler(async ({ context, input }) => {
@@ -18,9 +36,7 @@ export const authRouter = {
     });
 
     if (existing)
-      throw new ORPCError("CONFLICT", {
-        message: "Email ya registrado",
-      });
+      throw new ORPCError("CONFLICT", { message: "Email ya registrado" });
 
     const passwordHash = await hashPassword(input.password);
     const [created] = await context.db
@@ -28,7 +44,9 @@ export const authRouter = {
       .values({ email: input.email, passwordHash })
       .returning({ id: users.id });
 
-    return issueTokens(created.id, context.jwtSecret);
+    const tokens = await issueTokens(created.id, context.jwtSecret);
+    pushRefreshCookie(context, tokens.refreshToken);
+    return { accessToken: tokens.accessToken };
   }),
 
   login: pub.input(credentials).handler(async ({ context, input }) => {
@@ -37,9 +55,7 @@ export const authRouter = {
     });
 
     if (!user)
-      throw new ORPCError("UNAUTHORIZED", {
-        message: "Usuario no encontrado",
-      });
+      throw new ORPCError("UNAUTHORIZED", { message: "Usuario no encontrado" });
 
     const valid = await verifyPassword(input.password, user.passwordHash);
     if (!valid)
@@ -47,16 +63,31 @@ export const authRouter = {
         message: "Credenciales inválidas",
       });
 
-    return issueTokens(user.id, context.jwtSecret);
+    const tokens = await issueTokens(user.id, context.jwtSecret);
+    pushRefreshCookie(context, tokens.refreshToken);
+    return { accessToken: tokens.accessToken };
   }),
 
   refresh: refreshed.handler(async ({ context }) => {
-    const now = Math.floor(Date.now() / 1000);
-    const accessToken = await sign(
-      { sub: context.userId, type: "access", iat: now, exp: now + ACCESS_TTL },
+    const accessToken = await issueAccessToken(
+      context.userId,
       context.jwtSecret,
     );
-
     return { accessToken };
+  }),
+
+  logout: authed.handler(async ({ context }) => {
+    context.cookieJar.push({
+      name: REFRESH_COOKIE,
+      value: "",
+      options: {
+        httpOnly: true,
+        secure: true,
+        sameSite: "None",
+        maxAge: 0,
+        path: "/",
+      },
+    });
+    return { success: true };
   }),
 };

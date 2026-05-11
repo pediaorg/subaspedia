@@ -11,14 +11,14 @@ export default function LoginScreen() {
   const [mode, setMode] = useState<"login" | "register">("login");
 
   const login = api.auth.login.useMutation({
-    onSuccess: tokens => {
-      authStore.set(tokens);
+    onSuccess: ({ accessToken }) => {
+      authStore.set(accessToken);
       router.replace("/");
     },
   });
   const register = api.auth.register.useMutation({
-    onSuccess: tokens => {
-      authStore.set(tokens);
+    onSuccess: ({ accessToken }) => {
+      authStore.set(accessToken);
       router.replace("/");
     },
   });

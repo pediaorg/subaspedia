@@ -11,6 +11,7 @@ const link = new RPCLink({
     const token = authStore.getAccessToken();
     return token ? { Authorization: `Bearer ${token}` } : {};
   },
+  fetch: (req, init) => fetch(req, { ...init, credentials: "include" }),
 });
 
 const client = createORPCClient<AppClient>(link);

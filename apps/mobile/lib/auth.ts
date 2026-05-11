@@ -1,20 +1,13 @@
 import { useSyncExternalStore } from "react";
 
-type Tokens = { accessToken: string; refreshToken: string };
+const STORAGE_KEY = "subaspedia:access_token";
 
-const STORAGE_KEY = "subaspedia:auth";
-
-function read(): Tokens | null {
+function read(): string | null {
   if (typeof localStorage === "undefined") return null;
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? (JSON.parse(raw) as Tokens) : null;
-  } catch {
-    return null;
-  }
+  return localStorage.getItem(STORAGE_KEY);
 }
 
-let current: Tokens | null = read();
+let current: string | null = read();
 const listeners = new Set<() => void>();
 
 function emit() {
@@ -23,11 +16,11 @@ function emit() {
 
 export const authStore = {
   get: () => current,
-  getAccessToken: () => current?.accessToken ?? null,
-  set: (tokens: Tokens | null) => {
-    current = tokens;
+  getAccessToken: () => current,
+  set: (accessToken: string | null) => {
+    current = accessToken;
     if (typeof localStorage !== "undefined") {
-      if (tokens) localStorage.setItem(STORAGE_KEY, JSON.stringify(tokens));
+      if (accessToken) localStorage.setItem(STORAGE_KEY, accessToken);
       else localStorage.removeItem(STORAGE_KEY);
     }
     emit();
@@ -39,10 +32,10 @@ export const authStore = {
 };
 
 export function useAuth() {
-  const tokens = useSyncExternalStore(
+  const token = useSyncExternalStore(
     authStore.subscribe,
     authStore.get,
     () => null,
   );
-  return { tokens, isAuthed: !!tokens };
+  return { accessToken: token, isAuthed: !!token };
 }
