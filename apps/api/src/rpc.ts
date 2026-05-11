@@ -1,16 +1,16 @@
 import type { RouterClient } from "@orpc/server";
 
-import { pub } from "./context";
-import { countriesRouter } from "./routers/countries";
+import { pub } from "@/api/context";
 
-export type { Context } from "./context";
-export { pub } from "./context";
+import { authRouter } from "./routers/auth";
+import { countriesRouter } from "./routers/countries";
 
 export const router = {
   health: pub.handler(async () => {
     return { status: "ok" as const };
   }),
   countries: countriesRouter,
+  auth: authRouter,
 };
 
 export type Router = typeof router;

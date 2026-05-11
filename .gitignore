@@ -174,3 +174,5 @@ dist
 # expo stuff
 
 .expo
+# turborepo
+.turbo
