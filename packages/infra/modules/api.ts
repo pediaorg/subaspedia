@@ -1,6 +1,6 @@
 import { auctionDurableObject } from "./auction";
 import { db } from "./database";
-import { secrets } from "./secrets";
+import { jwtSecret, secrets } from "./secrets";
 import { apiDomain, stage, webDomain } from "./stage";
 
 export const api = new sst.cloudflare.Worker("Api", {
@@ -10,6 +10,7 @@ export const api = new sst.cloudflare.Worker("Api", {
   link: [db, ...secrets],
   environment: {
     WEB_ORIGIN: `https://${webDomain}`,
+    JWT_SECRET: jwtSecret.value,
   },
   transform: {
     worker: workerArgs => {
