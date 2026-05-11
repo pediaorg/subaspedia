@@ -35,32 +35,47 @@ app.get("/", c => c.text("Subaspedia API"));
 app.use("/rpc/*", async (c, next) => {
   const cookieJar: CookieDirective[] = [];
 
-  const { matched, response } = await rpcHandler.handle(c.req.raw, {
-    prefix: "/rpc",
-    context: {
-      db: createDb(c.env.DB),
-      jwtSecret: c.env.JWT_SECRET,
-      authHeader: c.req.header("Authorization") ?? null,
-      refreshCookie: parseRefreshCookie(c.req.header("Cookie") ?? null),
-      refreshHeader: c.req.header("X-Refresh-Token") ?? null,
-      clientType: c.req.header("X-Client") === "native" ? "native" : "web",
-      cookieJar,
-    },
-  });
-
-  if (matched) {
-    const headers = new Headers(response.headers);
-    for (const cookie of cookieJar) {
-      headers.append("Set-Cookie", serializeCookie(cookie));
-    }
-    return new Response(response.body, {
-      status: response.status,
-      statusText: response.statusText,
-      headers,
+  try {
+    const { matched, response } = await rpcHandler.handle(c.req.raw, {
+      prefix: "/rpc",
+      context: {
+        db: createDb(c.env.DB),
+        jwtSecret: c.env.JWT_SECRET,
+        authHeader: c.req.header("Authorization") ?? null,
+        refreshCookie: parseRefreshCookie(c.req.header("Cookie") ?? null),
+        refreshHeader: c.req.header("X-Refresh-Token") ?? null,
+        clientType: c.req.header("X-Client") === "native" ? "native" : "web",
+        cookieJar,
+      },
     });
+
+    if (matched) {
+      const headers = new Headers(response.headers);
+      for (const cookie of cookieJar) {
+        headers.append("Set-Cookie", serializeCookie(cookie));
+      }
+      return new Response(response.body, {
+        status: response.status,
+        statusText: response.statusText,
+        headers,
+      });
+    }
+  } catch (err) {
+    console.error("RPC handler threw:", err);
+    throw err;
   }
 
   await next();
+});
+
+app.onError((err, c) => {
+  console.error("Hono onError:", {
+    message: err.message,
+    stack: err.stack,
+    name: err.name,
+    cause: (err as { cause?: unknown }).cause,
+  });
+  return c.json({ error: "Internal", message: err.message }, { status: 500 });
 });
 
 app.get("/auctions/:id/ws", c => c.text("TODO", 501));
