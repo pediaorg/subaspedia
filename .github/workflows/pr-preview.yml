@@ -58,8 +58,8 @@ jobs:
           SLUG=$(printf '%s' "$HEAD_REF" | tr '[:upper:]' '[:lower:]' | sed 's|[^a-z0-9]|-|g' | cut -c1-32 | sed 's|-$||')
           {
             echo "stage=pr-$SLUG"
-            echo "web_url=https://pr-$SLUG.casareski.com"
-            echo "api_url=https://api.pr-$SLUG.casareski.com"
+            echo "web_url=https://pr-$SLUG.subaspedia.casareski.com"
+            echo "api_url=https://api.pr-$SLUG.subaspedia.casareski.com"
           } >> "$GITHUB_OUTPUT"
       - name: SST install providers
         run: pnpm sst setup
