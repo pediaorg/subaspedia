@@ -86,7 +86,7 @@ jobs:
           SST_DO_BOOTSTRAP: ${{ (github.event.action == 'opened' || github.event.action == 'reopened' || github.event_name == 'workflow_dispatch') && '1' || '' }}
         run: pnpm sst deploy --stage "$STAGE" --print-logs
 
-      - name: Comment preview URLs (APK building)
+      - name: Comment preview URLs
         uses: marocchino/sticky-pull-request-comment@v2
         with:
           header: subaspedia-preview
@@ -95,7 +95,6 @@ jobs:
 
             - Web: ${{ steps.stage.outputs.web_url }}
             - API: ${{ steps.stage.outputs.api_url }}
-            - APK: building... ([logs](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}))
 
   db-push:
     name: drizzle-kit push to preview D1
@@ -134,55 +133,3 @@ jobs:
         env:
           D1_DATABASE_ID: ${{ steps.d1.outputs.db_id }}
         run: yes | pnpm db push
-
-  apk:
-    name: Build preview APK
-    runs-on: ubuntu-latest
-    needs: deploy
-    concurrency:
-      group: pr-preview-apk-${{ github.event.pull_request.number || github.ref }}
-      cancel-in-progress: true
-    steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24
-          cache: pnpm
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: 17
-      - uses: android-actions/setup-android@v3
-      - run: pnpm install --frozen-lockfile
-      - name: Install EAS CLI
-        run: npm i -g eas-cli
-      - name: Build preview APK
-        env:
-          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-          EXPO_PUBLIC_API_URL: ${{ needs.deploy.outputs.api_url }}
-          STAGE: ${{ needs.deploy.outputs.stage }}
-        run: |
-          pnpm eas build \
-            --platform android \
-            --local \
-            --profile preview \
-            --non-interactive \
-            --output "$GITHUB_WORKSPACE/subaspedia-$STAGE.apk"
-      - name: Upload APK artifact
-        id: upload
-        uses: actions/upload-artifact@v4
-        with:
-          name: apk-${{ needs.deploy.outputs.stage }}
-          path: subaspedia-${{ needs.deploy.outputs.stage }}.apk
-          retention-days: 14
-      - name: Update PR comment with APK
-        uses: marocchino/sticky-pull-request-comment@v2
-        with:
-          header: subaspedia-preview
-          message: |
-            Preview deploy: **${{ needs.deploy.outputs.stage }}**
-
-            - Web: ${{ needs.deploy.outputs.web_url }}
-            - API: ${{ needs.deploy.outputs.api_url }}
-            - APK: ${{ steps.upload.outputs.artifact-url }}
