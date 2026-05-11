@@ -18,7 +18,16 @@ export const api = new sst.cloudflare.Worker("Api", {
         "nodejs_compat",
         "global_fetch_strictly_public",
       ];
-      workerArgs.observability = { enabled: true };
+      workerArgs.observability = {
+        enabled: true,
+        headSamplingRate: 1,
+        logs: {
+          enabled: true,
+          headSamplingRate: 1,
+          persist: true,
+          invocationLogs: true,
+        },
+      };
       auctionDurableObject(workerArgs);
     },
   },
