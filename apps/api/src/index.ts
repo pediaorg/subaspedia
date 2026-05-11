@@ -1,3 +1,4 @@
+import { ORPCError, onError } from "@orpc/server";
 import { RPCHandler } from "@orpc/server/fetch";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
@@ -20,7 +21,19 @@ export type Env = {
 
 const app = new Hono<{ Bindings: Env }>();
 
-const rpcHandler = new RPCHandler(router);
+const rpcHandler = new RPCHandler(router, {
+  interceptors: [
+    onError(error => {
+      if (error instanceof ORPCError) return;
+      console.error("oRPC unhandled error:", {
+        name: (error as Error)?.name,
+        message: (error as Error)?.message,
+        stack: (error as Error)?.stack,
+        cause: (error as { cause?: unknown })?.cause,
+      });
+    }),
+  ],
+});
 
 app.use("*", (c, next) =>
   cors({
