@@ -1,6 +1,6 @@
 import { ORPCError } from "@orpc/server";
 
-import { authed, pub, refreshed } from "@/api/context";
+import { authed, type Context, pub, refreshed } from "@/api/context";
 import { users } from "@/api/db/schema";
 import {
   REFRESH_COOKIE,
@@ -12,13 +12,19 @@ import {
   verifyPassword,
 } from "@/api/lib/auth";
 
-function pushRefreshCookie(
-  context: { cookieJar: { name: string; value: string; options?: object }[] },
-  refreshToken: string,
+function deliverTokens(
+  context: Context,
+  tokens: { accessToken: string; refreshToken: string },
 ) {
+  if (context.clientType === "native") {
+    return {
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+    };
+  }
   context.cookieJar.push({
     name: REFRESH_COOKIE,
-    value: refreshToken,
+    value: tokens.refreshToken,
     options: {
       httpOnly: true,
       secure: true,
@@ -27,6 +33,7 @@ function pushRefreshCookie(
       path: "/",
     },
   });
+  return { accessToken: tokens.accessToken, refreshToken: undefined };
 }
 
 export const authRouter = {
@@ -45,8 +52,7 @@ export const authRouter = {
       .returning({ id: users.id });
 
     const tokens = await issueTokens(created.id, context.jwtSecret);
-    pushRefreshCookie(context, tokens.refreshToken);
-    return { accessToken: tokens.accessToken };
+    return deliverTokens(context, tokens);
   }),
 
   login: pub.input(credentials).handler(async ({ context, input }) => {
@@ -64,8 +70,7 @@ export const authRouter = {
       });
 
     const tokens = await issueTokens(user.id, context.jwtSecret);
-    pushRefreshCookie(context, tokens.refreshToken);
-    return { accessToken: tokens.accessToken };
+    return deliverTokens(context, tokens);
   }),
 
   refresh: refreshed.handler(async ({ context }) => {

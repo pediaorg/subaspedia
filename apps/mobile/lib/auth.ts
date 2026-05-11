@@ -1,13 +1,38 @@
+import * as SecureStore from "expo-secure-store";
 import { useSyncExternalStore } from "react";
+import { Platform } from "react-native";
 
-const STORAGE_KEY = "subaspedia:access_token";
+const ACCESS_KEY = "subaspedia_access_token";
+const REFRESH_KEY = "subaspedia_refresh_token";
 
-function read(): string | null {
-  if (typeof localStorage === "undefined") return null;
-  return localStorage.getItem(STORAGE_KEY);
-}
+const isWeb = Platform.OS === "web";
+const hasLocalStorage = typeof localStorage !== "undefined";
 
-let current: string | null = read();
+const storage = {
+  get: (k: string): string | null => {
+    if (isWeb) {
+      return hasLocalStorage ? localStorage.getItem(k) : null;
+    }
+    return SecureStore.getItem(k);
+  },
+  set: (k: string, v: string) => {
+    if (isWeb && hasLocalStorage) return localStorage.setItem(k, v);
+
+    SecureStore.setItem(k, v);
+  },
+  del: (k: string) => {
+    if (isWeb && hasLocalStorage) return localStorage.removeItem(k);
+
+    SecureStore.deleteItemAsync(k);
+  },
+};
+
+type Tokens = { accessToken: string | null; refreshToken: string | null };
+
+let current: Tokens = {
+  accessToken: storage.get(ACCESS_KEY),
+  refreshToken: isWeb ? null : storage.get(REFRESH_KEY),
+};
 const listeners = new Set<() => void>();
 
 function emit() {
@@ -16,12 +41,21 @@ function emit() {
 
 export const authStore = {
   get: () => current,
-  getAccessToken: () => current,
-  set: (accessToken: string | null) => {
-    current = accessToken;
-    if (typeof localStorage !== "undefined") {
-      if (accessToken) localStorage.setItem(STORAGE_KEY, accessToken);
-      else localStorage.removeItem(STORAGE_KEY);
+  getAccessToken: () => current.accessToken,
+  getRefreshToken: () => current.refreshToken,
+  set: (tokens: { accessToken: string; refreshToken?: string } | null) => {
+    if (tokens) {
+      current = {
+        accessToken: tokens.accessToken,
+        refreshToken: isWeb ? null : (tokens.refreshToken ?? null),
+      };
+      storage.set(ACCESS_KEY, tokens.accessToken);
+      if (!isWeb && tokens.refreshToken)
+        storage.set(REFRESH_KEY, tokens.refreshToken);
+    } else {
+      current = { accessToken: null, refreshToken: null };
+      storage.del(ACCESS_KEY);
+      if (!isWeb) storage.del(REFRESH_KEY);
     }
     emit();
   },
@@ -32,10 +66,9 @@ export const authStore = {
 };
 
 export function useAuth() {
-  const token = useSyncExternalStore(
-    authStore.subscribe,
-    authStore.get,
-    () => null,
-  );
-  return { accessToken: token, isAuthed: !!token };
+  const t = useSyncExternalStore(authStore.subscribe, authStore.get, () => ({
+    accessToken: null,
+    refreshToken: null,
+  }));
+  return { accessToken: t.accessToken, isAuthed: !!t.accessToken };
 }

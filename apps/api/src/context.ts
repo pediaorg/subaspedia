@@ -14,6 +14,8 @@ export type Context = {
   jwtSecret: string;
   authHeader: string | null;
   refreshCookie: string | null;
+  refreshHeader: string | null;
+  clientType: "web" | "native";
   cookieJar: CookieDirective[];
 };
 
@@ -24,7 +26,9 @@ function requireJwt(expectedType: JWTPayload["type"]) {
     const token =
       expectedType === "access"
         ? BEARER_TOKEN.safeParse(context.authHeader)
-        : getRefreshCookieSafely(context.refreshCookie);
+        : getRefreshCookieSafely(
+            context.refreshCookie ?? context.refreshHeader,
+          );
 
     if (token.error || !token.data)
       throw new ORPCError("UNAUTHORIZED", { message: "Token requerido" });

@@ -42,6 +42,8 @@ app.use("/rpc/*", async (c, next) => {
       jwtSecret: c.env.JWT_SECRET,
       authHeader: c.req.header("Authorization") ?? null,
       refreshCookie: parseRefreshCookie(c.req.header("Cookie") ?? null),
+      refreshHeader: c.req.header("X-Refresh-Token") ?? null,
+      clientType: c.req.header("X-Client") === "native" ? "native" : "web",
       cookieJar,
     },
   });
