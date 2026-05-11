@@ -3,15 +3,16 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { secureHeaders } from "hono/secure-headers";
 
-import { createDb } from "./db";
-import { AuctionRoom } from "./durable-objects/auction";
-import { router } from "./rpc";
+import { createDb } from "@/api/db";
+import { AuctionRoom } from "@/api/durable-objects/auction";
+import { router } from "@/api/rpc";
 
 export { AuctionRoom };
 
 export type Env = {
   DB: D1Database;
   AUCTION_ROOM: DurableObjectNamespace<AuctionRoom>;
+  JWT_SECRET: string;
 };
 
 const app = new Hono<{ Bindings: Env }>();
@@ -28,6 +29,8 @@ app.use("/rpc/*", async (c, next) => {
     prefix: "/rpc",
     context: {
       db: createDb(c.env.DB),
+      jwtSecret: c.env.JWT_SECRET,
+      authHeader: c.req.header("Authorization") ?? null,
     },
   });
 
