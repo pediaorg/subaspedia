@@ -118,7 +118,11 @@ jobs:
           STAGE: ${{ needs.deploy.outputs.stage }}
         run: |
           DB_NAME="subaspedia-$STAGE"
-          DB_ID=$(pnpm wrangler d1 list --json | jq -r --arg n "$DB_NAME" '.[] | select(.name==$n) | .uuid')
+          ALL=$(pnpm --silent --filter @subaspedia/api exec wrangler d1 list --json 2>/dev/null)
+          echo "::group::wrangler raw output"
+          echo "$ALL"
+          echo "::endgroup::"
+          DB_ID=$(echo "$ALL" | jq -r --arg n "$DB_NAME" '.[] | select(.name==$n) | .uuid')
           if [ -z "$DB_ID" ] || [ "$DB_ID" = "null" ]; then
             echo "::error::No existe la D1 '$DB_NAME'."
             exit 1

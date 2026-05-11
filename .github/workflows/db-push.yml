@@ -3,13 +3,13 @@ name: DB push
 on:
   workflow_dispatch:
     inputs:
-      stage:
-        description: Stage cuya D1 pushear (production, pr-foo, juani, ...)
+      branch:
+        description: Nombre de la rama del PR (ej. feat/auth). Para production pasá 'production'.
         required: true
         type: string
 
 concurrency:
-  group: db-push-${{ inputs.stage }}
+  group: db-push-${{ inputs.branch }}
   cancel-in-progress: false
 
 permissions:
@@ -29,15 +29,32 @@ jobs:
         with:
           node-version: 24
           cache: pnpm
-      - run: pnpm install --frozen-lockfile
+      - run: pnpm install --frozen-lockfile --prefer-offline
+
+      - name: Compute stage
+        id: stage
+        env:
+          BRANCH: ${{ inputs.branch }}
+        run: |
+          if [ "$BRANCH" = "production" ]; then
+            STAGE="production"
+          else
+            SLUG=$(printf '%s' "$BRANCH" | tr '[:upper:]' '[:lower:]' | sed 's|[^a-z0-9]|-|g' | cut -c1-32 | sed 's|-$||')
+            STAGE="pr-$SLUG"
+          fi
+          echo "stage=$STAGE" >> "$GITHUB_OUTPUT"
 
       - name: Resolve D1 database id
         id: d1
         env:
-          STAGE: ${{ inputs.stage }}
+          STAGE: ${{ steps.stage.outputs.stage }}
         run: |
           DB_NAME="subaspedia-$STAGE"
-          DB_ID=$(pnpm wrangler d1 list --json | jq -r --arg n "$DB_NAME" '.[] | select(.name==$n) | .uuid')
+          ALL=$(pnpm --silent --filter @subaspedia/api exec wrangler d1 list --json 2>/dev/null)
+          echo "::group::wrangler raw output"
+          echo "$ALL"
+          echo "::endgroup::"
+          DB_ID=$(echo "$ALL" | jq -r --arg n "$DB_NAME" '.[] | select(.name==$n) | .uuid')
           if [ -z "$DB_ID" ] || [ "$DB_ID" = "null" ]; then
             echo "::error::No existe la D1 '$DB_NAME'. Deployala primero."
             exit 1
