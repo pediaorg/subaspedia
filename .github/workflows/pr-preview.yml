@@ -83,6 +83,7 @@ jobs:
       - name: SST deploy preview
         env:
           STAGE: ${{ steps.stage.outputs.stage }}
+          SST_DO_BOOTSTRAP: ${{ (github.event.action == 'opened' || github.event.action == 'reopened' || github.event_name == 'workflow_dispatch') && '1' || '' }}
         run: pnpm sst deploy --stage "$STAGE" --print-logs
 
       - name: Comment preview URLs (APK building)

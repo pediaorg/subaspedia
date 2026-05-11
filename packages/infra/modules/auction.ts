@@ -4,9 +4,11 @@ export const AUCTION_DO_CLASS = "AuctionRoom";
 export function auctionDurableObject(
   workerArgs: cloudflare.WorkersScriptArgs,
 ): void {
-  workerArgs.migrations = {
-    steps: [{ newSqliteClasses: [AUCTION_DO_CLASS] }],
-  };
+  if (process.env.SST_DO_BOOTSTRAP === "1") {
+    workerArgs.migrations = {
+      steps: [{ newSqliteClasses: [AUCTION_DO_CLASS] }],
+    };
+  }
   workerArgs.bindings = $output(workerArgs.bindings).apply(existing => [
     ...(existing ?? []),
     {
