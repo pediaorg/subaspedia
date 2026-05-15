@@ -74,13 +74,13 @@ export default function PostProduct() {
           Subastar un producto
         </Text>
 
-        <Separator className="bg-[#D9D9D9]" />
+        <Separator className="bg-gray-300" />
 
-        <View className="bg-[#748EA2] drop-shadow-md/40 flex-row items-center gap-2 rounded-lg p-3">
+        <View className="bg-warning drop-shadow-md/40 flex-row items-center gap-2 rounded-lg p-3">
           <Alert
             icon={Info}
             iconClassName="text-white"
-            className="border-none items-center"
+            className="border-none items-center bg-transparent"
           >
             <AlertTitle className="text-white">
               La empresa puede designar una colección cuando el lote tiene
@@ -99,7 +99,7 @@ export default function PostProduct() {
                 value={name}
                 onChangeText={setName}
                 placeholder="Ej. Cuadro firmado"
-                className="bg-[#BBDEFC] border-none"
+                className="bg-secundary border-none"
               />
             </Field>
 
@@ -108,7 +108,7 @@ export default function PostProduct() {
                 value={category}
                 onValueChange={option => setCategory(option ?? undefined)}
               >
-                <SelectTrigger className="w-full bg-[#BBDEFC] border-none">
+                <SelectTrigger className="w-full bg-secundary border-none">
                   <SelectValue placeholder="Seleccionar categoría" />
                 </SelectTrigger>
                 <SelectContent className="bg-white border-none drop-shadow-lg">
@@ -128,7 +128,7 @@ export default function PostProduct() {
                   onChangeText={setStock}
                   keyboardType="number-pad"
                   placeholder="0"
-                  className="bg-[#BBDEFC] border-none"
+                  className="bg-secundary border-none"
                 />
               </Field>
               <Field label="Precio" className="flex-1">
@@ -137,7 +137,7 @@ export default function PostProduct() {
                   onChangeText={setPrice}
                   keyboardType="decimal-pad"
                   placeholder="0,00"
-                  className="bg-[#BBDEFC] border-none"
+                  className="bg-secundary border-none"
                 />
               </Field>
             </View>
@@ -147,13 +147,13 @@ export default function PostProduct() {
                 value={description}
                 onChangeText={setDescription}
                 placeholder="Detalles del objeto"
-                className="bg-[#BBDEFC] border-none"
+                className="bg-secundary border-none"
               />
             </Field>
           </CardContent>
         </Card>
 
-        <Card className="bg-[#1E88E5] drop-shadow-md/40 border-none">
+        <Card className="bg-primary drop-shadow-md/40 border-none">
           <CardHeader className="flex-row items-center justify-between">
             <CardTitle className="text-white text-2xl font-bold">
               Imágenes
@@ -197,13 +197,13 @@ export default function PostProduct() {
                 value={interest}
                 onChangeText={setInterest}
                 placeholder="Ej. firmado por el autor"
-                className="bg-[#BBDEFC] border-none"
+                className="bg-secundary border-none"
               />
             </Field>
           </CardContent>
         </Card>
 
-        <Card className="bg-[#1E88E5] drop-shadow-md/40 border-none">
+        <Card className="bg-primary drop-shadow-md/40 border-none">
           <CardHeader>
             <CardTitle className="text-2xl font-bold text-white">
               Términos y condiciones
@@ -212,7 +212,7 @@ export default function PostProduct() {
           <CardContent className="gap-3">
             <CheckRow checked={acceptConditions} onChange={setAcceptConditions}>
               Acepto las{" "}
-              <Text className="text-primary text-sm underline">
+              <Text className="text-white text-sm underline">
                 condiciones operativas
               </Text>{" "}
               de proceso de subasta.
@@ -235,14 +235,14 @@ export default function PostProduct() {
             // submit
           }}
           size="lg"
-          className="bg-[#0D47A1] border-0 rounded-2xl py-4 shadow-none focus:outline-none focus-visible:ring-0 focus-visible:border-transparent"
+          className="bg-accent-foreground border-0 rounded-2xl py-4 shadow-none focus:outline-none focus-visible:ring-0 focus-visible:border-transparent"
         >
           <Text className="text-white font-bold text-base">
             Enviar a revisión
           </Text>
         </Button>
 
-        <Text className="text-[#0D47A1] text-center text-xs">
+        <Text className="text-accent-foreground text-center text-xs">
           La publicación quedará pendiente hasta que un agente de la plataforma
           la revise.
         </Text>
