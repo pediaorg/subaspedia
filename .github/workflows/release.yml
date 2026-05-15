@@ -44,6 +44,8 @@ jobs:
             echo "no sst.log found"
           fi
       - name: SST deploy
+        env:
+          SST_DO_BOOTSTRAP: ${{ github.event_name == 'workflow_dispatch' && '1' || '' }}
         run: pnpm sst deploy --stage production --print-logs
 
   release:

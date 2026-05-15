@@ -1,19 +1,19 @@
-name: PR reset
+name: Stage reset
 
 on:
   workflow_dispatch:
     inputs:
       branch:
-        description: Nombre de la rama del PR (ej. feat/auth)
+        description: Rama del PR (ej. feat/auth). Para resetear production, pasá 'main', 'master' o 'production'.
         required: true
         type: string
       confirm:
-        description: Reescribí el nombre de la rama para confirmar
+        description: Reescribí el nombre exacto para confirmar
         required: true
         type: string
 
 concurrency:
-  group: pr-reset-${{ inputs.branch }}
+  group: stage-reset-${{ inputs.branch }}
   cancel-in-progress: false
 
 permissions:
@@ -42,12 +42,15 @@ jobs:
         env:
           BRANCH: ${{ inputs.branch }}
         run: |
-          SLUG=$(printf '%s' "$BRANCH" | tr '[:upper:]' '[:lower:]' | sed 's|[^a-z0-9]|-|g' | cut -c1-32 | sed 's|-$||')
-          STAGE="pr-$SLUG"
-          if [ "$STAGE" = "pr-main" ] || [ "$STAGE" = "pr-master" ] || [ "$STAGE" = "pr-production" ]; then
-            echo "::error::No se puede resetear el stage '$STAGE'."
-            exit 1
-          fi
+          case "$BRANCH" in
+            main|master|production)
+              STAGE="production"
+              ;;
+            *)
+              SLUG=$(printf '%s' "$BRANCH" | tr '[:upper:]' '[:lower:]' | sed 's|[^a-z0-9]|-|g' | cut -c1-32 | sed 's|-$||')
+              STAGE="pr-$SLUG"
+              ;;
+          esac
           echo "stage=$STAGE" >> "$GITHUB_OUTPUT"
 
       - uses: actions/checkout@v4

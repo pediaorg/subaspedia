@@ -12,6 +12,13 @@ import {
 const boolean = (name?: string) =>
   name ? integer(name, { mode: "boolean" }) : integer({ mode: "boolean" });
 
+export const users = sqliteTable("users", {
+  id: integer().primaryKey({ autoIncrement: true }),
+  email: text().notNull().unique(),
+  passwordHash: text("password_hash").notNull(),
+  createdAt: text("created_at").notNull().default(sql`(current_timestamp)`),
+});
+
 export const countries = sqliteTable("countries", {
   id: integer().notNull().primaryKey(),
   name: text().notNull(),
