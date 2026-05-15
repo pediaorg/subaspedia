@@ -3,6 +3,7 @@ import { defineRelations } from "drizzle-orm";
 import * as schema from "./schema";
 
 export const relations = defineRelations(schema, r => ({
+  users: {},
   countries: {
     clients: r.many.clients(),
     owners: r.many.owners(),
