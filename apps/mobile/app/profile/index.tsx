@@ -19,11 +19,7 @@ import { Separator } from "@/components/ui/separator";
 
 export default function Profile() {
   return (
-    <View className="flex-1 gap-6 py-16">
-      {/* header */}
-      <View>
-        <Text>header</Text>
-      </View>
+    <View className="flex-1 gap-6">
       <View>
         {/* card de profile */}
         <View className="relative">
