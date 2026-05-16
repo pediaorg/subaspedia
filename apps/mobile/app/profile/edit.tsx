@@ -1,6 +1,7 @@
 import { CameraIcon } from "lucide-react-native";
 import { Text, View } from "react-native";
 
+import EditData from "@/components/profile/edit/edit-data";
 import { Avatar, AvatarImage } from "@/components/ui/avatar";
 import { Card } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -39,40 +40,46 @@ export default function EditProfile() {
             {/* Datos personales */}
             <View className="">
               <Text className="font-bold text-lg">Personal</Text>
-              <View className="grid grid-cols-2 gap-10 w-full">
-                <View className="flex-col items-start">
-                  <Label
-                    nativeID="name"
-                    className="font-bold color-gray-400 text-xs"
-                  >
-                    Nombre
-                  </Label>
-                  <input
-                    aria-labelledby="name"
-                    type="text"
-                    placeholder="Juan"
-                    className="bg-blue-200 w-32 rounded-lg px-2"
-                  />
-                </View>
-                <View className="flex-col items-start">
-                  <Label
-                    nativeID="surname"
-                    className="font-bold color-gray-400 text-xs"
-                  >
-                    Apellido
-                  </Label>
-                  <input
-                    aria-labelledby="surname"
-                    type="text"
-                    placeholder="Casareski"
-                    className="bg-blue-200 w-32 rounded-lg px-2"
-                  />
-                </View>
+              <View className="grid grid-cols-2 gap-6 w-full">
+                <EditData
+                  label={"Nombre"}
+                  placeholder={"Juan"}
+                  nativeID={"name"}
+                  type={"text"}
+                />
+                <EditData
+                  label={"Apellido"}
+                  placeholder={"Casareski"}
+                  nativeID={"surname"}
+                  type={"text"}
+                />
+                <EditData
+                  label={"Dirección Legal"}
+                  placeholder={"Lima 970"}
+                  nativeID={"dir"}
+                  type={"text"}
+                />
+                <EditData
+                  label={"País"}
+                  placeholder={"Mendoza"}
+                  nativeID={"country"}
+                  type={"text"}
+                />
               </View>
             </View>
 
             {/* Correo y contraseña */}
-            <View></View>
+            <View>
+              <Text className="font-bold text-lg">
+                Correo electrónico y contraseña
+              </Text>
+              <EditData
+                label={"Correo electrónico"}
+                placeholder={"Juan@casablanca"}
+                nativeID={"email"}
+                type={"email"}
+              />
+            </View>
           </View>
         </Card>
       </View>
