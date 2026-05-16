@@ -1,13 +1,34 @@
-import { ActivityIndicator, FlatList, Text, View } from "react-native";
+import {
+  ActivityIndicator,
+  FlatList,
+  Pressable,
+  Text,
+  View,
+} from "react-native";
 
 import { api } from "@/lib/api";
+import { authStore } from "@/lib/auth";
+import { queryClient } from "@/lib/query-client";
 
 export default function HomeScreen() {
   const { data, isLoading, error } = api.countries.list.useQuery();
 
+  const logout = () => {
+    authStore.set(null);
+    queryClient.clear();
+  };
+
   return (
     <View className="flex-1 bg-white p-4">
-      <Text className="text-2xl font-bold mb-4">Subaspedia</Text>
+      <View className="flex-row items-center justify-between mb-4">
+        <Text className="text-2xl font-bold">Subaspedia</Text>
+        <Pressable
+          className="px-3 py-1.5 rounded-md bg-red-500"
+          onPress={logout}
+        >
+          <Text className="text-white font-semibold">Salir</Text>
+        </Pressable>
+      </View>
 
       {isLoading && <ActivityIndicator />}
       {error && <Text className="text-red-500">Error: {error.message}</Text>}
