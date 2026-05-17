@@ -1,8 +1,9 @@
-import { TextClassContext } from "@/components/ui/text";
-import { cn } from "@/lib/utils";
 import type { LucideIcon, LucideProps } from "lucide-react-native";
 import { styled } from "nativewind";
 import * as React from "react";
+
+import { TextClassContext } from "@/components/ui/text";
+import { cn } from "@/lib/utils";
 
 type IconProps = LucideProps & {
   as: LucideIcon;
@@ -15,10 +16,10 @@ function IconImpl({ as: IconComponent, ...props }: IconProps) {
 const StyledIconImpl = styled(IconImpl, {
   className: {
     target: "style",
-    nativeStyleToProp: {
+    nativeStyleMapping: {
       height: "size",
       width: "size",
-    },
+    } as const,
   },
 });
 
