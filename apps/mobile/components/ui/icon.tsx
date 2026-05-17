@@ -1,7 +1,7 @@
 import { TextClassContext } from "@/components/ui/text";
 import { cn } from "@/lib/utils";
 import type { LucideIcon, LucideProps } from "lucide-react-native";
-import { styled } from "nativewind";
+import { cssInterop } from "nativewind";
 import * as React from "react";
 
 type IconProps = LucideProps & {
@@ -12,7 +12,7 @@ function IconImpl({ as: IconComponent, ...props }: IconProps) {
   return <IconComponent {...props} />;
 }
 
-const StyledIconImpl = styled(IconImpl, {
+cssInterop(IconImpl, {
   className: {
     target: "style",
     nativeStyleToProp: {
@@ -50,7 +50,7 @@ function Icon({
 }: IconProps) {
   const textClass = React.useContext(TextClassContext);
   return (
-    <StyledIconImpl
+    <IconImpl
       as={IconComponent}
       className={cn("text-foreground", textClass, className)}
       size={size}
