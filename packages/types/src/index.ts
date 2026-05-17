@@ -17,5 +17,3 @@ export const PRODUCT_CATEGORIES = [
   { value: auctionCategory.enum.gold, label: "Oro" },
   { value: auctionCategory.enum.platinum, label: "Platino" },
 ] as { value: AuctionCategory; label: string }[];
-
-export * from "./forms";
