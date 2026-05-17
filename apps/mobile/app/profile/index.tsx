@@ -2,6 +2,7 @@ import { Link } from "expo-router";
 import {
   CircleStarIcon,
   FileJson2Icon,
+  LucideHammer,
   Package,
   Pencil,
   Settings,
@@ -11,11 +12,14 @@ import {
 import { Pressable, Text, View } from "react-native";
 
 import { MenuItem } from "@/components/profile/menu-item";
+import RankBadge from "@/components/profile/rank-badge";
 import { StatCard } from "@/components/profile/stat-card";
 import { Avatar, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+
+type Tier = "comun" | "especial" | "plata" | "oro" | "platino";
 
 export default function Profile() {
   return (
@@ -52,12 +56,11 @@ export default function Profile() {
                 </Text>
                 <Text className="text-gray-300">jcasareski@uade.edu.ar</Text>
               </View>
-              <Badge className="self-start flex-row justify-between mt-1.5 h-5 w-24 bg-amber-300">
-                {" "}
-                {/*Aca, tendría que recibir un parametro para el color y la tag*/}
-                <CircleStarIcon className="aboslute size-4" />
-                <Text className="font-bold text-xs">BRONCE</Text>
-              </Badge>
+              <Link href="/rank" asChild>
+                <Pressable className="active:opacity-60">
+                  <RankBadge tier="platino" />
+                </Pressable>
+              </Link>
             </View>
             <View className="flex-row gap-5 ">
               <StatCard value={8} label="Cantidad de subastas" />
@@ -85,7 +88,7 @@ export default function Profile() {
             link="/profile/products"
           />
           <MenuItem
-            icon={FileJson2Icon}
+            icon={LucideHammer}
             label="subastas"
             link="/profile/auctions"
           />
