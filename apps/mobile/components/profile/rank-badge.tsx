@@ -36,7 +36,7 @@ export default function RankBadge({ tier }: BadgeProps) {
       className={`self-start relative flex-row justify-between  mt-1.5 h-5 w-24 ${config.containerClass}`}
     >
       <Star className=" absolute  size-4" />
-      <Text className={`font-bold ml-6 text-xs ${config.textClass}`}>
+      <Text className={`font-bold ml-6  text-xs ${config.textClass}`}>
         {config.label}
       </Text>
     </Badge>
