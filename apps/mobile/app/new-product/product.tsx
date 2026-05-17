@@ -1,9 +1,18 @@
+import { zodResolver } from "@hookform/resolvers/zod";
 import { Stack } from "expo-router";
-import { Info, Plus, Terminal } from "lucide-react-native";
+import { Info, Plus } from "lucide-react-native";
 import * as React from "react";
+import { Controller, useForm } from "react-hook-form";
 import { Pressable, ScrollView, View } from "react-native";
 
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import {
+  MIN_PRODUCT_IMAGES,
+  type NewProductFormInput,
+  type NewProductFormOutput,
+  newProductSchema,
+  PRODUCT_CATEGORIES,
+} from "@subaspedia/types";
+import { Alert, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -21,46 +30,50 @@ import { Separator } from "@/components/ui/separator";
 import { Text } from "@/components/ui/text";
 import { Textarea } from "@/components/ui/textarea";
 
-const MIN_IMAGES = 6;
-
-const CATEGORIES = [
-  { value: "common", label: "Común" },
-  { value: "special", label: "Especial" },
-  { value: "silver", label: "Plata" },
-  { value: "gold", label: "Oro" },
-  { value: "platinum", label: "Platino" },
-];
-
 export default function PostProduct() {
-  const [name, setName] = React.useState("");
-  const [category, setCategory] = React.useState<{
-    value: string;
-    label: string;
-  }>();
-  const [stock, setStock] = React.useState("");
-  const [price, setPrice] = React.useState("");
-  const [description, setDescription] = React.useState("");
-  const [interest, setInterest] = React.useState("");
-  const [images, setImages] = React.useState<
-    { id: string; uri: string | null }[]
-  >(() =>
-    Array.from({ length: MIN_IMAGES }, (_, i) => ({
-      id: `slot-${i}`,
-      uri: null,
-    })),
-  );
-  const [acceptConditions, setAcceptConditions] = React.useState(false);
-  const [acceptTerms, setAcceptTerms] = React.useState(false);
-  const [acceptLegally, setAcceptLegally] = React.useState(false);
+  const { control, handleSubmit, watch, setValue, formState } = useForm<
+    NewProductFormInput,
+    unknown,
+    NewProductFormOutput
+  >({
+    resolver: zodResolver(newProductSchema),
+    mode: "onChange",
+    defaultValues: {
+      name: "",
+      stock: "",
+      price: "",
+      description: "",
+      interest: "",
+      images: [],
+      acceptConditions: false,
+      acceptLegally: false,
+      acceptTerms: false,
+    },
+  });
 
-  const filledImages = images.filter(img => img.uri).length;
-  const canSubmit =
-    !!name.trim() &&
-    !!category &&
-    !!price.trim() &&
-    acceptConditions &&
-    acceptTerms &&
-    acceptLegally;
+  const images = watch("images") ?? [];
+  const slots = React.useMemo(
+    () =>
+      Array.from({ length: MIN_PRODUCT_IMAGES }, (_, i) => ({
+        id: `slot-${i}`,
+        uri: images[i] ?? null,
+      })),
+    [images],
+  );
+
+  const toggleSlot = (index: number) => {
+    const next = [...images];
+    if (next[index]) {
+      next.splice(index, 1);
+    } else {
+      next[index] = "placeholder";
+    }
+    setValue("images", next.filter(Boolean), { shouldValidate: true });
+  };
+
+  const onSubmit = (data: NewProductFormOutput) => {
+    console.log("submit", data);
+  };
 
   return (
     <>
@@ -94,62 +107,118 @@ export default function PostProduct() {
             <CardTitle className="text-2xl font-bold">Datos</CardTitle>
           </CardHeader>
           <CardContent className="gap-4">
-            <Field label="Nombre del objeto">
-              <Input
-                value={name}
-                onChangeText={setName}
-                placeholder="Ej. Cuadro firmado"
-                className="bg-secundary border-none"
-              />
-            </Field>
+            <Controller
+              control={control}
+              name="name"
+              render={({ field, fieldState }) => (
+                <Field
+                  label="Nombre del objeto"
+                  error={fieldState.error?.message}
+                >
+                  <Input
+                    value={field.value}
+                    onChangeText={field.onChange}
+                    onBlur={field.onBlur}
+                    placeholder="Ej. Cuadro firmado"
+                    className="bg-secundary border-none"
+                  />
+                </Field>
+              )}
+            />
 
-            <Field label="Categoría">
-              <Select
-                value={category}
-                onValueChange={option => setCategory(option ?? undefined)}
-              >
-                <SelectTrigger className="w-full bg-secundary border-none">
-                  <SelectValue placeholder="Seleccionar categoría" />
-                </SelectTrigger>
-                <SelectContent className="bg-white border-none drop-shadow-lg">
-                  {CATEGORIES.map(c => (
-                    <SelectItem key={c.value} value={c.value} label={c.label}>
-                      {c.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </Field>
+            <Controller
+              control={control}
+              name="category"
+              render={({ field, fieldState }) => {
+                const selected = PRODUCT_CATEGORIES.find(
+                  c => c.value === field.value,
+                );
+                return (
+                  <Field label="Categoría" error={fieldState.error?.message}>
+                    <Select
+                      value={selected}
+                      onValueChange={option =>
+                        field.onChange(option?.value ?? undefined)
+                      }
+                    >
+                      <SelectTrigger className="w-full bg-secundary border-none">
+                        <SelectValue placeholder="Seleccionar categoría" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-white border-none drop-shadow-lg">
+                        {PRODUCT_CATEGORIES.map(c => (
+                          <SelectItem
+                            key={c.value}
+                            value={c.value}
+                            label={c.label}
+                          >
+                            {c.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                );
+              }}
+            />
 
             <View className="flex-row gap-3">
-              <Field label="Número" className="flex-1">
-                <Input
-                  value={stock}
-                  onChangeText={setStock}
-                  keyboardType="number-pad"
-                  placeholder="0"
-                  className="bg-secundary border-none"
-                />
-              </Field>
-              <Field label="Precio" className="flex-1">
-                <Input
-                  value={price}
-                  onChangeText={setPrice}
-                  keyboardType="decimal-pad"
-                  placeholder="0,00"
-                  className="bg-secundary border-none"
-                />
-              </Field>
+              <Controller
+                control={control}
+                name="stock"
+                render={({ field, fieldState }) => (
+                  <Field
+                    label="Número"
+                    className="flex-1"
+                    error={fieldState.error?.message}
+                  >
+                    <Input
+                      value={field.value}
+                      onChangeText={field.onChange}
+                      onBlur={field.onBlur}
+                      keyboardType="number-pad"
+                      placeholder="0"
+                      className="bg-secundary border-none"
+                    />
+                  </Field>
+                )}
+              />
+              <Controller
+                control={control}
+                name="price"
+                render={({ field, fieldState }) => (
+                  <Field
+                    label="Precio"
+                    className="flex-1"
+                    error={fieldState.error?.message}
+                  >
+                    <Input
+                      value={field.value}
+                      onChangeText={field.onChange}
+                      onBlur={field.onBlur}
+                      keyboardType="decimal-pad"
+                      placeholder="0,00"
+                      className="bg-secundary border-none"
+                    />
+                  </Field>
+                )}
+              />
             </View>
 
-            <Field label="Descripción">
-              <Textarea
-                value={description}
-                onChangeText={setDescription}
-                placeholder="Detalles del objeto"
-                className="bg-secundary border-none"
-              />
-            </Field>
+            <Controller
+              control={control}
+              name="description"
+              render={({ field, fieldState }) => (
+                <Field label="Descripción" error={fieldState.error?.message}>
+                  <Textarea
+                    value={field.value}
+                    onChangeText={field.onChange}
+                    onBlur={field.onBlur}
+                    placeholder="Detalles del objeto"
+                    className="bg-secundary border-none"
+                  />
+                </Field>
+              )}
+            />
           </CardContent>
         </Card>
 
@@ -158,30 +227,29 @@ export default function PostProduct() {
             <CardTitle className="text-white text-2xl font-bold">
               Imágenes
             </CardTitle>
-            <Text className="text-white text-sm">mín. {MIN_IMAGES}</Text>
+            <Text className="text-white text-sm">
+              mín. {MIN_PRODUCT_IMAGES}
+            </Text>
           </CardHeader>
           <CardContent className="gap-3">
             <View className="flex-row flex-wrap gap-3">
-              {images.map(slot => (
+              {slots.map((slot, i) => (
                 <ImageSlot
                   key={slot.id}
                   uri={slot.uri}
-                  onPress={() => {
-                    setImages(prev =>
-                      prev.map(s =>
-                        s.id === slot.id
-                          ? { ...s, uri: s.uri ? null : "placeholder" }
-                          : s,
-                      ),
-                    );
-                  }}
+                  onPress={() => toggleSlot(i)}
                 />
               ))}
             </View>
             <Text className="text-white text-xs">
-              Seleccioná hasta {MIN_IMAGES} imágenes del producto. (
-              {filledImages}/{MIN_IMAGES})
+              Seleccioná hasta {MIN_PRODUCT_IMAGES} imágenes del producto. (
+              {images.length}/{MIN_PRODUCT_IMAGES})
             </Text>
+            {formState.errors.images && (
+              <Text className="text-white text-xs">
+                {formState.errors.images.message}
+              </Text>
+            )}
           </CardContent>
         </Card>
 
@@ -192,14 +260,24 @@ export default function PostProduct() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <Field label="Ingresá un dato importante sobre el objeto">
-              <Input
-                value={interest}
-                onChangeText={setInterest}
-                placeholder="Ej. firmado por el autor"
-                className="bg-secundary border-none"
-              />
-            </Field>
+            <Controller
+              control={control}
+              name="interest"
+              render={({ field, fieldState }) => (
+                <Field
+                  label="Ingresá un dato importante sobre el objeto"
+                  error={fieldState.error?.message}
+                >
+                  <Input
+                    value={field.value}
+                    onChangeText={field.onChange}
+                    onBlur={field.onBlur}
+                    placeholder="Ej. firmado por el autor"
+                    className="bg-secundary border-none"
+                  />
+                </Field>
+              )}
+            />
           </CardContent>
         </Card>
 
@@ -210,30 +288,55 @@ export default function PostProduct() {
             </CardTitle>
           </CardHeader>
           <CardContent className="gap-3">
-            <CheckRow checked={acceptConditions} onChange={setAcceptConditions}>
-              Acepto las{" "}
-              <Text className="text-white text-sm underline">
-                condiciones operativas
-              </Text>{" "}
-              de proceso de subasta.
-            </CheckRow>
-            <CheckRow checked={acceptLegally} onChange={setAcceptLegally}>
-              Declaro que el bien a subastar es de mi propiedad y que no posee
-              ningún impedimento legal, judicial o administrativo para ser
-              subastado
-            </CheckRow>
+            <Controller
+              control={control}
+              name="acceptConditions"
+              render={({ field }) => (
+                <CheckRow
+                  checked={!!field.value}
+                  onChange={v => field.onChange(v as true)}
+                >
+                  Acepto las{" "}
+                  <Text className="text-white text-sm underline">
+                    condiciones operativas
+                  </Text>{" "}
+                  de proceso de subasta.
+                </CheckRow>
+              )}
+            />
+            <Controller
+              control={control}
+              name="acceptLegally"
+              render={({ field }) => (
+                <CheckRow
+                  checked={!!field.value}
+                  onChange={v => field.onChange(v as true)}
+                >
+                  Declaro que el bien a subastar es de mi propiedad y que no
+                  posee ningún impedimento legal, judicial o administrativo para
+                  ser subastado
+                </CheckRow>
+              )}
+            />
             <Separator className="my-1 bg-white" />
-            <CheckRow checked={acceptTerms} onChange={setAcceptTerms}>
-              Acepto los términos y condiciones.
-            </CheckRow>
+            <Controller
+              control={control}
+              name="acceptTerms"
+              render={({ field }) => (
+                <CheckRow
+                  checked={!!field.value}
+                  onChange={v => field.onChange(v as true)}
+                >
+                  Acepto los términos y condiciones.
+                </CheckRow>
+              )}
+            />
           </CardContent>
         </Card>
 
         <Button
-          disabled={!canSubmit}
-          onPress={() => {
-            // submit
-          }}
+          disabled={!formState.isValid || formState.isSubmitting}
+          onPress={handleSubmit(onSubmit)}
           size="lg"
           className="bg-accent-foreground border-0 rounded-2xl py-4 shadow-none focus:outline-none focus-visible:ring-0 focus-visible:border-transparent"
         >
@@ -254,16 +357,19 @@ export default function PostProduct() {
 function Field({
   label,
   className,
+  error,
   children,
 }: {
   label: string;
   className?: string;
+  error?: string;
   children: React.ReactNode;
 }) {
   return (
     <View className={`gap-1.5 ${className ?? ""}`}>
       <Label>{label}</Label>
       {children}
+      {error && <Text className="text-destructive text-xs">{error}</Text>}
     </View>
   );
 }
