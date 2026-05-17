@@ -6,17 +6,7 @@ import EditData from "@/components/profile/edit/edit-data";
 import { Avatar, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-
-type UserProps = {
-  name: string;
-  surname: string;
-  address: string;
-  country: string;
-  email: string;
-  img: string;
-};
 
 export default function EditProfile() {
   const [form, setForm] = useState({
