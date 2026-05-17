@@ -1,15 +1,15 @@
+import * as React from "react";
+import type {
+  FieldErrors,
+  UseFormSetValue,
+  UseFormWatch,
+} from "react-hook-form";
+import { View } from "react-native";
+
 import {
   MIN_PRODUCT_IMAGES,
   type NewProductFormInput,
 } from "@subaspedia/types/forms/new-product";
-import * as React from "react";
-import {
-  type FieldErrors,
-  type UseFormSetValue,
-  type UseFormWatch,
-} from "react-hook-form";
-import { View } from "react-native";
-
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Text } from "@/components/ui/text";
 

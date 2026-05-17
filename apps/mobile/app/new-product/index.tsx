@@ -14,10 +14,10 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Text } from "@/components/ui/text";
 
-import { DataSection } from "./_components/data-section";
-import { ImagesSection } from "./_components/images-section";
-import { InterestSection } from "./_components/interest-section";
-import { TermsSection } from "./_components/terms-section";
+import { DataSection } from "./_/data-section";
+import { ImagesSection } from "./_/images-section";
+import { InterestSection } from "./_/interest-section";
+import { TermsSection } from "./_/terms-section";
 
 export default function PostProduct() {
   const { control, handleSubmit, watch, setValue, formState } = useForm<

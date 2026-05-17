@@ -1,6 +1,6 @@
-import { type NewProductFormInput } from "@subaspedia/types/forms/new-product";
 import { type Control, Controller } from "react-hook-form";
 
+import type { NewProductFormInput } from "@subaspedia/types/forms/new-product";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 
