@@ -5,8 +5,10 @@
     "moduleResolution": "Bundler",
     "strict": true,
     "skipLibCheck": true,
+    "declaration": true,
     "paths": {
-      "@/infra/*": ["./*"]
+      "@/types/*": ["./src/*"]
     }
-  }
+  },
+  "include": ["src/**/*.ts"]
 }
