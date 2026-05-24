@@ -1,39 +1,35 @@
 import { Text } from "react-native";
 
+import type { ProductStatus } from "@subaspedia/types/product";
 import { Badge } from "@/components/ui/badge";
-export type Status =
-  | "revision"
-  | "tasado"
-  | "rechazado"
-  | "aprobado"
-  | "subastado";
-type BadgeProps = { status: Status };
+
+type BadgeProps = { status: ProductStatus };
 
 const BADGE_CONFIG: Record<
-  Status,
+  ProductStatus,
   { label: string; containerClass: string; outlineColor: string }
 > = {
-  revision: {
-    label: "Revisión",
+  under_review: {
+    label: "En revisión",
     containerClass: "bg-[#D8D182]",
     outlineColor: "#7A7335",
   },
-  tasado: {
+  appraised: {
     label: "Tasado",
     containerClass: "bg-[#A182D8]",
     outlineColor: "#4B3D75",
   },
-  rechazado: {
+  rejected: {
     label: "Rechazado",
     containerClass: "bg-[#D88F82]",
     outlineColor: "#7A4239",
   },
-  aprobado: {
+  approved: {
     label: "Aprobado",
     containerClass: "bg-[#93D882]",
     outlineColor: "#3D7A35",
   },
-  subastado: {
+  auctioned: {
     label: "Subastado",
     containerClass: "bg-[#6E7EF6]",
     outlineColor: "#2B3A99",
