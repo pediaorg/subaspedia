@@ -1,31 +1,56 @@
 import * as ImagePicker from "expo-image-picker";
+import { router } from "expo-router";
 import { CameraIcon } from "lucide-react-native";
 import { useState } from "react";
 import { Alert, Pressable, Text, View } from "react-native";
 
+import type { User } from "@subaspedia/types/user";
 import EditData from "@/components/profile/edit/edit-data";
 import { Avatar, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-
-const DEFAULT_AVATAR_URI =
-  "https://avatars.githubusercontent.com/u/66040481?v=4";
+import { useCurrentUser, useUpdateProfile } from "@/hooks/use-current-user";
+import { DEFAULT_AVATAR_URI } from "@/lib/constants";
 
 export default function EditProfile() {
+  const { data: user } = useCurrentUser();
+  if (!user) return <Text>Cargando…</Text>;
+  return <EditProfileForm user={user} />;
+}
+
+function EditProfileForm({ user }: { user: User }) {
+  const { mutate: updateProfile, isPending } = useUpdateProfile();
   const [form, setForm] = useState({
-    name: "",
-    surname: "",
-    address: "",
-    country: "",
-    email: "",
+    name: user.name ?? "",
+    surname: user.surname ?? "",
+    address: user.address ?? "",
+    country: user.country?.name ?? "",
+    email: user.email,
   });
-  const [avatarUri, setAvatarUri] = useState(DEFAULT_AVATAR_URI);
+  const [avatarUri, setAvatarUri] = useState(
+    user.avatarUrl ?? DEFAULT_AVATAR_URI,
+  );
 
   const handleSave = () => {
-    // TODO: Cambiar por funcionamiento real del back
-    console.log(form);
-    Alert.alert("Guardado", "Los datos se imprimieron en cosola");
+    updateProfile(
+      {
+        name: form.name,
+        surname: form.surname,
+        address: form.address,
+        country: form.country,
+        email: form.email,
+        avatarUrl: avatarUri === DEFAULT_AVATAR_URI ? null : avatarUri,
+      },
+      {
+        onSuccess: () => {
+          router.back();
+        },
+        onError: error => {
+          Alert.alert("Error", error.message);
+        },
+      },
+    );
   };
 
   const takePhoto = async () => {
@@ -75,6 +100,7 @@ export default function EditProfile() {
       { text: "Cancelar", style: "cancel" },
     ]);
   };
+
   return (
     <View className="flex-1 px-4 gap-6">
       {/* Editar perfil */}
@@ -131,6 +157,7 @@ export default function EditProfile() {
                   value={form.address}
                   onChangeText={text => setForm({ ...form, address: text })}
                 />
+                {/* TODO: el conutry no es un string, cambiar */}
                 <EditData
                   label={"País"}
                   placeholder={"Mendoza"}
@@ -162,8 +189,14 @@ export default function EditProfile() {
               </Pressable>
             </View>
           </View>
-          <Button className="w-33 rounded-xl h-8" onPress={handleSave}>
-            <Text className="font-bold color-white text-lg">Guardar</Text>
+          <Button
+            disabled={isPending}
+            className="w-33 rounded-xl h-8"
+            onPress={handleSave}
+          >
+            <Text className="font-bold color-white text-lg">
+              {isPending ? "Guardando..." : "Guardar"}
+            </Text>
           </Button>
         </Card>
       </View>

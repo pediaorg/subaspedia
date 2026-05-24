@@ -1,7 +1,5 @@
 import { Link } from "expo-router";
 import {
-  CircleStarIcon,
-  FileJson2Icon,
   LucideHammer,
   Package,
   Pencil,
@@ -11,17 +9,18 @@ import {
 } from "lucide-react-native";
 import { Pressable, Text, View } from "react-native";
 
+import { isOnboarded } from "@subaspedia/types/user";
 import { MenuItem } from "@/components/profile/menu-item";
 import RankBadge from "@/components/profile/rank-badge";
 import { StatCard } from "@/components/profile/stat-card";
 import { Avatar, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
-
-type Tier = "comun" | "especial" | "plata" | "oro" | "platino";
+import { useCurrentUser } from "@/hooks/use-current-user";
+import { DEFAULT_AVATAR_URI } from "@/lib/constants";
 
 export default function Profile() {
+  const { data: user } = useCurrentUser();
+  if (!user) return <Text>Cargando usuario...</Text>;
   return (
     <View className="flex-1 gap-6">
       <View>
@@ -38,12 +37,12 @@ export default function Profile() {
             }}
           >
             <Avatar
-              alt="@mrzachnugent"
+              alt={`avatar`}
               className="border absolute size-full border-border"
             >
               <AvatarImage
                 source={{
-                  uri: "https://avatars.githubusercontent.com/u/66040481?v=4",
+                  uri: user?.avatarUrl ?? DEFAULT_AVATAR_URI,
                 }}
               ></AvatarImage>
             </Avatar>
@@ -52,20 +51,24 @@ export default function Profile() {
             <View className="mt-16 flex-row gap-2 justify-between">
               <View>
                 <Text className="text-white text-xl font-bold">
-                  Juan I. Casareski
+                  {user &&
+                    (isOnboarded(user)
+                      ? `${user?.name} ${user?.surname}`.trim()
+                      : "Completá tu perfil")}
                 </Text>
-                <Text className="text-gray-300">jcasareski@uade.edu.ar</Text>
+                <Text className="text-gray-300">{user?.email}</Text>
               </View>
-              <Link href="/rank" asChild>
-                <Pressable className="active:opacity-60">
-                  <RankBadge tier="comun" />
-                </Pressable>
-              </Link>
+              {user?.category && (
+                <Link href="/rank" asChild>
+                  <Pressable className="active:opacity-60">
+                    <RankBadge category={user.category} />
+                  </Pressable>
+                </Link>
+              )}
             </View>
             <View className="flex-row gap-5 ">
               <StatCard value={8} label="Cantidad de subastas" />
               <StatCard value={8} label="Subastas ganadas" />
-              <StatCard value={8} label="Categoría favorita" />
             </View>
           </Card>
           <View
@@ -81,31 +84,31 @@ export default function Profile() {
         </View>
         {/* Menu options */}
         <View className="gap-3 mb-9 px-5 py-6">
-          <MenuItem icon={Pencil} label="Editar Perfil" link="/profile/edit" />
+          <MenuItem icon={Pencil} label="Editar Perfil" href="/profile/edit" />
           <MenuItem
             icon={Package}
             label="Mis Productos"
-            link="/profile/products"
+            href="/profile/products"
           />
           <MenuItem
             icon={LucideHammer}
             label="subastas"
-            link="/profile/auctions"
+            href="/profile/auctions"
           />
           <MenuItem
             icon={TriangleAlertIcon}
             label="Multas y pagos"
-            link="/profile/infractions"
+            href="/profile/infractions"
           />
           <MenuItem
             icon={Wallet}
             label="Métodos de Pago"
-            link="/profile/payment-methods"
+            href="/profile/payment-methods"
           />
           <MenuItem
             icon={Settings}
             label="Configuración"
-            link="/profile/settings"
+            href="/profile/settings"
           />
         </View>
       </View>

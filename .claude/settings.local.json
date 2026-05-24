@@ -1,5 +1,5 @@
 {
   "permissions": {
-    "allow": ["Bash(pnpm expo *)"]
+    "allow": ["Bash(pnpm expo *)", "Bash(git mv *)"]
   }
 }

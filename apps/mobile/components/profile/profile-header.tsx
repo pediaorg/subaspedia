@@ -19,8 +19,10 @@ export default function ProfileHeader() {
           <ArrowLeft className="" />
         </View>
       </Pressable>
-      {/* TODO: Remplazar por componente real */}
-      <Menu />
+      <Pressable onPress={() => {}}>
+        {/* TODO: Remplazar por componente real */}
+        <Menu />
+      </Pressable>
     </View>
   );
 }

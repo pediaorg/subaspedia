@@ -7,13 +7,13 @@ import { Separator } from "../ui/separator";
 type MenuItemProps = {
   icon: LucideIcon;
   label: string;
-  link: Href;
+  href: Href;
 };
 
-export function MenuItem({ icon: Icon, label, link }: MenuItemProps) {
+export function MenuItem({ icon: Icon, label, href }: MenuItemProps) {
   return (
     <View className="w-full">
-      <Link href={link} asChild>
+      <Link href={href} asChild>
         <Pressable className="flex-row gap-2 ml-10 active:opacity-60">
           <Icon className="size-8 color-secondary-foreground" />
           <Text className="font-bold text-2xl text-secondary-foreground">
