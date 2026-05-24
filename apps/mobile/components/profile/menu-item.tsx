@@ -15,8 +15,10 @@ export function MenuItem({ icon: Icon, label, link }: MenuItemProps) {
     <View className="w-full">
       <Link href={link} asChild>
         <Pressable className="flex-row gap-2 ml-10 active:opacity-60">
-          <Icon className="color-blue-900 size-8" />
-          <Text className="font-bold text-2xl text-blue-900">{label}</Text>
+          <Icon className="size-8 color-secondary-foreground" />
+          <Text className="font-bold text-2xl text-secondary-foreground">
+            {label}
+          </Text>
         </Pressable>
       </Link>
       <Separator className="mt-3 bg-gray-500" />

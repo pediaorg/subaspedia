@@ -12,7 +12,7 @@ const TIER_CONFIG: Record<
 > = {
   comun: {
     label: "COMUN",
-    containerClass: "bg-black",
+    containerClass: "bg-primary",
     textClass: "text-white",
   },
   especial: {
@@ -33,9 +33,12 @@ export default function RankBadge({ tier }: BadgeProps) {
   const config = TIER_CONFIG[tier];
   return (
     <Badge
-      className={`self-start relative flex-row justify-between  mt-1.5 h-5 w-24 ${config.containerClass}`}
+      className={`self-start relative flex-row justify-between  mt-1.5 h-5 w-24 ${tier === "comun" ? "border-white" : ""} ${config.containerClass}`}
     >
-      <Star className=" absolute  size-4" />
+      <Star
+        className="absolute  size-4"
+        color={tier === "comun" ? "white" : ""}
+      />
       <Text className={`font-bold ml-6  text-xs ${config.textClass}`}>
         {config.label}
       </Text>

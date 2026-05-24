@@ -1,3 +1,4 @@
+import * as ImagePicker from "expo-image-picker";
 import { CameraIcon } from "lucide-react-native";
 import { useState } from "react";
 import { Alert, Pressable, Text, View } from "react-native";
@@ -8,6 +9,9 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 
+const DEFAULT_AVATAR_URI =
+  "https://avatars.githubusercontent.com/u/66040481?v=4";
+
 export default function EditProfile() {
   const [form, setForm] = useState({
     name: "",
@@ -16,10 +20,60 @@ export default function EditProfile() {
     country: "",
     email: "",
   });
+  const [avatarUri, setAvatarUri] = useState(DEFAULT_AVATAR_URI);
+
   const handleSave = () => {
     // TODO: Cambiar por funcionamiento real del back
     console.log(form);
     Alert.alert("Guardado", "Los datos se imprimieron en cosola");
+  };
+
+  const takePhoto = async () => {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== "granted") {
+      Alert.alert(
+        "Permiso denegado",
+        "Necesitamos acceso a la cámara para sacar una foto.",
+      );
+      return;
+    }
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ["images"],
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+    if (!result.canceled) {
+      setAvatarUri(result.assets[0].uri);
+    }
+  };
+
+  const pickFromGallery = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== "granted") {
+      Alert.alert(
+        "Permiso denegado",
+        "Necesitamos acceso a tus fotos para elegir una imagen.",
+      );
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images"],
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+    if (!result.canceled) {
+      setAvatarUri(result.assets[0].uri);
+    }
+  };
+
+  const handlePickAvatar = () => {
+    Alert.alert("Cambiar foto de perfil", "Elegí una opción", [
+      { text: "Sacar foto", onPress: takePhoto },
+      { text: "Elegir de galería", onPress: pickFromGallery },
+      { text: "Cancelar", style: "cancel" },
+    ]);
   };
   return (
     <View className="flex-1 px-4 gap-6">
@@ -30,18 +84,20 @@ export default function EditProfile() {
         {/* Card con cosas */}
         <Card className="flex-col items-center border-0 p-4 drop-shadow-2xl/10 gap-3">
           <View className="size-28">
-            <Pressable className="active:opacity-60 absolute size-6 bg-blue-500 justify-center items-center rounded-xl bottom-0 right-0   z-10">
+            <Pressable
+              onPress={handlePickAvatar}
+              className="active:opacity-60 border border-white absolute size-6 bg-primary justify-center items-center rounded-xl bottom-0 right-0   z-10"
+            >
               <CameraIcon className="size-4 color-white" />
             </Pressable>
-            <Avatar alt="@mrzachnugent" className=" self-center size-full">
-              <AvatarImage
-                source={{
-                  uri: "https://avatars.githubusercontent.com/u/66040481?v=4",
-                }}
-              ></AvatarImage>
+            <Avatar
+              alt="@mrzachnugent"
+              className=" self-center border border-border size-full"
+            >
+              <AvatarImage key={avatarUri} source={{ uri: avatarUri }} />
             </Avatar>
           </View>
-          <Separator className="bg-gray-500" />
+          <Separator className="bg-primary" />
 
           {/* Campos para completar */}
           <View className="flex-col w-full gap-4 pb-5 items-start">
@@ -100,7 +156,7 @@ export default function EditProfile() {
                 onChangeText={text => setForm({ ...form, email: text })}
               />
               <Pressable>
-                <Text className="text-blue-600 text-center">
+                <Text className="text-primary text-center">
                   Cambiar Contraseña
                 </Text>
               </Pressable>

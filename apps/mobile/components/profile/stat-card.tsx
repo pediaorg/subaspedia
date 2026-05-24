@@ -7,7 +7,7 @@ type StatCardProps = {
 
 export function StatCard({ value, label }: StatCardProps) {
   return (
-    <View className="flex-1 bg-sky-200 w-max items-center justify-center border-0 rounded-2xl h-20">
+    <View className="flex-1 bg-secondary w-max items-center justify-center border-0 rounded-2xl h-20">
       <Text className="font-bold">{value}</Text>
       <Text className="text-center font-semibold">{label}</Text>
     </View>

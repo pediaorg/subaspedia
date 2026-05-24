@@ -25,7 +25,7 @@ export default function EditData({
     <View
       className={`flex-col flex-1 py-2 gap-1 items-start ${classname ?? ""}`}
     >
-      <Label nativeID={nativeID} className="font-bold color-gray-600 text-xs">
+      <Label nativeID={nativeID} className="font-bold text-gray-600 text-xs">
         {label}
       </Label>
       <TextInput
@@ -36,7 +36,7 @@ export default function EditData({
           autoCapitalize: "none",
         })}
         placeholder={placeholder}
-        className="bg-blue-200 w-full rounded-lg py-1 px-2"
+        className="bg-secondary w-full rounded-lg py-1 px-2"
         value={value}
         onChangeText={onChangeText}
       />

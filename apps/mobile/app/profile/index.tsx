@@ -39,7 +39,7 @@ export default function Profile() {
           >
             <Avatar
               alt="@mrzachnugent"
-              className="border absolute size-full border-blue-700"
+              className="border absolute size-full border-border"
             >
               <AvatarImage
                 source={{
@@ -48,7 +48,7 @@ export default function Profile() {
               ></AvatarImage>
             </Avatar>
           </View>
-          <Card className="bg-blue-400 border-blue-700 drop-shadow-lg/30 mt-20 p-5 mx-5 z-20">
+          <Card className="bg-primary border-0 drop-shadow-lg/30 mt-20 p-5 mx-5 z-20">
             <View className="mt-16 flex-row gap-2 justify-between">
               <View>
                 <Text className="text-white text-xl font-bold">
@@ -58,7 +58,7 @@ export default function Profile() {
               </View>
               <Link href="/rank" asChild>
                 <Pressable className="active:opacity-60">
-                  <RankBadge tier="platino" />
+                  <RankBadge tier="comun" />
                 </Pressable>
               </Link>
             </View>
