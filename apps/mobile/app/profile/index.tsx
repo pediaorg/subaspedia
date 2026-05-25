@@ -12,6 +12,7 @@ import { Pressable, Text, View } from "react-native";
 
 import { isOnboarded } from "@subaspedia/types/user";
 import { MenuItem } from "@/components/profile/menu-item";
+import { NotLoggedProfile } from "@/components/profile/not-logged";
 import RankBadge from "@/components/profile/rank-badge";
 import { StatCard } from "@/components/profile/stat-card";
 import {
@@ -29,9 +30,16 @@ import { Avatar, AvatarImage } from "@/components/ui/avatar";
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { useCurrentUser } from "@/hooks/use-current-user";
+import { useAuth } from "@/lib/auth";
 import { DEFAULT_AVATAR_URI } from "@/lib/constants";
 
 export default function Profile() {
+  const { isAuthed } = useAuth();
+  if (!isAuthed) return <NotLoggedProfile />;
+  return <ProfileAuthed />;
+}
+
+function ProfileAuthed() {
   const { data: user } = useCurrentUser();
   if (!user) return <Text>Cargando usuario...</Text>;
   return (
@@ -141,9 +149,9 @@ export default function Profile() {
                   <AlertDialogCancel>
                     <Text>Cancelar</Text>
                   </AlertDialogCancel>
-                  <AlertDialogAction onPress={handleAccept}>
+                  {/* <AlertDialogAction onPress={handleAccept}>
                     <Text className="font-bold text-white">Sí, aceptar</Text>
-                  </AlertDialogAction>
+                  </AlertDialogAction> */}
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>

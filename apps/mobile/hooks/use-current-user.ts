@@ -30,7 +30,7 @@ export function useCurrentUser() {
       return MOCK_USER;
     },
 
-    enabled: true, // no se ejecuta si no hay token // TODO: Restaurar enabled a:  isAuthed
+    enabled: isAuthed, // sin token la query no corre; ver <NotLoggedProfile />
     staleTime: 1000 * 60 * 5, // 5 min en caché
   });
 }
