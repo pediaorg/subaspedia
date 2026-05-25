@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Stack } from "expo-router";
+import { router, Stack } from "expo-router";
 import { Info } from "lucide-react-native";
 import { useForm } from "react-hook-form";
 import { ScrollView, View } from "react-native";
@@ -13,6 +13,7 @@ import { Alert, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Text } from "@/components/ui/text";
+import { api } from "@/lib/api";
 
 import { DataSection } from "./_/data-section";
 import { ImagesSection } from "./_/images-section";
@@ -29,8 +30,6 @@ export default function PostProduct() {
     mode: "onChange",
     defaultValues: {
       name: "",
-      stock: "",
-      price: "",
       description: "",
       interest: "",
       images: [],
@@ -40,8 +39,12 @@ export default function PostProduct() {
     },
   });
 
-  const onSubmit = (data: NewProductFormOutput) => {
-    console.log("submit", data);
+  const createProduct = api.products.create.useMutation({
+    onSuccess: () => router.back(),
+  });
+
+  const onSubmit = (data: NewProductFormInput) => {
+    createProduct.mutate(data);
   };
 
   return (
@@ -72,16 +75,12 @@ export default function PostProduct() {
         </View>
 
         <DataSection control={control} />
-        <ImagesSection
-          watch={watch}
-          setValue={setValue}
-          errors={formState.errors}
-        />
+        <ImagesSection control={control} />
         <InterestSection control={control} />
         <TermsSection control={control} />
 
         <Button
-          disabled={!formState.isValid || formState.isSubmitting}
+          disabled={!formState.isValid || createProduct.isLoading}
           onPress={handleSubmit(onSubmit)}
           size="lg"
           className="bg-accent-foreground border-0 rounded-2xl py-4 shadow-none focus:outline-none focus-visible:ring-0 focus-visible:border-transparent"
