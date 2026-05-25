@@ -15,15 +15,16 @@ tRPC-style hooks built on top of oRPC + TanStack Query.
 import { api } from "@/lib/api";
 
 // Query
-const { data } = api.countries.list.useQuery();
-const { data } = api.users.byId.useQuery({ id: 1 }, { staleTime: 60_000 });
+const countries = api.countries.list.useQuery();
+// countries.data, countries.isLoading, countries.error
+const user = api.users.byId.useQuery({ id: 1 }, { staleTime: 60_000 });
 
 // Suspense
-const { data } = api.countries.list.useSuspenseQuery();
+const countries = api.countries.list.useSuspenseQuery();
 
 // Mutation
-const m = api.countries.create.useMutation({ onSuccess: () => {} });
-m.mutate({ name: "AR", capital: "BA", nationality: "argentina" });
+const createCountry = api.countries.create.useMutation({ onSuccess: () => {} });
+createCountry.mutate({ name: "AR", capital: "BA", nationality: "argentina" });
 
 // Infinite
 api.items.list.useInfiniteQuery(
@@ -35,6 +36,25 @@ api.items.list.useInfiniteQuery(
 queryClient.invalidateQueries({ queryKey: api.countries.list.queryKey() });
 await api.countries.create.call({ ... });
 ```
+
+## Session state (apps/mobile)
+
+Auth/session and user-profile hooks return **flat objects** (no `{ data,
+isLoading }` wrapper). Consume them as namespaces:
+
+```ts
+import { useAuth } from "@/lib/auth";
+import { useMe } from "@/components/access-guard/use-me";
+
+const auth = useAuth();
+// auth.isAuthed, auth.accessToken, auth.loading
+
+const me = useMe();
+// me.category, me.hasVerifiedPaymentMethod, me.loading
+```
+
+Use these inside `AccessGuard` and any screen that needs to gate UI by
+session/profile state — do not roll your own auth/profile lookups.
 
 ### Rules
 

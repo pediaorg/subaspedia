@@ -1,5 +1,5 @@
 import * as SecureStore from "expo-secure-store";
-import { useSyncExternalStore } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { Platform } from "react-native";
 
 const ACCESS_KEY = "subaspedia_access_token";
@@ -70,5 +70,13 @@ export function useAuth() {
     accessToken: null,
     refreshToken: null,
   }));
-  return { accessToken: t.accessToken, isAuthed: !!t.accessToken };
+
+  const [hydrated, setHydrated] = useState(false);
+  useEffect(() => setHydrated(true), []);
+
+  return {
+    accessToken: t.accessToken,
+    isAuthed: !!t.accessToken,
+    loading: !hydrated,
+  };
 }
