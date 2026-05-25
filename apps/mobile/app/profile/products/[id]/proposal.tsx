@@ -1,8 +1,19 @@
 import { router, useLocalSearchParams } from "expo-router";
 import { Alert, ScrollView, Text, View } from "react-native";
 
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Avatar, AvatarImage } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { useMyProducts, useUpdateProductStatus } from "@/hooks/use-my-products";
@@ -125,25 +136,72 @@ export default function ProposalScreen() {
       </ScrollView>
 
       <View className="flex-row gap-3 pb-6">
-        <Button
-          variant="destructive"
-          disabled={isPending}
-          onPress={handleReject}
-          className="flex-1 rounded-xl"
-        >
-          <Text className="font-bold text-white">
-            {isPending ? "..." : "Rechazar"}
-          </Text>
-        </Button>
-        <Button
-          disabled={isPending}
-          onPress={handleAccept}
-          className="flex-1 rounded-xl"
-        >
-          <Text className="font-bold text-white">
-            {isPending ? "..." : "Aceptar"}
-          </Text>
-        </Button>
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button
+              variant="destructive"
+              disabled={isPending}
+              className="flex-1 rounded-xl"
+            >
+              <Text className="font-bold text-white">
+                {isPending ? "..." : "Rechazar"}
+              </Text>
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent
+            className="bg-primary-foreground"
+            overlayClassName="backdrop-blur-md bg-black/30"
+          >
+            <AlertDialogHeader>
+              <AlertDialogTitle>¿Rechazar la propuesta?</AlertDialogTitle>
+              <AlertDialogDescription className="text-gray-700">
+                El producto pasará al estado “Rechazado” y no se incluirá en
+                ninguna subasta. Esta acción no se puede deshacer.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>
+                <Text>Cancelar</Text>
+              </AlertDialogCancel>
+              <AlertDialogAction
+                onPress={handleReject}
+                className={buttonVariants({ variant: "destructive" })}
+              >
+                <Text className="font-bold text-white">Sí, rechazar</Text>
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button disabled={isPending} className="flex-1 rounded-xl">
+              <Text className="font-bold text-white">
+                {isPending ? "..." : "Aceptar"}
+              </Text>
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent
+            className="bg-primary-foreground"
+            overlayClassName="backdrop-blur-md bg-black/30"
+          >
+            <AlertDialogHeader>
+              <AlertDialogTitle>¿Aceptar la propuesta?</AlertDialogTitle>
+              <AlertDialogDescription className="text-gray-700">
+                El producto pasará al estado “Aprobado” y será incluido en una
+                subasta futura con el valor base y la comisión propuestos.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>
+                <Text>Cancelar</Text>
+              </AlertDialogCancel>
+              <AlertDialogAction onPress={handleAccept}>
+                <Text className="font-bold text-white">Sí, aceptar</Text>
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </View>
     </View>
   );
