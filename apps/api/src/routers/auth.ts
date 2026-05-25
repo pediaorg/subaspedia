@@ -3,14 +3,25 @@ import { ORPCError } from "@orpc/server";
 import { authed, type Context, pub, refreshed } from "@/api/context";
 import { users } from "@/api/db/schema";
 import {
-  REFRESH_COOKIE,
-  REFRESH_TTL,
+  type AccessClaims,
   credentials,
   hashPassword,
   issueAccessToken,
   issueTokens,
+  REFRESH_COOKIE,
+  REFRESH_TTL,
   verifyPassword,
 } from "@/api/lib/auth";
+
+// TODO: cuando exista el link users -> clients (people), resolver
+// la categoría real y si tiene al menos un medio de pago verificado.
+// como voy a sacar la tabla q actualemtne usa esto puede experar
+async function resolveClaims(
+  _db: Context["db"],
+  _userId: number,
+): Promise<AccessClaims> {
+  return { category: null, hasVerifiedPaymentMethod: false };
+}
 
 function deliverTokens(
   context: Context,
@@ -51,7 +62,8 @@ export const authRouter = {
       .values({ email: input.email, passwordHash })
       .returning({ id: users.id });
 
-    const tokens = await issueTokens(created.id, context.jwtSecret);
+    const claims = await resolveClaims(context.db, created.id);
+    const tokens = await issueTokens(created.id, claims, context.jwtSecret);
     return deliverTokens(context, tokens);
   }),
 
@@ -69,13 +81,16 @@ export const authRouter = {
         message: "Credenciales inválidas",
       });
 
-    const tokens = await issueTokens(user.id, context.jwtSecret);
+    const claims = await resolveClaims(context.db, user.id);
+    const tokens = await issueTokens(user.id, claims, context.jwtSecret);
     return deliverTokens(context, tokens);
   }),
 
   refresh: refreshed.handler(async ({ context }) => {
+    const claims = await resolveClaims(context.db, context.userId);
     const accessToken = await issueAccessToken(
       context.userId,
+      claims,
       context.jwtSecret,
     );
     return { accessToken };

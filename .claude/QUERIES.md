@@ -39,22 +39,22 @@ await api.countries.create.call({ ... });
 
 ## Session state (apps/mobile)
 
-Auth/session and user-profile hooks return **flat objects** (no `{ data,
-isLoading }` wrapper). Consume them as namespaces:
+A single hook `useAuth` exposes both auth tokens and profile claims (category,
+payment method status) decoded from the JWT. Returns a **flat object** (no
+`{ data, isLoading }` wrapper). Consume it as a namespace:
 
 ```ts
 import { useAuth } from "@/lib/auth";
-import { useMe } from "@/components/access-guard/use-me";
 
 const auth = useAuth();
-// auth.isAuthed, auth.accessToken, auth.loading
-
-const me = useMe();
-// me.category, me.hasVerifiedPaymentMethod, me.loading
+// auth.accessToken, auth.isAuthed, auth.loading
+// auth.category, auth.hasVerifiedPaymentMethod
+// auth.canAccessAuctions, auth.canBid
 ```
 
-Use these inside `AccessGuard` and any screen that needs to gate UI by
-session/profile state — do not roll your own auth/profile lookups.
+Use this inside `AccessGuard` and any screen that needs to gate UI by
+session/profile state — do not roll your own auth lookups. Profile claims come
+from the JWT, so they refresh at most every `ACCESS_TTL` (15 min).
 
 ### Rules
 

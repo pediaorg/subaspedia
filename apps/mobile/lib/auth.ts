@@ -2,6 +2,8 @@ import * as SecureStore from "expo-secure-store";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { Platform } from "react-native";
 
+import type { AuctionCategory } from "@subaspedia/types";
+
 const ACCESS_KEY = "subaspedia_access_token";
 const REFRESH_KEY = "subaspedia_refresh_token";
 
@@ -65,6 +67,33 @@ export const authStore = {
   },
 };
 
+type Claims = {
+  category: AuctionCategory | null;
+  hasVerifiedPaymentMethod: boolean;
+};
+
+const EMPTY_CLAIMS: Claims = {
+  category: null,
+  hasVerifiedPaymentMethod: false,
+};
+
+function decodeClaims(token: string | null): Claims {
+  if (!token) return EMPTY_CLAIMS;
+  try {
+    const payload = token.split(".")[1];
+    if (!payload) return EMPTY_CLAIMS;
+    const b64 = payload.replace(/-/g, "+").replace(/_/g, "/");
+    const padded = b64 + "=".repeat((4 - (b64.length % 4)) % 4);
+    const parsed = JSON.parse(atob(padded)) as Partial<Claims>;
+    return {
+      category: parsed.category ?? null,
+      hasVerifiedPaymentMethod: !!parsed.hasVerifiedPaymentMethod,
+    };
+  } catch {
+    return EMPTY_CLAIMS;
+  }
+}
+
 export function useAuth() {
   const t = useSyncExternalStore(authStore.subscribe, authStore.get, () => ({
     accessToken: null,
@@ -74,9 +103,14 @@ export function useAuth() {
   const [hydrated, setHydrated] = useState(false);
   useEffect(() => setHydrated(true), []);
 
+  const claims = decodeClaims(t.accessToken);
+
   return {
     accessToken: t.accessToken,
     isAuthed: !!t.accessToken,
     loading: !hydrated,
+    ...claims,
+    canAccessAuctions: !!claims.category,
+    canBid: !!claims.category && claims.hasVerifiedPaymentMethod,
   };
 }
