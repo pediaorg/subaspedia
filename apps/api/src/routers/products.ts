@@ -9,11 +9,12 @@ export const productsRouter = {
       const [created] = await tx
         .insert(products)
         .values({
-          catalogDescription: input.interest,
-          fullDescription: input.description ?? "",
           name: input.name,
-          reviewerId: 0,
+          fullDescription: input.description ?? "",
+          catalogDescription: input.interest || "None",
+          available: false,
           ownerId: context.userId,
+          reviewerId: 0,
         })
         .returning({ id: products.id });
 
