@@ -1,5 +1,6 @@
 import { Link } from "expo-router";
 import {
+  LogOut,
   LucideHammer,
   Package,
   Pencil,
@@ -13,8 +14,20 @@ import { isOnboarded } from "@subaspedia/types/user";
 import { MenuItem } from "@/components/profile/menu-item";
 import RankBadge from "@/components/profile/rank-badge";
 import { StatCard } from "@/components/profile/stat-card";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Avatar, AvatarImage } from "@/components/ui/avatar";
 import { Card } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { DEFAULT_AVATAR_URI } from "@/lib/constants";
 
@@ -105,11 +118,37 @@ export default function Profile() {
             label="Métodos de Pago"
             href="/profile/payment-methods"
           />
-          <MenuItem
-            icon={Settings}
-            label="Configuración"
-            href="/profile/settings"
-          />
+          <View className="w-full">
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Pressable className="flex-row gap-2 ml-10 pl-1 active:opacity-60">
+                  <LogOut className="size-8 color-secondary-foreground" />
+                  <Text className="font-bold text-2xl text-secondary-foreground">
+                    Cerrar sesión
+                  </Text>
+                </Pressable>
+              </AlertDialogTrigger>
+              <AlertDialogContent
+                className="bg-primary-foreground"
+                overlayClassName="backdrop-blur-md bg-black/30"
+              >
+                <AlertDialogHeader>
+                  <AlertDialogTitle>
+                    ¿Seguro de que quieres cerrar sesión?
+                  </AlertDialogTitle>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>
+                    <Text>Cancelar</Text>
+                  </AlertDialogCancel>
+                  <AlertDialogAction onPress={handleAccept}>
+                    <Text className="font-bold text-white">Sí, aceptar</Text>
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+            <Separator className="mt-3 bg-gray-500" />
+          </View>
         </View>
       </View>
     </View>

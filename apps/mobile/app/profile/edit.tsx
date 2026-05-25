@@ -10,7 +10,11 @@ import { Avatar, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { useCurrentUser, useUpdateProfile } from "@/hooks/use-current-user";
+import {
+  type UpdateProfileInput,
+  useCurrentUser,
+  useUpdateProfile,
+} from "@/hooks/use-current-user";
 import { DEFAULT_AVATAR_URI } from "@/lib/constants";
 
 export default function EditProfile() {
@@ -33,24 +37,31 @@ function EditProfileForm({ user }: { user: User }) {
   );
 
   const handleSave = () => {
-    updateProfile(
-      {
-        name: form.name,
-        surname: form.surname,
-        address: form.address,
-        country: form.country,
-        email: form.email,
-        avatarUrl: avatarUri === DEFAULT_AVATAR_URI ? null : avatarUri,
+    const nextAvatarUrl = avatarUri === DEFAULT_AVATAR_URI ? null : avatarUri;
+
+    // El back acepta partial: solo mandamos lo que cambió respecto al user actual.
+    const patch: UpdateProfileInput = {};
+    if (form.name !== (user.name ?? "")) patch.name = form.name;
+    if (form.surname !== (user.surname ?? "")) patch.surname = form.surname;
+    if (form.address !== (user.address ?? "")) patch.address = form.address;
+    if (form.country !== (user.country?.name ?? ""))
+      patch.country = form.country;
+    if (form.email !== user.email) patch.email = form.email;
+    if (nextAvatarUrl !== user.avatarUrl) patch.avatarUrl = nextAvatarUrl;
+
+    if (Object.keys(patch).length === 0) {
+      router.back();
+      return;
+    }
+
+    updateProfile(patch, {
+      onSuccess: () => {
+        router.back();
       },
-      {
-        onSuccess: () => {
-          router.back();
-        },
-        onError: error => {
-          Alert.alert("Error", error.message);
-        },
+      onError: error => {
+        Alert.alert("Error", error.message);
       },
-    );
+    });
   };
 
   const takePhoto = async () => {

@@ -14,7 +14,6 @@ export default function ProfileLayout() {
         <Stack.Screen name="auctions" />
         <Stack.Screen name="infractions" />
         <Stack.Screen name="payment-methods" />
-        <Stack.Screen name="settings" />
       </Stack>
     </View>
   );

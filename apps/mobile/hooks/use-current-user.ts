@@ -35,7 +35,9 @@ export function useCurrentUser() {
   });
 }
 
-type UpdateProfileInput = {
+// El back espera solo los campos que cambiaron (POST /users/me/ partial).
+// Por eso es Partial: el caller arma el diff y manda únicamente lo modificado.
+export type UpdateProfileInput = Partial<{
   name: string;
   surname: string;
   address: string;
@@ -43,7 +45,7 @@ type UpdateProfileInput = {
   country: string;
   email: string;
   avatarUrl: string | null;
-};
+}>;
 
 export function useUpdateProfile() {
   const queryClient = useQueryClient();
@@ -55,11 +57,11 @@ export function useUpdateProfile() {
       if (!current) throw new Error("No current user");
       return {
         ...current,
-        name: input.name || null,
-        surname: input.surname || null,
-        address: input.address || null,
-        email: input.email,
-        avatarUrl: input.avatarUrl,
+        ...(input.name !== undefined && { name: input.name || null }),
+        ...(input.surname !== undefined && { surname: input.surname || null }),
+        ...(input.address !== undefined && { address: input.address || null }),
+        ...(input.email !== undefined && { email: input.email }),
+        ...(input.avatarUrl !== undefined && { avatarUrl: input.avatarUrl }),
         // TODO: country como objeto cuando integremos selector de países
       };
     },
