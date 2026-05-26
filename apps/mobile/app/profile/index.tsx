@@ -1,16 +1,16 @@
+import { useQuery } from "@tanstack/react-query";
 import { Link } from "expo-router";
 import {
   LogOut,
   LucideHammer,
   Package,
   Pencil,
-  Settings,
   TriangleAlertIcon,
   Wallet,
 } from "lucide-react-native";
 import { Pressable, Text, View } from "react-native";
 
-import { isOnboarded } from "@subaspedia/types/user";
+import { isOnboarded, type User } from "@subaspedia/types/user";
 import { MenuItem } from "@/components/profile/menu-item";
 import { NotLoggedProfile } from "@/components/profile/not-logged";
 import RankBadge from "@/components/profile/rank-badge";
@@ -29,9 +29,22 @@ import {
 import { Avatar, AvatarImage } from "@/components/ui/avatar";
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { useCurrentUser } from "@/hooks/use-current-user";
 import { useAuth } from "@/lib/auth";
 import { DEFAULT_AVATAR_URI } from "@/lib/constants";
+
+const MOCK_CURRENT_USER: User = {
+  id: 1,
+  email: "JuanCasablanca@jamon.com",
+  name: "Juan",
+  surname: "Casablanca",
+  documentId: "12345678",
+  address: "...",
+  country: { id: 1, name: "Argentina" },
+  category: "common",
+  avatarUrl: null,
+  admitted: true,
+  createdAt: new Date().toISOString(),
+};
 
 export default function Profile() {
   const { isAuthed } = useAuth();
@@ -40,7 +53,14 @@ export default function Profile() {
 }
 
 function ProfileAuthed() {
-  const { data: user } = useCurrentUser();
+  const { data: user } = useQuery({
+    queryKey: ["users", "me"],
+    queryFn: async () => {
+      // TODO: reemplazar por api.get("/users/me")
+      await new Promise(r => setTimeout(r, 300));
+      return MOCK_CURRENT_USER;
+    },
+  });
   if (!user) return <Text>Cargando usuario...</Text>;
   return (
     <View className="flex-1 gap-6">
