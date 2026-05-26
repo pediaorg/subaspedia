@@ -37,3 +37,16 @@ export function isOnboarded(user: User): boolean {
     user.name !== null && user.documentId !== null && user.category !== null
   );
 }
+
+export const updateProfileInputSchema = userSchema
+  .pick({
+    name: true,
+    surname: true,
+    documentId: true,
+    address: true,
+    country: true,
+    avatarUrl: true,
+  })
+  .partial(); // esto hace que solo tome lo que se actualiza, y permita campos vacios
+
+export type UpdateProfileInput = z.infer<typeof updateProfileInputSchema>;

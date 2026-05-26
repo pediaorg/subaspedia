@@ -9,7 +9,7 @@
     ".": "./src/index.ts",
     "./forms": "./src/forms/index.ts",
     "./forms/*": "./src/forms/*.ts",
-    "./user": "./src/user/index.tsx",
+    "./user": "./src/user/index.ts",
     "./product": "./src/product/index.ts"
   },
   "dependencies": {
