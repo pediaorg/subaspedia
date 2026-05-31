@@ -98,7 +98,7 @@ export default function Profile() {
                 <Text className="text-gray-300">{user?.email}</Text>
               </View>
               {user?.category && (
-                <Link href="/rank" asChild>
+                <Link href="/rank-up" asChild>
                   <Pressable className="active:opacity-60">
                     <RankBadge category={user.category} />
                   </Pressable>
