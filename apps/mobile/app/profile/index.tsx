@@ -1,5 +1,5 @@
-import { useQuery } from "@tanstack/react-query";
-import { Link } from "expo-router";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Link, router } from "expo-router";
 import {
   LogOut,
   LucideHammer,
@@ -20,7 +20,6 @@ import {
   AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
-  AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
@@ -29,7 +28,7 @@ import {
 import { Avatar, AvatarImage } from "@/components/ui/avatar";
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { useAuth } from "@/lib/auth";
+import { authStore, useAuth } from "@/lib/auth";
 import { DEFAULT_AVATAR_URI } from "@/lib/constants";
 
 const MOCK_CURRENT_USER: User = {
@@ -53,6 +52,12 @@ export default function Profile() {
 }
 
 function ProfileAuthed() {
+  const handleAccept = () => {
+    authStore.set(null);
+    queryClient.clear();
+    router.replace("/");
+  };
+  const queryClient = useQueryClient();
   const { data: user } = useQuery({
     queryKey: ["users", "me"],
     queryFn: async () => {
@@ -169,9 +174,9 @@ function ProfileAuthed() {
                   <AlertDialogCancel>
                     <Text>Cancelar</Text>
                   </AlertDialogCancel>
-                  {/* <AlertDialogAction onPress={handleAccept}>
+                  <AlertDialogAction onPress={handleAccept}>
                     <Text className="font-bold text-white">Sí, aceptar</Text>
-                  </AlertDialogAction> */}
+                  </AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>

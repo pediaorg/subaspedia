@@ -1,6 +1,8 @@
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { router, useLocalSearchParams } from "expo-router";
 import { Alert, ScrollView, Text, View } from "react-native";
 
+import type { Product } from "@subaspedia/types/product";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -16,7 +18,6 @@ import { Avatar, AvatarImage } from "@/components/ui/avatar";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { useMyProducts, useUpdateProductStatus } from "@/hooks/use-my-products";
 
 const currencyFormatter = new Intl.NumberFormat("es-AR", {
   style: "currency",
@@ -24,11 +25,47 @@ const currencyFormatter = new Intl.NumberFormat("es-AR", {
   maximumFractionDigits: 0,
 });
 
+const MOCK_PRODUCT: Product = {
+  id: 1,
+  name: "Reloj de bolsillo siglo XIX",
+  category: "Antigüedades",
+  status: "appraised",
+  img: "https://picsum.photos/seed/reloj/200",
+  proposalText:
+    "Pieza en muy buen estado de conservación. Tasada para incluir en la próxima subasta de antigüedades.",
+  proposedBasePrice: 180000,
+  proposedCommission: 12,
+  salePrice: null,
+  saleDate: null,
+  auctionId: null,
+};
+
 export default function ProposalScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const productId = Number(id);
-  const { data: products, isLoading } = useMyProducts();
-  const { mutate: updateStatus, isPending } = useUpdateProductStatus();
+  const queryClient = useQueryClient();
+  const { data: product, isLoading } = useQuery({
+    queryKey: ["products", productId],
+    queryFn: async () => {
+      // TODO: reemplazar por la llamada real al back (GET /products/{id})
+      await new Promise(r => setTimeout(r, 300));
+      return MOCK_PRODUCT;
+    },
+  });
+  const { mutate: updateStatus, isPending } = useMutation({
+    mutationFn: async (vars: {
+      productId: number;
+      newStatus: "approved" | "rejected";
+    }) => {
+      // TODO: reemplazar por la llamada real al back (PUT /products/{id}/status)
+      await new Promise(r => setTimeout(r, 300));
+      return vars.newStatus;
+    },
+    onSuccess: () => {
+      // refrescamos detalle y lista para que reflejen el nuevo estado
+      queryClient.invalidateQueries({ queryKey: ["products"] });
+    },
+  });
 
   if (isLoading) {
     return (
@@ -37,8 +74,6 @@ export default function ProposalScreen() {
       </View>
     );
   }
-
-  const product = products?.find(p => p.id === productId);
 
   if (!product) {
     return (

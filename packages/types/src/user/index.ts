@@ -46,6 +46,7 @@ export const updateProfileInputSchema = userSchema
     address: true,
     country: true,
     avatarUrl: true,
+    email: true,
   })
   .partial(); // esto hace que solo tome lo que se actualiza, y permita campos vacios
 
