@@ -136,7 +136,9 @@ export const auctions = sqliteTable(
     }),
   },
   t => [
-    check("chk_date", sql`${t.date} > date('now', '+10 days')`),
+    // La regla "fecha > hoy + 10 días" NO puede ir en un CHECK: SQLite exige
+    // que un CHECK sea determinístico y date('now') no lo es. Se aplica como
+    // trigger a nivel DB en apps/api/triggers.sql (correr tras cada db push).
     check("chk_auction_status", sql`${t.status} IN ('open', 'closed')`),
     check(
       "chk_auction_category",
