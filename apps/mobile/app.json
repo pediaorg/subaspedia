@@ -39,6 +39,12 @@
             "backgroundColor": "#000000"
           }
         }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "La app accede a tus fotos para subir el frente y dorso de tu documento."
+        }
       ]
     ],
     "experiments": {

@@ -67,9 +67,11 @@ jobs:
         env:
           STAGE: ${{ steps.stage.outputs.stage }}
           JWT_SEED: ${{ secrets.JWT_SECRET }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
         run: |
           JWT_SECRET=$(printf '%s' "$STAGE" | openssl dgst -sha256 -hmac "$JWT_SEED" -hex | awk '{print $NF}')
           pnpm sst secret set JwtSecret "$JWT_SECRET" --stage "$STAGE" --print-logs
+          pnpm sst secret set ResendApiKey "$RESEND_API_KEY" --stage "$STAGE" --print-logs
       - name: Dump SST logs
         if: always()
         run: |

@@ -46,6 +46,22 @@ export const people = sqliteTable(
   ],
 );
 
+export const emailVerifications = sqliteTable("email_verifications", {
+  id: integer().primaryKey({ autoIncrement: true }),
+  email: text().notNull().unique(),
+  code: text().notNull(),
+  // Snapshot de los datos cargados en la etapa 1.
+  name: text().notNull(),
+  lastName: text("last_name").notNull(),
+  address: text().notNull(),
+  country: text(),
+  dniFront: text("dni_front"),
+  dniBack: text("dni_back"),
+  verified: boolean("verified").default(false),
+  expiresAt: text("expires_at").notNull(),
+  createdAt: text("created_at").notNull().default(sql`(current_timestamp)`),
+});
+
 export const employees = sqliteTable("employees", {
   id: integer()
     .notNull()

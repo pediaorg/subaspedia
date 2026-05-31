@@ -1,0 +1,7 @@
+JWT_SECRET="dev-secret-change-me"
+
+# Opcional en desarrollo: si no se define, el código de verificación se imprime
+# por consola en lugar de enviarse por email (ver src/lib/email.ts).
+
+RESEND_API_KEY=""
+RESEND_FROM="Subaspedia <onboarding@resend.dev>"
