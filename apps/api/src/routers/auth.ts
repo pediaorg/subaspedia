@@ -1,7 +1,7 @@
 import { ORPCError } from "@orpc/server";
 
 import { authed, type Context, pub, refreshed } from "@/api/context";
-import { users } from "@/api/db/schema";
+import { people } from "@/api/db/schema";
 import {
   type AccessClaims,
   credentials,
@@ -13,14 +13,29 @@ import {
   verifyPassword,
 } from "@/api/lib/auth";
 
-// TODO: cuando exista el link users -> clients (people), resolver
-// la categoría real y si tiene al menos un medio de pago verificado.
-// como voy a sacar la tabla q actualemtne usa esto puede experar
 async function resolveClaims(
-  _db: Context["db"],
-  _userId: number,
+  db: Context["db"],
+  userId: number,
 ): Promise<AccessClaims> {
-  return { category: null, hasVerifiedPaymentMethod: false };
+  // userId es people.id, que coincide con clients.id (los clients cuelgan de
+  // people). Si la persona no es un client, no tiene categoría.
+  const client = await db.query.clients.findFirst({
+    where: { id: userId },
+    columns: { category: true },
+    with: {
+      // Solo puede pujar si tiene al menos un medio de pago verificado.
+      paymentMethods: {
+        where: { verified: true },
+        columns: { id: true },
+        limit: 1,
+      },
+    },
+  });
+
+  return {
+    category: client?.category ?? null,
+    hasVerifiedPaymentMethod: Boolean(client?.paymentMethods.length),
+  };
 }
 
 function deliverTokens(
@@ -49,7 +64,7 @@ function deliverTokens(
 
 export const authRouter = {
   register: pub.input(credentials).handler(async ({ context, input }) => {
-    const existing = await context.db.query.users.findFirst({
+    const existing = await context.db.query.people.findFirst({
       where: { email: input.email },
     });
 
@@ -58,9 +73,9 @@ export const authRouter = {
 
     const passwordHash = await hashPassword(input.password);
     const [created] = await context.db
-      .insert(users)
+      .insert(people)
       .values({ email: input.email, passwordHash })
-      .returning({ id: users.id });
+      .returning({ id: people.id });
 
     const claims = await resolveClaims(context.db, created.id);
     const tokens = await issueTokens(created.id, claims, context.jwtSecret);
@@ -68,11 +83,11 @@ export const authRouter = {
   }),
 
   login: pub.input(credentials).handler(async ({ context, input }) => {
-    const user = await context.db.query.users.findFirst({
+    const user = await context.db.query.people.findFirst({
       where: { email: input.email },
     });
 
-    if (!user)
+    if (!user || !user.passwordHash)
       throw new ORPCError("UNAUTHORIZED", { message: "Usuario no encontrado" });
 
     const valid = await verifyPassword(input.password, user.passwordHash);
