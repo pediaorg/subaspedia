@@ -12,7 +12,6 @@ import { Pressable, Text, View } from "react-native";
 
 import { isOnboarded, type User } from "@subaspedia/types/user";
 import { MenuItem } from "@/components/profile/menu-item";
-import { NotLoggedProfile } from "@/components/profile/not-logged";
 import RankBadge from "@/components/profile/rank-badge";
 import { StatCard } from "@/components/profile/stat-card";
 import {
@@ -28,7 +27,7 @@ import {
 import { Avatar, AvatarImage } from "@/components/ui/avatar";
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { authStore, useAuth } from "@/lib/auth";
+import { authStore } from "@/lib/auth";
 import { DEFAULT_AVATAR_URI } from "@/lib/constants";
 
 const MOCK_CURRENT_USER: User = {
@@ -46,12 +45,6 @@ const MOCK_CURRENT_USER: User = {
 };
 
 export default function Profile() {
-  const { isAuthed } = useAuth();
-  if (!isAuthed) return <NotLoggedProfile />;
-  return <ProfileAuthed />;
-}
-
-function ProfileAuthed() {
   const handleAccept = () => {
     authStore.set(null);
     queryClient.clear();
