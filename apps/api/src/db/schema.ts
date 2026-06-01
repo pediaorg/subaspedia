@@ -12,13 +12,6 @@ import {
 const boolean = (name?: string) =>
   name ? integer(name, { mode: "boolean" }) : integer({ mode: "boolean" });
 
-export const users = sqliteTable("users", {
-  id: integer().primaryKey({ autoIncrement: true }),
-  email: text().notNull().unique(),
-  passwordHash: text("password_hash").notNull(),
-  createdAt: text("created_at").notNull().default(sql`(current_timestamp)`),
-});
-
 export const countries = sqliteTable("countries", {
   id: integer().notNull().primaryKey(),
   name: text().notNull(),
@@ -32,14 +25,42 @@ export const people = sqliteTable(
   "people",
   {
     id: integer().primaryKey({ autoIncrement: true }),
-    document: text().notNull(),
-    name: text().notNull(),
+    document: text(),
+    name: text(),
     address: text(),
     status: text({ enum: ["active", "inactive"] }),
     photo: blob({ mode: "buffer" }),
+    // Credenciales de acceso (antes en la tabla `users`). Nullable: no toda
+    // persona necesariamente loguea (p. ej. clientes cargados por un empleado).
+    email: text().unique(),
+    passwordHash: text("password_hash"),
+    createdAt: text("created_at").notNull().default(sql`(current_timestamp)`),
   },
-  t => [check("chk_status", sql`${t.status} IN ('active', 'inactive')`)],
+  t => [
+    check("chk_status", sql`${t.status} IN ('active', 'inactive')`),
+    // Si hay email, debe haber password (y viceversa).
+    check(
+      "chk_credentials",
+      sql`(${t.email} IS NULL) = (${t.passwordHash} IS NULL)`,
+    ),
+  ],
 );
+
+export const emailVerifications = sqliteTable("email_verifications", {
+  id: integer().primaryKey({ autoIncrement: true }),
+  email: text().notNull().unique(),
+  code: text().notNull(),
+  // Snapshot de los datos cargados en la etapa 1.
+  name: text().notNull(),
+  lastName: text("last_name").notNull(),
+  address: text().notNull(),
+  country: text(),
+  dniFront: text("dni_front"),
+  dniBack: text("dni_back"),
+  verified: boolean("verified").default(false),
+  expiresAt: text("expires_at").notNull(),
+  createdAt: text("created_at").notNull().default(sql`(current_timestamp)`),
+});
 
 export const employees = sqliteTable("employees", {
   id: integer()
@@ -89,6 +110,31 @@ export const clients = sqliteTable(
       "chk_category",
       sql`${t.category} IN ('common', 'special', 'silver', 'gold', 'platinum')`,
     ),
+  ],
+);
+
+export const paymentMethods = sqliteTable(
+  "payment_methods",
+  {
+    id: integer().primaryKey({ autoIncrement: true }),
+    clientId: integer("client_id")
+      .notNull()
+      .references(() => clients.id),
+    type: text({
+      enum: ["bank_account", "credit_card", "certified_check"],
+    }).notNull(),
+    verified: boolean("verified").default(false),
+    foreign: boolean("foreign"),
+    amount: real(),
+    currency: text({ enum: ["ARS", "USD"] }),
+    details: text(),
+  },
+  t => [
+    check(
+      "chk_payment_type",
+      sql`${t.type} IN ('bank_account', 'credit_card', 'certified_check')`,
+    ),
+    check("chk_payment_currency", sql`${t.currency} IN ('ARS', 'USD')`),
   ],
 );
 
