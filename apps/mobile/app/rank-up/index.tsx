@@ -1,11 +1,11 @@
 import { Stack } from "expo-router";
 import { ScrollView } from "react-native";
 
+import { LoginPrompt } from "@/components/login-prompt";
 import { Separator } from "@/components/ui/separator";
 import { Text } from "@/components/ui/text";
 import { useAuth } from "@/lib/auth";
 
-import { LoginPrompt } from "./_/login-prompt";
 import { RankSummary } from "./_/rank-summary";
 
 export default function RankUp() {
@@ -23,7 +23,20 @@ export default function RankUp() {
           Rango
         </Text>
         <Separator className="bg-border" />
-        {isAuthed ? <RankSummary /> : <LoginPrompt />}
+        {isAuthed ? (
+          <RankSummary />
+        ) : (
+          <LoginPrompt
+            message={
+              <>
+                Para poder ver su rango, por favor{" "}
+                <Text className="text-foreground text-lg font-bold">
+                  inicie sesión
+                </Text>
+              </>
+            }
+          />
+        )}
       </ScrollView>
     </>
   );

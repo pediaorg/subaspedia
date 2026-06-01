@@ -1,10 +1,15 @@
 import { Hand } from "lucide-react-native";
+import type { ReactNode } from "react";
 import { View } from "react-native";
 
 import { Card, CardContent } from "@/components/ui/card";
 import { Text } from "@/components/ui/text";
 
-export function LoginPrompt() {
+interface LoginPromptProps {
+  message: ReactNode;
+}
+
+export function LoginPrompt({ message }: LoginPromptProps) {
   return (
     <Card className="bg-card drop-shadow-md/40 border-none">
       <CardContent className="items-center gap-4 py-8">
@@ -12,10 +17,7 @@ export function LoginPrompt() {
           <Hand size={36} className="text-primary-foreground" />
         </View>
         <Text className="text-muted-foreground text-center text-lg">
-          Para poder ver su rango, por favor{" "}
-          <Text className="text-foreground text-lg font-bold">
-            inicie sesión
-          </Text>
+          {message}
         </Text>
       </CardContent>
     </Card>
