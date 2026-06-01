@@ -25,7 +25,7 @@ export function navItems(isAuthed: boolean): NavItemDef[] {
           key: "profile",
           label: "Profile",
           icon: User,
-          href: "/profile" as Href,
+          href: "/profile",
         }
       : { key: "login", label: "Profile", icon: KeyRound, href: "/login" },
   ];
