@@ -151,15 +151,12 @@ export const products = sqliteTable("products", {
   available: boolean("available"),
   catalogDescription: text("catalog_description").default("None"),
   fullDescription: text("full_description").notNull(),
-  reviewerId: integer("reviewer_id")
-    .notNull()
-    .references(() => employees.id),
-  ownerId: integer("owner_id")
-    .notNull()
-    .references(() => owners.id),
+  reviewerId: integer("reviewer_id").references(() => employees.id),
+  ownerId: integer("owner_id").references(() => owners.id),
   insurancePolicy: text("insurance_policy").references(
     () => insurances.policyNumber,
   ),
+  name: text("name").notNull(),
 });
 
 export const photos = sqliteTable("photos", {
@@ -191,7 +188,9 @@ export const catalogItems = sqliteTable(
       .references(() => products.id),
     basePrice: real("base_price").notNull(),
     commission: real().notNull(),
-    auctioned: boolean("auctioned"),
+    state: text({
+      enum: ["en revisión", "tasado", "aceptado", "rechazado", "subastado"],
+    }),
   },
   t => [
     check("chk_base_price", sql`${t.basePrice} > 0.01`),
