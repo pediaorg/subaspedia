@@ -187,7 +187,9 @@ export const catalogItems = sqliteTable(
       .references(() => products.id),
     basePrice: real("base_price").notNull(),
     commission: real().notNull(),
-    auctioned: boolean("auctioned"),
+    state: text({
+      enum: ["en revisión", "tasado", "aceptado", "rechazado", "subastado"],
+    }),
   },
   t => [
     check("chk_base_price", sql`${t.basePrice} > 0.01`),
