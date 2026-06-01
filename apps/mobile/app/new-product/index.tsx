@@ -9,11 +9,13 @@ import {
   type NewProductFormOutput,
   newProductSchema,
 } from "@subaspedia/types/forms/new-product";
+import { LoginPrompt } from "@/components/login-prompt";
 import { Alert, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Text } from "@/components/ui/text";
 import { api } from "@/lib/api";
+import { useAuth } from "@/lib/auth";
 
 import { DataSection } from "./_/data-section";
 import { ImagesSection } from "./_/images-section";
@@ -21,6 +23,8 @@ import { InterestSection } from "./_/interest-section";
 import { TermsSection } from "./_/terms-section";
 
 export default function PostProduct() {
+  const { isAuthed } = useAuth();
+
   const { control, handleSubmit, watch, setValue, formState } = useForm<
     NewProductFormInput,
     unknown,
@@ -40,7 +44,13 @@ export default function PostProduct() {
   });
 
   const createProduct = api.products.create.useMutation({
-    onSuccess: () => router.back(),
+    onSuccess: () => {
+      if (router.canGoBack()) {
+        router.back();
+      } else {
+        router.replace("/");
+      }
+    },
   });
 
   const onSubmit = (data: NewProductFormInput) => {
@@ -60,40 +70,56 @@ export default function PostProduct() {
         </Text>
 
         <Separator className="bg-gray-300" />
+        {isAuthed ? (
+          <>
+            <View className="bg-warning drop-shadow-md/40 flex-row items-center gap-2 rounded-lg p-3">
+              <Alert
+                icon={Info}
+                iconClassName="text-white"
+                className="border-none items-center bg-transparent"
+              >
+                <AlertTitle className="text-white">
+                  La empresa puede designar una colección cuando el lote tiene
+                  numerosos artículos
+                </AlertTitle>
+              </Alert>
+            </View>
 
-        <View className="bg-warning drop-shadow-md/40 flex-row items-center gap-2 rounded-lg p-3">
-          <Alert
-            icon={Info}
-            iconClassName="text-white"
-            className="border-none items-center bg-transparent"
-          >
-            <AlertTitle className="text-white">
-              La empresa puede designar una colección cuando el lote tiene
-              numerosos artículos
-            </AlertTitle>
-          </Alert>
-        </View>
+            <DataSection control={control} />
+            <ImagesSection control={control} />
+            <InterestSection control={control} />
+            <TermsSection control={control} />
 
-        <DataSection control={control} />
-        <ImagesSection control={control} />
-        <InterestSection control={control} />
-        <TermsSection control={control} />
+            <Button
+              disabled={
+                !formState.isValid || createProduct.status === "pending"
+              }
+              onPress={handleSubmit(onSubmit)}
+              size="lg"
+              className="bg-accent-foreground border-0 rounded-2xl py-4 shadow-none focus:outline-none focus-visible:ring-0 focus-visible:border-transparent"
+            >
+              <Text className="text-white font-bold text-base">
+                Enviar a revisión
+              </Text>
+            </Button>
 
-        <Button
-          disabled={!formState.isValid || createProduct.isLoading}
-          onPress={handleSubmit(onSubmit)}
-          size="lg"
-          className="bg-accent-foreground border-0 rounded-2xl py-4 shadow-none focus:outline-none focus-visible:ring-0 focus-visible:border-transparent"
-        >
-          <Text className="text-white font-bold text-base">
-            Enviar a revisión
-          </Text>
-        </Button>
-
-        <Text className="text-accent-foreground text-center text-xs">
-          La publicación quedará pendiente hasta que un agente de la plataforma
-          la revise.
-        </Text>
+            <Text className="text-accent-foreground text-center text-xs">
+              La publicación quedará pendiente hasta que un agente de la
+              plataforma la revise.
+            </Text>
+          </>
+        ) : (
+          <LoginPrompt
+            message={
+              <>
+                Para poder ver su rango, por favor{" "}
+                <Text className="text-foreground text-lg font-bold">
+                  inicie sesión
+                </Text>
+              </>
+            }
+          />
+        )}
       </ScrollView>
     </>
   );
