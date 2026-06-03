@@ -1,9 +1,9 @@
 import { Image, ScrollView, View } from "react-native";
 
-import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
 import { Text } from "@/components/ui/text";
+import { useAuth } from "@/lib/auth";
 
 import type { Product } from "./catalog-mock";
 
@@ -45,7 +45,11 @@ function Thumbnails({ images }: { images: string[] }) {
   return (
     <View className="flex flex-row gap-2">
       {images.map(uri => (
-        <Image key={uri} source={{ uri }} className="h-20 flex-1 rounded-lg" />
+        <Image
+          key={uri}
+          source={{ uri }}
+          className="h-20 flex-1 rounded-lg drop-shadow-sm/30"
+        />
       ))}
     </View>
   );
@@ -56,10 +60,12 @@ export function ProductDialog({
   open,
   onOpenChange,
 }: ProductDialogProps) {
+  const { isAuthed } = useAuth();
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       {product && (
-        <DialogContent className="max-h-[85vh] w-full gap-0 bg-white p-5 sm:max-w-xl">
+        <DialogContent className="max-h-[85vh] w-[92vw] max-w-[92vw] gap-0 bg-white p-5">
           <DialogTitle className="text-primary text-2xl font-bold">
             {product.name}
           </DialogTitle>
@@ -72,21 +78,11 @@ export function ProductDialog({
           >
             <Image
               source={{ uri: product.image }}
-              className="h-56 w-full rounded-xl"
+              className="h-56 w-full rounded-xl drop-shadow-sm/30"
             />
             <Thumbnails images={product.images} />
 
             <View className="border-gray-200 gap-4 rounded-2xl border bg-white p-4 shadow-sm shadow-black/10">
-              <View className="flex flex-row items-center justify-between">
-                <Text className="text-primary text-xl font-bold">
-                  Nro de pieza
-                </Text>
-                <Button variant="outline" size="sm" className="rounded-lg">
-                  <Text>{product.pieceNumber}</Text>
-                </Button>
-              </View>
-              <Separator className="bg-primary/40" />
-
               <TextSection title="Descripción" body={product.description} />
 
               {product.kind === "artwork" && (
@@ -107,22 +103,23 @@ export function ProductDialog({
                   Precio base
                 </Text>
                 <View className="rounded-full bg-white/25 px-4 py-1">
-                  <Text className="font-semibold text-white">
+                  <Text
+                    className="font-semibold text-white"
+                    style={
+                      isAuthed
+                        ? undefined
+                        : {
+                            color: "transparent",
+                            textShadowColor: "rgba(255,255,255,0.95)",
+                            textShadowOffset: { width: 0, height: 0 },
+                            textShadowRadius: 8,
+                          }
+                    }
+                  >
                     {formatPrice(product.basePrice)}
                   </Text>
                 </View>
               </View>
-
-              <View className="flex flex-row items-center justify-between">
-                <Text className="text-primary text-xl font-bold">
-                  Compuesto por
-                </Text>
-                <View className="border-border rounded-lg border px-5 py-1">
-                  <Text className="text-foreground">{product.composedOf}</Text>
-                </View>
-              </View>
-
-              <Thumbnails images={product.composedImages} />
             </View>
           </ScrollView>
         </DialogContent>
