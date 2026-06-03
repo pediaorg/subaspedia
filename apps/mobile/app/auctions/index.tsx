@@ -1,22 +1,44 @@
 import { Stack } from "expo-router";
 import { useMemo, useState } from "react";
-import { ScrollView, Text, View } from "react-native";
+import { ActivityIndicator, ScrollView, Text, View } from "react-native";
 
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
+import { api } from "@/lib/api";
 
 import { AuctionCard } from "./_/auction-card";
-import { AUCTIONS, type Ranks } from "./_/auctions-mock";
+import type { Auction, Ranks } from "./_/auctions-mock";
 import { CatalogDialog } from "./_/catalog-dialog";
 import { MOCK_PRODUCTS, type Product } from "./_/catalog-mock";
 import { ProductDialog } from "./_/product-dialog";
 import { RankFilter } from "./_/rank-filter";
+
+const CATEGORY_TO_RANK: Record<string, Ranks> = {
+  common: "Común",
+  special: "Especial",
+  silver: "Plata",
+  gold: "Oro",
+  platinum: "Platino",
+};
 
 export default function AuctionsScreen() {
   const [search, setSearch] = useState("");
   const [ranks, setRanks] = useState<Ranks[]>([]);
   const [catalogOpen, setCatalogOpen] = useState(false);
   const [detailProduct, setDetailProduct] = useState<Product | null>(null);
+
+  const { data, isLoading, error } = api.auctions.listActive.useQuery();
+
+  const auctions = useMemo<Auction[]>(
+    () =>
+      (data ?? []).map(a => ({
+        id: String(a.id),
+        name: a.location ?? "",
+        rank: a.category ? CATEGORY_TO_RANK[a.category] : "Común",
+        images: [],
+      })),
+    [data],
+  );
 
   const toggleRank = (c: Ranks) =>
     setRanks(prev =>
@@ -25,12 +47,12 @@ export default function AuctionsScreen() {
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return AUCTIONS.filter(a => {
+    return auctions.filter(a => {
       const matchesText = !q || a.name.toLowerCase().includes(q);
       const matchesRank = ranks.length === 0 || ranks.includes(a.rank);
       return matchesText && matchesRank;
     });
-  }, [search, ranks]);
+  }, [auctions, search, ranks]);
 
   const handleSelectProduct = (product: Product) => {
     setCatalogOpen(false);
@@ -60,7 +82,11 @@ export default function AuctionsScreen() {
         <Separator className="bg-gray-300" />
 
         <View className="justify-center items-center w-full mt-2">
-          {filtered.length === 0 && (
+          {isLoading && <ActivityIndicator className="py-8" />}
+          {error && (
+            <Text className="text-red-500 py-8">Error: {error.message}</Text>
+          )}
+          {!isLoading && !error && filtered.length === 0 && (
             <Text className="text-muted-foreground py-8">
               No se encontraron subastas
             </Text>

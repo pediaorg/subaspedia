@@ -136,7 +136,6 @@ export const auctions = sqliteTable(
     }),
   },
   t => [
-    check("chk_date", sql`${t.date} > date('now', '+10 days')`),
     check("chk_auction_status", sql`${t.status} IN ('open', 'closed')`),
     check(
       "chk_auction_category",
