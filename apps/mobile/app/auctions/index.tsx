@@ -9,7 +9,7 @@ import { api } from "@/lib/api";
 import { AuctionCard } from "./_/auction-card";
 import type { Auction, Ranks } from "./_/auctions-mock";
 import { CatalogDialog } from "./_/catalog-dialog";
-import { MOCK_PRODUCTS, type Product } from "./_/catalog-mock";
+import type { Product } from "./_/catalog-mock";
 import { ProductDialog } from "./_/product-dialog";
 import { RankFilter } from "./_/rank-filter";
 
@@ -24,10 +24,34 @@ const CATEGORY_TO_RANK: Record<string, Ranks> = {
 export default function AuctionsScreen() {
   const [search, setSearch] = useState("");
   const [ranks, setRanks] = useState<Ranks[]>([]);
-  const [catalogOpen, setCatalogOpen] = useState(false);
+  const [catalogAuctionId, setCatalogAuctionId] = useState<number | null>(null);
   const [detailProduct, setDetailProduct] = useState<Product | null>(null);
 
   const { data, isLoading, error } = api.auctions.listActive.useQuery();
+
+  const { data: catalogData } = api.auctions.listCatalog.useQuery(
+    { auctionId: catalogAuctionId ?? 0 },
+    { enabled: catalogAuctionId !== null },
+  );
+
+  const catalogProducts = useMemo<Product[]>(
+    () =>
+      (catalogData ?? []).map(p => ({
+        kind: "object" as const,
+        id: String(p.id),
+        name: p.name,
+        category: "",
+        image: "https://placehold.co/600x400",
+        images: [],
+        pieceNumber: "",
+        description: p.description ?? "",
+        currentOwner: "",
+        basePrice: p.basePrice,
+        composedOf: 0,
+        composedImages: [],
+      })),
+    [catalogData],
+  );
 
   const auctions = useMemo<Auction[]>(
     () =>
@@ -55,7 +79,7 @@ export default function AuctionsScreen() {
   }, [auctions, search, ranks]);
 
   const handleSelectProduct = (product: Product) => {
-    setCatalogOpen(false);
+    setCatalogAuctionId(null);
     setDetailProduct(product);
   };
 
@@ -96,16 +120,16 @@ export default function AuctionsScreen() {
             <AuctionCard
               key={auction.id}
               auction={auction}
-              onOpenCatalog={() => setCatalogOpen(true)}
+              onOpenCatalog={() => setCatalogAuctionId(Number(auction.id))}
             />
           ))}
         </View>
       </ScrollView>
 
       <CatalogDialog
-        open={catalogOpen}
-        onOpenChange={setCatalogOpen}
-        products={MOCK_PRODUCTS}
+        open={catalogAuctionId !== null}
+        onOpenChange={open => !open && setCatalogAuctionId(null)}
+        products={catalogProducts}
         onSelectProduct={handleSelectProduct}
       />
 
