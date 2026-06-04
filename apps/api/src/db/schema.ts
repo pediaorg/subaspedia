@@ -136,7 +136,6 @@ export const auctions = sqliteTable(
     }),
   },
   t => [
-    check("chk_date", sql`${t.date} > date('now', '+10 days')`),
     check("chk_auction_status", sql`${t.status} IN ('open', 'closed')`),
     check(
       "chk_auction_category",
@@ -157,6 +156,15 @@ export const products = sqliteTable("products", {
     () => insurances.policyNumber,
   ),
   name: text("name").notNull(),
+});
+
+export const artworkDetails = sqliteTable("artwork_details", {
+  productId: integer("product_id")
+    .primaryKey()
+    .references(() => products.id),
+  artist: text().notNull(),
+  creationDate: text("creation_date"),
+  history: text(),
 });
 
 export const photos = sqliteTable("photos", {
