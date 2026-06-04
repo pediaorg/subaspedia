@@ -51,7 +51,6 @@ export const auctionsRouter = {
           auctionId: catalogs.auctionId,
           productId: photos.productId,
           photoId: photos.id,
-          photo: photos.photo,
         })
         .from(catalogs)
         .innerJoin(catalogItems, eq(catalogItems.catalogId, catalogs.id))
@@ -59,8 +58,8 @@ export const auctionsRouter = {
         .where(inArray(catalogs.auctionId, auctionIds))
         .all();
 
-      // Por subasta: agarrar la primera foto de cada producto, hasta 4 productos
-      const byAuction = new Map<number, Map<number, Buffer>>();
+      // Por subasta: la primera foto de cada producto, hasta 4 productos
+      const byAuction = new Map<number, Map<number, number>>();
       for (const r of photoRows.sort((a, b) => a.photoId - b.photoId)) {
         if (r.auctionId == null) continue;
         let perProduct = byAuction.get(r.auctionId);
@@ -68,17 +67,16 @@ export const auctionsRouter = {
           perProduct = new Map();
           byAuction.set(r.auctionId, perProduct);
         }
-        if (!perProduct.has(r.productId)) perProduct.set(r.productId, r.photo);
+        if (!perProduct.has(r.productId))
+          perProduct.set(r.productId, r.photoId);
       }
 
       return auctionRows.map(a => {
         const perProduct = byAuction.get(a.id);
-        const images = perProduct
-          ? Array.from(perProduct.values())
-              .slice(0, 4)
-              .map(buf => `data:image/jpeg;base64,${buf.toString("base64")}`)
+        const photoIds = perProduct
+          ? Array.from(perProduct.values()).slice(0, 4)
           : [];
-        return { ...a, images };
+        return { ...a, photoIds };
       });
     }),
 
@@ -112,7 +110,6 @@ export const auctionsRouter = {
         .select({
           id: photos.id,
           productId: photos.productId,
-          photo: photos.photo,
         })
         .from(photos)
         .where(
@@ -123,19 +120,18 @@ export const auctionsRouter = {
         )
         .all();
 
-      const allByProduct = new Map<number, string[]>();
+      const allByProduct = new Map<number, number[]>();
       for (const p of photoRows.sort((a, b) => a.id - b.id)) {
-        const uri = `data:image/jpeg;base64,${p.photo.toString("base64")}`;
         let arr = allByProduct.get(p.productId);
         if (!arr) {
           arr = [];
           allByProduct.set(p.productId, arr);
         }
-        arr.push(uri);
+        arr.push(p.id);
       }
 
       return items.map(i => {
-        const images = allByProduct.get(i.id) ?? [];
+        const photoIds = allByProduct.get(i.id) ?? [];
         const isArtwork = i.artist !== null;
         return {
           id: i.id,
@@ -144,8 +140,8 @@ export const auctionsRouter = {
           catalogDescription: i.catalogDescription,
           basePrice: i.basePrice,
           ownerName: i.ownerName,
-          image: images[0] ?? null,
-          images,
+          photoId: photoIds[0] ?? null,
+          photoIds,
           kind: isArtwork ? ("artwork" as const) : ("object" as const),
           artist: i.artist,
           creationDate: i.creationDate,

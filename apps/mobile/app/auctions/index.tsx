@@ -5,6 +5,7 @@ import { ActivityIndicator, ScrollView, Text, View } from "react-native";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { api } from "@/lib/api";
+import { photoUri } from "@/lib/photo";
 
 import { AuctionCard } from "./_/auction-card";
 import type { Auction, Ranks } from "./_/auctions-mock";
@@ -37,12 +38,15 @@ export default function AuctionsScreen() {
   const catalogProducts = useMemo<Product[]>(
     () =>
       (catalogData ?? []).map(p => {
+        const images = p.photoIds
+          .map(id => photoUri(id))
+          .filter((u): u is string => u !== null);
         const base = {
           id: String(p.id),
           name: p.name,
           category: p.catalogDescription ?? "",
-          image: p.image ?? "https://placehold.co/600x400",
-          images: p.images,
+          image: photoUri(p.photoId) ?? "https://placehold.co/600x400",
+          images,
           description: p.description ?? "",
           currentOwner: p.ownerName ?? "—",
           basePrice: p.basePrice,
@@ -67,7 +71,9 @@ export default function AuctionsScreen() {
         id: String(a.id),
         name: a.location ?? "",
         rank: a.category ? CATEGORY_TO_RANK[a.category] : "Común",
-        images: a.images ?? [],
+        images: (a.photoIds ?? [])
+          .map(id => photoUri(id))
+          .filter((u): u is string => u !== null),
       })),
     [data],
   );
