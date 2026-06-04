@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import { pub } from "@/api/context";
 import {
+  artworkDetails,
   auctions,
   catalogItems,
   catalogs,
@@ -92,12 +93,16 @@ export const auctionsRouter = {
           catalogDescription: products.catalogDescription,
           basePrice: catalogItems.basePrice,
           ownerName: people.name,
+          artist: artworkDetails.artist,
+          creationDate: artworkDetails.creationDate,
+          history: artworkDetails.history,
         })
         .from(catalogs)
         .innerJoin(catalogItems, eq(catalogItems.catalogId, catalogs.id))
         .innerJoin(products, eq(products.id, catalogItems.productId))
         .leftJoin(owners, eq(owners.id, products.ownerId))
         .leftJoin(people, eq(people.id, owners.id))
+        .leftJoin(artworkDetails, eq(artworkDetails.productId, products.id))
         .where(eq(catalogs.auctionId, input.auctionId))
         .all();
 
@@ -131,10 +136,20 @@ export const auctionsRouter = {
 
       return items.map(i => {
         const images = allByProduct.get(i.id) ?? [];
+        const isArtwork = i.artist !== null;
         return {
-          ...i,
+          id: i.id,
+          name: i.name,
+          description: i.description,
+          catalogDescription: i.catalogDescription,
+          basePrice: i.basePrice,
+          ownerName: i.ownerName,
           image: images[0] ?? null,
           images,
+          kind: isArtwork ? ("artwork" as const) : ("object" as const),
+          artist: i.artist,
+          creationDate: i.creationDate,
+          history: i.history,
         };
       });
     }),

@@ -97,6 +97,16 @@ export const relations = defineRelations(schema, r => ({
     photos: r.many.photos(),
     catalogItems: r.many.catalogItems(),
     auctionRecords: r.many.auctionRecords(),
+    artworkDetails: r.one.artworkDetails({
+      from: r.products.id,
+      to: r.artworkDetails.productId,
+    }),
+  },
+  artworkDetails: {
+    product: r.one.products({
+      from: r.artworkDetails.productId,
+      to: r.products.id,
+    }),
   },
   photos: {
     product: r.one.products({

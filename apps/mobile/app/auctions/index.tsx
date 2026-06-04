@@ -36,17 +36,28 @@ export default function AuctionsScreen() {
 
   const catalogProducts = useMemo<Product[]>(
     () =>
-      (catalogData ?? []).map(p => ({
-        kind: "object" as const,
-        id: String(p.id),
-        name: p.name,
-        category: p.catalogDescription ?? "",
-        image: p.image ?? "https://placehold.co/600x400",
-        images: p.images,
-        description: p.description ?? "",
-        currentOwner: p.ownerName ?? "—",
-        basePrice: p.basePrice,
-      })),
+      (catalogData ?? []).map(p => {
+        const base = {
+          id: String(p.id),
+          name: p.name,
+          category: p.catalogDescription ?? "",
+          image: p.image ?? "https://placehold.co/600x400",
+          images: p.images,
+          description: p.description ?? "",
+          currentOwner: p.ownerName ?? "—",
+          basePrice: p.basePrice,
+        };
+        if (p.kind === "artwork") {
+          return {
+            ...base,
+            kind: "artwork" as const,
+            artist: p.artist ?? "—",
+            date: p.creationDate ?? "—",
+            history: p.history ?? "",
+          };
+        }
+        return { ...base, kind: "object" as const };
+      }),
     [catalogData],
   );
 
