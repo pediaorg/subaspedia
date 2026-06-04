@@ -9,7 +9,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-import { RANKS, type Ranks } from "./auctions-mock";
+import { RANKS, type Ranks } from "@/lib/auctions";
 
 type RankFilterProps = {
   selected: Ranks[];

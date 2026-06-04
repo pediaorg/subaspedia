@@ -80,6 +80,65 @@ export const auctionsRouter = {
       });
     }),
 
+  // Productos destacados de subastas abiertas, con la subasta a la que pertenecen.
+  listFeatured: pub.handler(async ({ context }) => {
+    const rows = await context.db
+      .select({
+        auctionId: auctions.id,
+        productId: products.id,
+        name: products.name,
+        catalogDescription: products.catalogDescription,
+        fullDescription: products.fullDescription,
+      })
+      .from(auctions)
+      .innerJoin(catalogs, eq(catalogs.auctionId, auctions.id))
+      .innerJoin(catalogItems, eq(catalogItems.catalogId, catalogs.id))
+      .innerJoin(products, eq(products.id, catalogItems.productId))
+      .where(eq(auctions.status, "open"))
+      .all();
+
+    if (rows.length === 0) return [];
+
+    const photoRows = await context.db
+      .select({ id: photos.id, productId: photos.productId })
+      .from(photos)
+      .where(
+        inArray(
+          photos.productId,
+          rows.map(r => r.productId),
+        ),
+      )
+      .all();
+
+    const firstPhoto = new Map<number, number>();
+    for (const p of photoRows.sort((a, b) => a.id - b.id)) {
+      if (!firstPhoto.has(p.productId)) firstPhoto.set(p.productId, p.id);
+    }
+
+    // Un producto por entrada, hasta 6.
+    const seen = new Set<number>();
+    const featured: {
+      id: number;
+      auctionId: number;
+      title: string;
+      description: string;
+      photoId: number | null;
+    }[] = [];
+    for (const r of rows) {
+      if (seen.has(r.productId)) continue;
+      seen.add(r.productId);
+      featured.push({
+        id: r.productId,
+        auctionId: r.auctionId,
+        title: r.name,
+        description: r.catalogDescription ?? r.fullDescription,
+        photoId: firstPhoto.get(r.productId) ?? null,
+      });
+      if (featured.length >= 6) break;
+    }
+    return featured;
+  }),
+
   listCatalog: pub
     .input(z.object({ auctionId: z.number().int().positive() }))
     .handler(async ({ context, input }) => {

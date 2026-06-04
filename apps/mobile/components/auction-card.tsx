@@ -1,15 +1,19 @@
 import { Image, Pressable, Text, View } from "react-native";
 
 import { Button } from "@/components/ui/button";
-
-import type { Auction } from "./auctions-mock";
+import type { Auction } from "@/lib/auctions";
 
 type AuctionCardProps = {
   auction: Auction;
   onOpenCatalog: () => void;
+  onEnter?: () => void;
 };
 
-export function AuctionCard({ auction, onOpenCatalog }: AuctionCardProps) {
+export function AuctionCard({
+  auction,
+  onOpenCatalog,
+  onEnter,
+}: AuctionCardProps) {
   return (
     <View className="w-full mt-3 mb-5 drop-shadow-xl/50 rounded-md bg-white transition delay-150 duration-300 ease-in-out hover:-translate-y-1 active:-translate-y-1">
       <Image
@@ -34,6 +38,7 @@ export function AuctionCard({ auction, onOpenCatalog }: AuctionCardProps) {
         <Button
           className="border-border h-8 bg-white rounded-full drop-shadow-lg hover:bg-white/90 active:bg-white/90 focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-primary/80"
           size="sm"
+          onPress={onEnter}
         >
           Entrar
         </Button>

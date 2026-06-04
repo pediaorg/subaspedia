@@ -2,25 +2,17 @@ import { Stack } from "expo-router";
 import { useMemo, useState } from "react";
 import { ActivityIndicator, ScrollView, Text, View } from "react-native";
 
-import { Input } from "@/components/ui/input";
+import { AuctionCard } from "@/components/auction-card";
+import { SearchBar } from "@/components/search-bar";
 import { Separator } from "@/components/ui/separator";
 import { api } from "@/lib/api";
+import { type Ranks, toAuctions } from "@/lib/auctions";
 import { photoUri } from "@/lib/photo";
 
-import { AuctionCard } from "./_/auction-card";
-import type { Auction, Ranks } from "./_/auctions-mock";
 import { CatalogDialog } from "./_/catalog-dialog";
 import type { Product } from "./_/catalog-mock";
 import { ProductDialog } from "./_/product-dialog";
 import { RankFilter } from "./_/rank-filter";
-
-const CATEGORY_TO_RANK: Record<string, Ranks> = {
-  common: "Común",
-  special: "Especial",
-  silver: "Plata",
-  gold: "Oro",
-  platinum: "Platino",
-};
 
 export default function AuctionsScreen() {
   const [search, setSearch] = useState("");
@@ -65,18 +57,7 @@ export default function AuctionsScreen() {
     [catalogData],
   );
 
-  const auctions = useMemo<Auction[]>(
-    () =>
-      (data ?? []).map(a => ({
-        id: String(a.id),
-        name: a.location ?? "",
-        rank: a.category ? CATEGORY_TO_RANK[a.category] : "Común",
-        images: (a.photoIds ?? [])
-          .map(id => photoUri(id))
-          .filter((u): u is string => u !== null),
-      })),
-    [data],
-  );
+  const auctions = useMemo(() => toAuctions(data), [data]);
 
   const toggleRank = (c: Ranks) =>
     setRanks(prev =>
@@ -108,9 +89,9 @@ export default function AuctionsScreen() {
         <View className="flex flex-row items-center justify-between mb-4">
           <Text className="text-2xl font-bold">Subastas</Text>
         </View>
-        <Input
+        <SearchBar
           placeholder="Buscar subastas..."
-          className="border-none bg-primary mb-4"
+          className="mb-4"
           value={search}
           onChangeText={setSearch}
         />
