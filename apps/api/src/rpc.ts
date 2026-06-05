@@ -3,6 +3,7 @@ import type { RouterClient } from "@orpc/server";
 import { pub } from "@/api/context";
 
 import { authRouter } from "./routers/auth";
+import { backofficeRouter } from "./routers/backoffice";
 import { countriesRouter } from "./routers/countries";
 
 export const router = {
@@ -11,6 +12,7 @@ export const router = {
   }),
   countries: countriesRouter,
   auth: authRouter,
+  backoffice: backofficeRouter,
 };
 
 export type Router = typeof router;

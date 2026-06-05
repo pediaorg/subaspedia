@@ -124,17 +124,18 @@ export const paymentMethods = sqliteTable(
       enum: ["bank_account", "credit_card", "certified_check"],
     }).notNull(),
     verified: boolean("verified").default(false),
-    foreign: boolean("foreign"),
     amount: real(),
-    currency: text({ enum: ["ARS", "USD"] }),
+    // Datos identificatorios del medio que carga el cliente y revisa el
+    // backoffice (p. ej. "Banco Galicia, CBU ...", "Visa ****1234").
     details: text(),
+    // Comprobante/foto del medio (data URI base64), opcional.
+    photo: text(),
   },
   t => [
     check(
       "chk_payment_type",
       sql`${t.type} IN ('bank_account', 'credit_card', 'certified_check')`,
     ),
-    check("chk_payment_currency", sql`${t.currency} IN ('ARS', 'USD')`),
   ],
 );
 
