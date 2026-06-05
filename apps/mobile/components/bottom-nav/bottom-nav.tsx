@@ -7,7 +7,7 @@ import { useAuth } from "@/lib/auth";
 import { navItems } from "./items";
 import { NavItem } from "./nav-item";
 
-const HIDDEN: string[] = ["/login", "/profile"];
+const HIDDEN: string[] = ["/", "/login", "/profile"];
 
 function isActive(pathname: string, href: string) {
   if (href === "/") return pathname === "/";
