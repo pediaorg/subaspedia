@@ -56,7 +56,7 @@ export default function PaymentMethodCard({
   const { title, subtitle } = describe(method);
 
   return (
-    <Card className="flex-row items-center gap-3 border-0 rounded-2xl bg-[#C9CDD1] px-4 py-3 drop-shadow-2xl/10">
+    <Card className="flex-row items-center gap-3 border-0 rounded-2xl bg-white px-4 py-3 drop-shadow-md/20">
       <Icon
         as={method.verified ? BadgeCheck : AlertCircle}
         size={28}

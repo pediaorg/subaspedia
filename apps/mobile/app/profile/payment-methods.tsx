@@ -84,7 +84,7 @@ export default function PaymentMethods() {
         </Text>
       )}
 
-      <ScrollView contentContainerClassName="gap-4 pb-6">
+      <ScrollView className="-mx-4" contentContainerClassName="gap-4 px-4 pb-6">
         {methods?.map(method => (
           <PaymentMethodCard
             key={method.id}
