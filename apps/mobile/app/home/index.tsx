@@ -1,3 +1,4 @@
+import { Stack } from "expo-router";
 import { Menu } from "lucide-react-native";
 import { useState } from "react";
 import { Pressable, ScrollView, View } from "react-native";
@@ -13,7 +14,8 @@ import { FeaturedCarousel } from "./_/featured-carousel";
 export default function HomeScreen() {
   const [menuOpen, setMenuOpen] = useState(false);
   return (
-    <View className="flex-1 bg-white">
+    <>
+      <Stack.Screen options={{ headerShown: false }} />
       <ScrollView
         className="flex-1"
         contentContainerClassName="gap-5 p-4 pb-12"
@@ -42,6 +44,6 @@ export default function HomeScreen() {
       </ScrollView>
 
       <Sidebar open={menuOpen} onClose={() => setMenuOpen(false)} />
-    </View>
+    </>
   );
 }

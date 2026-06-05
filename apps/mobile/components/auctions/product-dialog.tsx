@@ -3,9 +3,8 @@ import { Image, ScrollView, View } from "react-native";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
 import { Text } from "@/components/ui/text";
+import type { Product } from "@/lib/auctions";
 import { useAuth } from "@/lib/auth";
-
-import type { Product } from "./catalog-mock";
 
 const priceFormatter = new Intl.NumberFormat("es-AR", {
   style: "currency",

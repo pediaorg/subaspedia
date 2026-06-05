@@ -1,18 +1,63 @@
 import { router } from "expo-router";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { ActivityIndicator, View } from "react-native";
 
 import { AuctionCard } from "@/components/auction-card";
+import { CatalogDialog } from "@/components/auctions/catalog-dialog";
+import { ProductDialog } from "@/components/auctions/product-dialog";
 import { Button } from "@/components/ui/button";
 import { Text } from "@/components/ui/text";
 import { api } from "@/lib/api";
-import { toAuctions } from "@/lib/auctions";
+import { type Product, toAuctions } from "@/lib/auctions";
+import { photoUri } from "@/lib/photo";
 
 export function AuctionsPreview() {
   const { data, isLoading, error } = api.auctions.listActive.useQuery();
+  const [catalogAuctionId, setCatalogAuctionId] = useState<number | null>(null);
+  const [detailProduct, setDetailProduct] = useState<Product | null>(null);
+
+  const { data: catalogData } = api.auctions.listCatalog.useQuery(
+    { auctionId: catalogAuctionId ?? 0 },
+    { enabled: catalogAuctionId !== null },
+  );
+
+  const catalogProducts = useMemo<Product[]>(
+    () =>
+      (catalogData ?? []).map(p => {
+        const images = p.photoIds
+          .map(id => photoUri(id))
+          .filter((u): u is string => u !== null);
+        const base = {
+          id: String(p.id),
+          name: p.name,
+          category: p.catalogDescription ?? "",
+          image: photoUri(p.photoId) ?? "https://placehold.co/600x400",
+          images,
+          description: p.description ?? "",
+          currentOwner: p.ownerName ?? "—",
+          basePrice: p.basePrice,
+        };
+        if (p.kind === "artwork") {
+          return {
+            ...base,
+            kind: "artwork" as const,
+            artist: p.artist ?? "—",
+            date: p.creationDate ?? "—",
+            history: p.history ?? "",
+          };
+        }
+        return { ...base, kind: "object" as const };
+      }),
+    [catalogData],
+  );
 
   // Solo un preview: las primeras 3 subastas activas.
   const auctions = useMemo(() => toAuctions(data).slice(0, 3), [data]);
+
+  const handleSelectProduct = (product: Product) => {
+    setCatalogAuctionId(null);
+    setDetailProduct(product);
+  };
 
   return (
     <View className="gap-1">
@@ -46,10 +91,23 @@ export function AuctionsPreview() {
         <AuctionCard
           key={auction.id}
           auction={auction}
-          onOpenCatalog={() => router.push("/auctions")}
+          onOpenCatalog={() => setCatalogAuctionId(Number(auction.id))}
           onEnter={() => router.push("/auctions")}
         />
       ))}
+
+      <CatalogDialog
+        open={catalogAuctionId !== null}
+        onOpenChange={open => !open && setCatalogAuctionId(null)}
+        products={catalogProducts}
+        onSelectProduct={handleSelectProduct}
+      />
+
+      <ProductDialog
+        product={detailProduct}
+        open={detailProduct !== null}
+        onOpenChange={open => !open && setDetailProduct(null)}
+      />
     </View>
   );
 }

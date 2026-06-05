@@ -3,15 +3,14 @@ import { useMemo, useState } from "react";
 import { ActivityIndicator, ScrollView, Text, View } from "react-native";
 
 import { AuctionCard } from "@/components/auction-card";
+import { CatalogDialog } from "@/components/auctions/catalog-dialog";
+import { ProductDialog } from "@/components/auctions/product-dialog";
 import { SearchBar } from "@/components/search-bar";
 import { Separator } from "@/components/ui/separator";
 import { api } from "@/lib/api";
-import { type Ranks, toAuctions } from "@/lib/auctions";
+import { type Product, type Ranks, toAuctions } from "@/lib/auctions";
 import { photoUri } from "@/lib/photo";
 
-import { CatalogDialog } from "./_/catalog-dialog";
-import type { Product } from "./_/catalog-mock";
-import { ProductDialog } from "./_/product-dialog";
 import { RankFilter } from "./_/rank-filter";
 
 export default function AuctionsScreen() {

@@ -4,8 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
 import { Text } from "@/components/ui/text";
-
-import type { Product } from "./catalog-mock";
+import type { Product } from "@/lib/auctions";
 
 type CatalogDialogProps = {
   open: boolean;
