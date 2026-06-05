@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus } from "lucide-react-native";
 import { Alert, ScrollView, Text, View } from "react-native";
 
@@ -38,12 +38,29 @@ const MOCK_PAYMENT_METHODS: PaymentMethod[] = [
 ];
 
 export default function PaymentMethods() {
+  const queryClient = useQueryClient();
+
   const { data: methods, isLoading } = useQuery({
     queryKey: ["payment-methods"],
     queryFn: async () => {
       // TODO: reemplazar por la llamada real (GET /users/me/payment-methods)
       await new Promise(r => setTimeout(r, 300));
       return MOCK_PAYMENT_METHODS;
+    },
+  });
+
+  const { mutate: deleteMethod } = useMutation({
+    mutationFn: async (id: number) => {
+      // TODO: reemplazar por la llamada real (DELETE /users/me/payment-methods/{id})
+      await new Promise(r => setTimeout(r, 300));
+      return id;
+    },
+    onSuccess: id => {
+      // El mock no persiste: actualizamos la cache a mano en lugar de invalidar
+      // (invalidar refetchearía el MOCK estático y el item reaparecería).
+      queryClient.setQueryData<PaymentMethod[]>(["payment-methods"], old =>
+        old?.filter(m => m.id !== id),
+      );
     },
   });
 
@@ -69,7 +86,11 @@ export default function PaymentMethods() {
 
       <ScrollView contentContainerClassName="gap-4 pb-6">
         {methods?.map(method => (
-          <PaymentMethodCard key={method.id} method={method} />
+          <PaymentMethodCard
+            key={method.id}
+            method={method}
+            onDelete={deleteMethod}
+          />
         ))}
 
         <Button

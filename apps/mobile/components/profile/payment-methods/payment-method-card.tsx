@@ -1,11 +1,24 @@
-import { AlertCircle, BadgeCheck } from "lucide-react-native";
-import { Text, View } from "react-native";
+import { AlertCircle, BadgeCheck, Trash2 } from "lucide-react-native";
+import { Pressable, Text, View } from "react-native";
 
 import type { PaymentMethod } from "@subaspedia/types/payment-method";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Card } from "@/components/ui/card";
 import { Icon } from "@/components/ui/icon";
 
-type PaymentMethodCardProps = { method: PaymentMethod };
+type PaymentMethodCardProps = {
+  method: PaymentMethod;
+  onDelete: (id: number) => void;
+};
 
 // Deriva título + identificador enmascarado según el tipo. El switch sobre
 // `method.type` le da narrowing a TS: dentro de cada case solo existen los
@@ -36,7 +49,10 @@ function maskTail(value: string): string {
   return `•••• ${value.slice(-4)}`;
 }
 
-export default function PaymentMethodCard({ method }: PaymentMethodCardProps) {
+export default function PaymentMethodCard({
+  method,
+  onDelete,
+}: PaymentMethodCardProps) {
   const { title, subtitle } = describe(method);
 
   return (
@@ -58,6 +74,34 @@ export default function PaymentMethodCard({ method }: PaymentMethodCardProps) {
           {!method.verified && " · sin verificar"}
         </Text>
       </View>
+
+      <AlertDialog>
+        <AlertDialogTrigger asChild>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Eliminar medio de pago"
+            className="active:opacity-60 p-1"
+          >
+            <Icon as={Trash2} size={20} className="text-gray-600" />
+          </Pressable>
+        </AlertDialogTrigger>
+        <AlertDialogContent
+          className="bg-primary-foreground"
+          overlayClassName="backdrop-blur-md bg-black/30"
+        >
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar este medio de pago?</AlertDialogTitle>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>
+              <Text>Cancelar</Text>
+            </AlertDialogCancel>
+            <AlertDialogAction onPress={() => onDelete(method.id)}>
+              <Text className="font-bold text-white">Eliminar</Text>
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 }
