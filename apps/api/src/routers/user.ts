@@ -30,4 +30,23 @@ export const userRouter = {
 
       return { success: true };
     }),
+
+  paymentLimit: authed.handler(async ({ context }) => {
+    const client = await context.db.query.clients.findFirst({
+      where: { id: context.userId },
+      columns: { id: true },
+      with: {
+        paymentMethods: {
+          where: { verified: true },
+          columns: { amount: true },
+        },
+      },
+    });
+
+    const limit =
+      client?.paymentMethods.reduce((acc, pm) => acc + (pm.amount ?? 0), 0) ??
+      0;
+
+    return { limit };
+  }),
 };
