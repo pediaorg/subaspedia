@@ -17,7 +17,7 @@ export type NavItemDef = {
 
 export function navItems(isAuthed: boolean): NavItemDef[] {
   return [
-    { key: "home", label: "Home", icon: Home, href: "/" },
+    { key: "home", label: "Home", icon: Home, href: "/home" },
     { key: "create", label: "Create", icon: Plus, href: "/new-product" },
     { key: "search", label: "Search", icon: Gavel, href: "/auctions" },
     isAuthed
