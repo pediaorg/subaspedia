@@ -11,12 +11,18 @@
 -- Escenario armado:
 --   * María Pérez (empleada / verificadora / revisora / jefa de sector)
 --   * Carlos Gómez (subastador)
---   * Juan Casablanca (cliente GOLD, es el usuario logueable — ver users)
+--   * Juan Casablanca (cliente GOLD, es el usuario logueable)
 --   * Ana López (cliente común, segunda postora)
 --   * Lucía Fernández (dueña de los bienes)
 --   * 1 subasta GOLD futura con catálogo de 2 productos
---   * 2 postores con pujas; Juan gana el reloj -> queda registrado en auction_records
+--   * 2 postores con pujas; Juan gana el reloj -> queda en auction_records
+--   * 1 medio de pago verificado para Juan (habilita pujar / claim del JWT)
 --   * 1 usuario logueable: juancasablanca@jamon.com / password123
+--
+-- NOTA (refactor 2026-06-01): ya no existe la tabla `users`. Las credenciales
+-- (email + password_hash) viven en `people`. El usuario logueable ES la
+-- persona Juan (people.id = 3). El check chk_credentials exige que email y
+-- password_hash estén ambos seteados o ambos NULL.
 -- ============================================================================
 
 PRAGMA foreign_keys = OFF;
@@ -32,13 +38,14 @@ DELETE FROM products;
 DELETE FROM auctions;
 DELETE FROM auctioneers;
 DELETE FROM owners;
+DELETE FROM payment_methods;
 DELETE FROM clients;
 DELETE FROM insurances;
 DELETE FROM sectors;
 DELETE FROM employees;
 DELETE FROM people;
 DELETE FROM countries;
-DELETE FROM users;
+DELETE FROM email_verifications;
 
 -- ---- countries -------------------------------------------------------------
 INSERT INTO countries (id, name, short_name, capital, nationality, languages) VALUES
@@ -47,12 +54,18 @@ INSERT INTO countries (id, name, short_name, capital, nationality, languages) VA
   (3, 'Estados Unidos', 'US', 'Washington D.C.', 'estadounidense', 'en');
 
 -- ---- people (su id se reutiliza como PK en employees/clients/owners/auctioneers)
-INSERT INTO people (id, document, name, address, status) VALUES
-  (1, '20111222', 'María Pérez',      'Av. Corrientes 1234', 'active'),
-  (2, '20333444', 'Carlos Gómez',     'Calle Falsa 123',     'active'),
-  (3, '12345678', 'Juan Casablanca',  'Lima 970',            'active'),
-  (4, '27888999', 'Lucía Fernández',  'San Martín 456',      'active'),
-  (5, '30555666', 'Ana López',        'Belgrano 789',        'active');
+-- Solo Juan (id 3) tiene credenciales -> es el único logueable. El resto va
+-- con email/password_hash en NULL (lo exige el check chk_credentials).
+-- Hash de 'password123': PBKDF2 (mismo esquema que src/lib/auth/index.ts).
+-- name y last_name van separados (la columna last_name se agregó para el perfil).
+INSERT INTO people (id, document, name, last_name, address, status, email, password_hash) VALUES
+  (1, '20111222', 'María',  'Pérez',     'Av. Corrientes 1234', 'active', NULL, NULL),
+  (2, '20333444', 'Carlos', 'Gómez',     'Calle Falsa 123',     'active', NULL, NULL),
+  (3, '12345678', 'Juan',   'Casablanca','Lima 970',            'active',
+     'juancasablanca@jamon.com',
+     'pbkdf2$100000$cbd1d69840c1790f0188bca9cae16cce$761bb62aa9686ce177dcd80e4dfbbec761ed08dc295cdab01221f3dedb2cc9d3'),
+  (4, '27888999', 'Lucía',  'Fernández', 'San Martín 456',      'active', NULL, NULL),
+  (5, '30555666', 'Ana',    'López',     'Belgrano 789',        'active', NULL, NULL);
 
 -- ---- employees (FK -> people) ----------------------------------------------
 INSERT INTO employees (id, position, sector_id) VALUES
@@ -71,6 +84,12 @@ INSERT INTO clients (id, country_id, admitted, category, verifier_id) VALUES
   (3, 1, 1, 'gold',   1),
   (5, 1, 1, 'common', 1);
 
+-- ---- payment_methods (FK -> clients; checks: type/currency enum) -----------
+-- Juan (client 3) tiene un medio de pago verificado -> puede pujar y el JWT
+-- arranca con hasVerifiedPaymentMethod = true.
+INSERT INTO payment_methods (id, client_id, type, verified, currency, details) VALUES
+  (1, 3, 'credit_card', 1, 'ARS', 'Tarjeta de crédito local (Visa)');
+
 -- ---- owners (FK -> people, countries, employees; check: risk_rating 1..6) --
 INSERT INTO owners (id, country_id, financial_verification, judicial_verification, risk_rating, verifier_id) VALUES
   (4, 1, 1, 1, 2, 1);
@@ -79,9 +98,9 @@ INSERT INTO owners (id, country_id, financial_verification, judicial_verificatio
 INSERT INTO auctioneers (id, license, region) VALUES
   (2, 'LIC-001', 'CABA');
 
--- ---- auctions (FK -> auctioneers; check: date > date('now','+10 days')) -----
--- OJO: si corrés el seed después de esta fecha, el check chk_date va a fallar.
---      Bumpeá la fecha a una futura si hace falta.
+-- ---- auctions (FK -> auctioneers) ------------------------------------------
+-- La regla "fecha > hoy + 10 días" ya NO se valida en la DB (sin trigger).
+-- Cuando exista POST /auctions, validarla en el zod del input.
 INSERT INTO auctions (id, date, time, status, auctioneer_id, location, attendee_capacity, has_warehouse, own_security, category) VALUES
   (1, '2027-03-01', '18:00', 'open', 2, 'Salón Central', 100, 1, 1, 'gold');
 
@@ -119,14 +138,5 @@ INSERT INTO bids (id, attendee_id, item_id, amount, winner) VALUES
 -- Venta registrada: el reloj (product 1) de Lucía (owner 4) se lo lleva Juan (client 3).
 INSERT INTO auction_records (id, auction_id, owner_id, product_id, client_id, amount, commission) VALUES
   (1, 1, 4, 1, 3, 185000, 12);
-
--- ---- users (login real) ----------------------------------------------------
--- email: juancasablanca@jamon.com  /  password: password123
--- El hash es PBKDF2 (mismo esquema que apps/api/src/lib/auth/index.ts).
--- Nota: esta tabla NO tiene FK con people/clients todavía (decisión pendiente
--- de cómo unir el login con el dominio). El id 1 acá es independiente del
--- people.id de Juan (que es 3).
-INSERT INTO users (id, email, password_hash) VALUES
-  (1, 'juancasablanca@jamon.com', 'pbkdf2$100000$cbd1d69840c1790f0188bca9cae16cce$761bb62aa9686ce177dcd80e4dfbbec761ed08dc295cdab01221f3dedb2cc9d3');
 
 PRAGMA foreign_keys = ON;

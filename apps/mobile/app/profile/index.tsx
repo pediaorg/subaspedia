@@ -27,6 +27,7 @@ import {
 import { Avatar, AvatarImage } from "@/components/ui/avatar";
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { api } from "@/lib/api";
 import { authStore } from "@/lib/auth";
 import { DEFAULT_AVATAR_URI } from "@/lib/constants";
 
@@ -51,14 +52,7 @@ export default function Profile() {
     router.replace("/");
   };
   const queryClient = useQueryClient();
-  const { data: user } = useQuery({
-    queryKey: ["users", "me"],
-    queryFn: async () => {
-      // TODO: reemplazar por api.get("/users/me")
-      await new Promise(r => setTimeout(r, 300));
-      return MOCK_CURRENT_USER;
-    },
-  });
+  const { data: user } = api.users.me.useQuery();
   if (!user) return <Text>Cargando usuario...</Text>;
   return (
     <View className="flex-1 gap-6">

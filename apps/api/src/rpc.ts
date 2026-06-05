@@ -4,6 +4,7 @@ import { pub } from "@/api/context";
 
 import { authRouter } from "./routers/auth";
 import { countriesRouter } from "./routers/countries";
+import { usersRouter } from "./routers/users";
 
 export const router = {
   health: pub.handler(async () => {
@@ -11,6 +12,7 @@ export const router = {
   }),
   countries: countriesRouter,
   auth: authRouter,
+  users: usersRouter,
 };
 
 export type Router = typeof router;
