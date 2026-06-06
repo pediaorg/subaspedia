@@ -23,6 +23,7 @@ export default function RootLayout() {
           }}
         />
         <Stack.Screen name="register" options={{ headerShown: false }} />
+        <Stack.Screen name="logout" options={{ headerShown: false }} />
       </Stack>
 
       <AccessGuard />
