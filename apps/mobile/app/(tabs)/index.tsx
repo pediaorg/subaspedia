@@ -6,18 +6,16 @@ import {
   View,
 } from "react-native";
 
+import { useRouter } from "expo-router";
+
 import { AppHeader } from "@/components/app-header/app-header";
 import { api } from "@/lib/api";
-import { authStore } from "@/lib/auth";
-import { queryClient } from "@/lib/query-client";
 
 export default function HomeScreen() {
+  const router = useRouter();
   const { data, isLoading, error } = api.countries.list.useQuery();
 
-  const logout = () => {
-    authStore.set(null);
-    queryClient.clear();
-  };
+  const logout = () => router.push("/logout");
 
   return (
     <View className="flex-1 bg-white">

@@ -4,7 +4,9 @@ import { pub } from "@/api/context";
 
 import { auctionsRouter } from "./routers/auctions";
 import { authRouter } from "./routers/auth";
+import { backofficeRouter } from "./routers/backoffice";
 import { countriesRouter } from "./routers/countries";
+import { userRouter } from "./routers/user";
 import { productsRouter } from "./routers/products";
 
 export const router = {
@@ -15,6 +17,8 @@ export const router = {
   countries: countriesRouter,
   products: productsRouter,
   auth: authRouter,
+  backoffice: backofficeRouter,
+  user: userRouter,
 };
 
 export type Router = typeof router;

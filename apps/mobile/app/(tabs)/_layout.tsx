@@ -7,7 +7,9 @@ export default function TabLayout() {
   if (!isAuthed) return <Redirect href="/login" />;
 
   return (
-    <Tabs screenOptions={{ headerShown: false }}>
+    <Tabs
+      screenOptions={{ headerShown: false, tabBarStyle: { display: "none" } }}
+    >
       <Tabs.Screen name="index" options={{ title: "Home" }} />
     </Tabs>
   );

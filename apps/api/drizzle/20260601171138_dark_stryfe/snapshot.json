@@ -2,9 +2,7 @@
   "version": "7",
   "dialect": "sqlite",
   "id": "60249953-45db-4b44-9b2f-236b335ecc3a",
-  "prevIds": [
-    "00000000-0000-0000-0000-000000000000"
-  ],
+  "prevIds": ["00000000-0000-0000-0000-000000000000"],
   "ddl": [
     {
       "name": "attendees",
@@ -955,13 +953,9 @@
       "table": "users"
     },
     {
-      "columns": [
-        "client_id"
-      ],
+      "columns": ["client_id"],
       "tableTo": "clients",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "nameExplicit": false,
@@ -970,13 +964,9 @@
       "table": "attendees"
     },
     {
-      "columns": [
-        "auction_id"
-      ],
+      "columns": ["auction_id"],
       "tableTo": "auctions",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "nameExplicit": false,
@@ -985,13 +975,9 @@
       "table": "attendees"
     },
     {
-      "columns": [
-        "auction_id"
-      ],
+      "columns": ["auction_id"],
       "tableTo": "auctions",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "nameExplicit": false,
@@ -1000,13 +986,9 @@
       "table": "auction_records"
     },
     {
-      "columns": [
-        "owner_id"
-      ],
+      "columns": ["owner_id"],
       "tableTo": "owners",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "nameExplicit": false,
@@ -1015,13 +997,9 @@
       "table": "auction_records"
     },
     {
-      "columns": [
-        "product_id"
-      ],
+      "columns": ["product_id"],
       "tableTo": "products",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "nameExplicit": false,
@@ -1030,13 +1008,9 @@
       "table": "auction_records"
     },
     {
-      "columns": [
-        "client_id"
-      ],
+      "columns": ["client_id"],
       "tableTo": "clients",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "nameExplicit": false,
@@ -1045,13 +1019,9 @@
       "table": "auction_records"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "tableTo": "people",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "nameExplicit": false,
@@ -1060,13 +1030,9 @@
       "table": "auctioneers"
     },
     {
-      "columns": [
-        "auctioneer_id"
-      ],
+      "columns": ["auctioneer_id"],
       "tableTo": "auctioneers",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "nameExplicit": false,
@@ -1075,13 +1041,9 @@
       "table": "auctions"
     },
     {
-      "columns": [
-        "attendee_id"
-      ],
+      "columns": ["attendee_id"],
       "tableTo": "attendees",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "nameExplicit": false,
@@ -1090,13 +1052,9 @@
       "table": "bids"
     },
     {
-      "columns": [
-        "item_id"
-      ],
+      "columns": ["item_id"],
       "tableTo": "catalog_items",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "nameExplicit": false,
@@ -1105,13 +1063,9 @@
       "table": "bids"
     },
     {
-      "columns": [
-        "catalog_id"
-      ],
+      "columns": ["catalog_id"],
       "tableTo": "catalogs",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "nameExplicit": false,
@@ -1120,13 +1074,9 @@
       "table": "catalog_items"
     },
     {
-      "columns": [
-        "product_id"
-      ],
+      "columns": ["product_id"],
       "tableTo": "products",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "nameExplicit": false,
@@ -1135,13 +1085,9 @@
       "table": "catalog_items"
     },
     {
-      "columns": [
-        "auction_id"
-      ],
+      "columns": ["auction_id"],
       "tableTo": "auctions",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "nameExplicit": false,
@@ -1150,13 +1096,9 @@
       "table": "catalogs"
     },
     {
-      "columns": [
-        "manager_id"
-      ],
+      "columns": ["manager_id"],
       "tableTo": "employees",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "nameExplicit": false,
@@ -1165,13 +1107,9 @@
       "table": "catalogs"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "tableTo": "people",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "nameExplicit": false,
@@ -1180,13 +1118,9 @@
       "table": "clients"
     },
     {
-      "columns": [
-        "country_id"
-      ],
+      "columns": ["country_id"],
       "tableTo": "countries",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "nameExplicit": false,
@@ -1195,13 +1129,9 @@
       "table": "clients"
     },
     {
-      "columns": [
-        "verifier_id"
-      ],
+      "columns": ["verifier_id"],
       "tableTo": "employees",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "nameExplicit": false,
@@ -1210,13 +1140,9 @@
       "table": "clients"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "tableTo": "people",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "nameExplicit": false,
@@ -1225,13 +1151,9 @@
       "table": "employees"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "tableTo": "people",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "nameExplicit": false,
@@ -1240,13 +1162,9 @@
       "table": "owners"
     },
     {
-      "columns": [
-        "country_id"
-      ],
+      "columns": ["country_id"],
       "tableTo": "countries",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "nameExplicit": false,
@@ -1255,13 +1173,9 @@
       "table": "owners"
     },
     {
-      "columns": [
-        "verifier_id"
-      ],
+      "columns": ["verifier_id"],
       "tableTo": "employees",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "nameExplicit": false,
@@ -1270,13 +1184,9 @@
       "table": "owners"
     },
     {
-      "columns": [
-        "product_id"
-      ],
+      "columns": ["product_id"],
       "tableTo": "products",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "nameExplicit": false,
@@ -1285,13 +1195,9 @@
       "table": "photos"
     },
     {
-      "columns": [
-        "reviewer_id"
-      ],
+      "columns": ["reviewer_id"],
       "tableTo": "employees",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "nameExplicit": false,
@@ -1300,13 +1206,9 @@
       "table": "products"
     },
     {
-      "columns": [
-        "owner_id"
-      ],
+      "columns": ["owner_id"],
       "tableTo": "owners",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "nameExplicit": false,
@@ -1315,13 +1217,9 @@
       "table": "products"
     },
     {
-      "columns": [
-        "insurance_policy"
-      ],
+      "columns": ["insurance_policy"],
       "tableTo": "insurances",
-      "columnsTo": [
-        "policy_number"
-      ],
+      "columnsTo": ["policy_number"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "nameExplicit": false,
@@ -1330,13 +1228,9 @@
       "table": "products"
     },
     {
-      "columns": [
-        "sector_manager_id"
-      ],
+      "columns": ["sector_manager_id"],
       "tableTo": "employees",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "nameExplicit": false,
@@ -1345,162 +1239,126 @@
       "table": "sectors"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "attendees_pk",
       "table": "attendees",
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "auction_records_pk",
       "table": "auction_records",
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "auctioneers_pk",
       "table": "auctioneers",
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "auctions_pk",
       "table": "auctions",
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "bids_pk",
       "table": "bids",
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "catalog_items_pk",
       "table": "catalog_items",
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "catalogs_pk",
       "table": "catalogs",
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "clients_pk",
       "table": "clients",
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "countries_pk",
       "table": "countries",
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "employees_pk",
       "table": "employees",
       "entityType": "pks"
     },
     {
-      "columns": [
-        "policy_number"
-      ],
+      "columns": ["policy_number"],
       "nameExplicit": false,
       "name": "insurances_pk",
       "table": "insurances",
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "owners_pk",
       "table": "owners",
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "people_pk",
       "table": "people",
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "photos_pk",
       "table": "photos",
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "products_pk",
       "table": "products",
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "sectors_pk",
       "table": "sectors",
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "users_pk",
       "table": "users",
       "entityType": "pks"
     },
     {
-      "columns": [
-        "email"
-      ],
+      "columns": ["email"],
       "nameExplicit": false,
       "name": "users_email_unique",
       "entityType": "uniques",
