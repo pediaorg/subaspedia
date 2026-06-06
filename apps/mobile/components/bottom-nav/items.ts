@@ -1,12 +1,5 @@
 import type { Href } from "expo-router";
-import {
-  Gavel,
-  Home,
-  KeyRound,
-  type LucideIcon,
-  Plus,
-  User,
-} from "lucide-react-native";
+import { Gavel, Home, type LucideIcon, Plus, User } from "lucide-react-native";
 
 export type NavItemDef = {
   key: string;
@@ -15,18 +8,9 @@ export type NavItemDef = {
   href: Href;
 };
 
-export function navItems(isAuthed: boolean): NavItemDef[] {
-  return [
-    { key: "home", label: "Home", icon: Home, href: "/" },
-    { key: "create", label: "Create", icon: Plus, href: "/new-product" },
-    { key: "search", label: "Search", icon: Gavel, href: "/auctions" },
-    isAuthed
-      ? {
-          key: "profile",
-          label: "Profile",
-          icon: User,
-          href: "/profile",
-        }
-      : { key: "login", label: "Profile", icon: KeyRound, href: "/login" },
-  ];
-}
+export const NAV_ITEMS: NavItemDef[] = [
+  { key: "home", label: "Home", icon: Home, href: "/" },
+  { key: "create", label: "Create", icon: Plus, href: "/new-product" },
+  { key: "search", label: "Search", icon: Gavel, href: "/auctions" },
+  { key: "profile", label: "Profile", icon: User, href: "/profile" },
+] as const;
