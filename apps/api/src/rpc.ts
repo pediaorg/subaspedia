@@ -6,12 +6,14 @@ import { authRouter } from "./routers/auth";
 import { backofficeRouter } from "./routers/backoffice";
 import { countriesRouter } from "./routers/countries";
 import { userRouter } from "./routers/user";
+import { productsRouter } from "./routers/products";
 
 export const router = {
   health: pub.handler(async () => {
     return { status: "ok" as const };
   }),
   countries: countriesRouter,
+  products: productsRouter,
   auth: authRouter,
   backoffice: backofficeRouter,
   user: userRouter,
