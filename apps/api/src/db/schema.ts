@@ -208,6 +208,15 @@ export const products = sqliteTable("products", {
   name: text("name").notNull(),
 });
 
+export const artworkDetails = sqliteTable("artwork_details", {
+  productId: integer("product_id")
+    .primaryKey()
+    .references(() => products.id),
+  artist: text().notNull(),
+  creationDate: text("creation_date"),
+  history: text(),
+});
+
 export const photos = sqliteTable("photos", {
   id: integer().primaryKey({ autoIncrement: true }),
   productId: integer("product_id")

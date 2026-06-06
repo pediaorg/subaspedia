@@ -39,6 +39,8 @@ export const backofficeRouter = {
   // existen en `people` pero no tienen fila en `clients`, por lo que su
   // categoría es null y la app las trata como "en revisión".
   pendingClients: pub.handler(async ({ context }) => {
+    // Anti-join (personas sin fila en `clients`): RQB no lo expresa, así que
+    // se mantiene el query builder de SQL.
     const rows = await context.db
       .select({
         id: people.id,
@@ -102,21 +104,24 @@ export const backofficeRouter = {
   // Medios de pago cargados por los clientes que aún no fueron verificados por
   // la empresa.
   pendingPaymentMethods: pub.handler(async ({ context }) => {
-    const rows = await context.db
-      .select({
-        id: paymentMethods.id,
-        clientId: paymentMethods.clientId,
-        type: paymentMethods.type,
-        amount: paymentMethods.amount,
-        details: paymentMethods.details,
-        photo: paymentMethods.photo,
-        clientName: people.name,
-      })
-      .from(paymentMethods)
-      .innerJoin(people, eq(people.id, paymentMethods.clientId))
-      .where(eq(paymentMethods.verified, false));
+    const rows = await context.db.query.paymentMethods.findMany({
+      where: { verified: false },
+      columns: {
+        id: true,
+        clientId: true,
+        type: true,
+        amount: true,
+        details: true,
+        photo: true,
+      },
+      with: {
+        client: { with: { person: { columns: { name: true } } } },
+      },
+    });
 
-    return rows;
+    return rows.flatMap(({ client, ...pm }) =>
+      client?.person ? [{ ...pm, clientName: client.person.name }] : [],
+    );
   }),
 
   // Acepta un medio de pago: lo marca como verificado y le fija el monto

@@ -2,6 +2,7 @@ import type { RouterClient } from "@orpc/server";
 
 import { pub } from "@/api/context";
 
+import { auctionsRouter } from "./routers/auctions";
 import { authRouter } from "./routers/auth";
 import { backofficeRouter } from "./routers/backoffice";
 import { countriesRouter } from "./routers/countries";
@@ -12,6 +13,7 @@ export const router = {
   health: pub.handler(async () => {
     return { status: "ok" as const };
   }),
+  auctions: auctionsRouter,
   countries: countriesRouter,
   products: productsRouter,
   auth: authRouter,
