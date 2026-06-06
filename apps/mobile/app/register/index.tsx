@@ -52,6 +52,8 @@ export default function RegisterScreen() {
 
   const onSubmit = (data: RegisterStep1Input) => register.mutate(data);
 
+  const submit = form.handleSubmit(onSubmit);
+
   // Un picker por cara del documento (frente y dorso).
   const dniFront = form.watch("dniFront");
   const dniBack = form.watch("dniBack");
@@ -105,6 +107,7 @@ export default function RegisterScreen() {
                 onChangeText={field.onChange}
                 onBlur={field.onBlur}
                 placeholder="Tu nombre"
+                onSubmitEditing={submit}
                 className={INPUT}
               />
             </FormField>
@@ -121,6 +124,7 @@ export default function RegisterScreen() {
                 onChangeText={field.onChange}
                 onBlur={field.onBlur}
                 placeholder="Tu apellido"
+                onSubmitEditing={submit}
                 className={INPUT}
               />
             </FormField>
@@ -142,6 +146,7 @@ export default function RegisterScreen() {
                   onChangeText={field.onChange}
                   onBlur={field.onBlur}
                   placeholder="Domicilio legal"
+                  onSubmitEditing={submit}
                   className={INPUT}
                 />
               </FormField>
@@ -193,6 +198,8 @@ export default function RegisterScreen() {
                 autoCapitalize="none"
                 keyboardType="email-address"
                 placeholder="tu@email.com"
+                returnKeyType="go"
+                onSubmitEditing={submit}
                 className={INPUT}
               />
             </FormField>
@@ -229,7 +236,7 @@ export default function RegisterScreen() {
         <Button
           size="lg"
           disabled={!form.formState.isValid || register.isPending}
-          onPress={form.handleSubmit(onSubmit)}
+          onPress={submit}
           className="bg-accent-foreground mt-2 self-center rounded-full border-0 px-12 py-4 shadow-none"
         >
           <Text className="text-base font-bold text-white">

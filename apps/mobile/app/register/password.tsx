@@ -41,6 +41,8 @@ export default function NewPasswordScreen() {
       confirmPassword: data.confirmPassword,
     });
 
+  const submit = form.handleSubmit(onSubmit);
+
   return (
     <View className="flex-1 justify-center gap-5 bg-white p-6">
       <Text variant="h2" className="text-center font-bold">
@@ -61,6 +63,8 @@ export default function NewPasswordScreen() {
               onBlur={field.onBlur}
               secureTextEntry
               placeholder="••••••••"
+              returnKeyType="next"
+              onSubmitEditing={submit}
               className="bg-secondary border-none"
             />
           </FormField>
@@ -81,6 +85,8 @@ export default function NewPasswordScreen() {
               onBlur={field.onBlur}
               secureTextEntry
               placeholder="••••••••"
+              returnKeyType="go"
+              onSubmitEditing={submit}
               className="bg-secondary border-none"
             />
           </FormField>
@@ -96,7 +102,7 @@ export default function NewPasswordScreen() {
       <Button
         size="lg"
         disabled={!form.formState.isValid || complete.isPending}
-        onPress={form.handleSubmit(onSubmit)}
+        onPress={submit}
         className="bg-accent-foreground rounded-2xl border-0 py-4 shadow-none"
       >
         <Text className="text-base font-bold text-white">

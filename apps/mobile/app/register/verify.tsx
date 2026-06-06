@@ -18,6 +18,11 @@ export default function VerifyScreen() {
       router.push({ pathname: "/register/password", params: { email, code } }),
   });
 
+  const submit = () => {
+    if (code.length === VERIFICATION_CODE_LENGTH && !verify.isPending)
+      verify.mutate({ email, code });
+  };
+
   return (
     <View className="flex-1 justify-center gap-5 bg-white p-6">
       <Text variant="h2" className="text-center font-bold">
@@ -35,6 +40,8 @@ export default function VerifyScreen() {
           keyboardType="number-pad"
           maxLength={VERIFICATION_CODE_LENGTH}
           placeholder="000000"
+          returnKeyType="go"
+          onSubmitEditing={submit}
           className="bg-secondary border-none text-center text-lg tracking-[8px]"
         />
       </FormField>
@@ -42,7 +49,7 @@ export default function VerifyScreen() {
       <Button
         size="lg"
         disabled={code.length !== VERIFICATION_CODE_LENGTH || verify.isPending}
-        onPress={() => verify.mutate({ email, code })}
+        onPress={submit}
         className="bg-accent-foreground rounded-2xl border-0 py-4 shadow-none"
       >
         <Text className="text-base font-bold text-white">

@@ -31,6 +31,8 @@ export default function LoginScreen() {
   const onSubmit = (data: LoginInput) =>
     login.mutate({ email: data.email, password: data.password });
 
+  const submit = form.handleSubmit(onSubmit);
+
   const close = () => router.canGoBack() && router.back();
 
   return (
@@ -67,6 +69,8 @@ export default function LoginScreen() {
                     autoCapitalize="none"
                     keyboardType="email-address"
                     placeholder="tu@email.com"
+                    returnKeyType="next"
+                    onSubmitEditing={submit}
                     className="bg-secondary border-none"
                   />
                 </FormField>
@@ -84,6 +88,8 @@ export default function LoginScreen() {
                     onBlur={field.onBlur}
                     secureTextEntry
                     placeholder="••••••••"
+                    returnKeyType="go"
+                    onSubmitEditing={submit}
                     className="bg-secondary border-none"
                   />
                 </FormField>
@@ -123,7 +129,7 @@ export default function LoginScreen() {
             <Button
               size="lg"
               disabled={!form.formState.isValid || login.isPending}
-              onPress={form.handleSubmit(onSubmit)}
+              onPress={submit}
               className="bg-accent-foreground mt-2 self-center rounded-full border-0 px-12 py-4 shadow-none"
             >
               <Text className="text-base font-bold text-white">
