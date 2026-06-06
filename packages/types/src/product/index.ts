@@ -21,7 +21,6 @@ export const PRODUCT_STATUS_LABELS = [
 export const productSchema = z.object({
   id: z.number().int().positive(),
   name: z.string(),
-  category: z.string(),
   status: productStatus,
   img: z.url(),
   proposalText: z.string().nullable(),

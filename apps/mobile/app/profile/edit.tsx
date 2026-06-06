@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import * as ImagePicker from "expo-image-picker";
 import { router } from "expo-router";
 import { CameraIcon } from "lucide-react-native";
@@ -10,59 +10,49 @@ import EditData from "@/components/profile/edit/edit-data";
 import { Avatar, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
+import { api } from "@/lib/api";
 import { DEFAULT_AVATAR_URI } from "@/lib/constants";
 
-const MOCK_CURRENT_USER: User = {
-  id: 1,
-  email: "JuanCasablanca@jamon.com",
-  name: "Juan",
-  surname: "Casablanca",
-  documentId: "12345678",
-  address: "...",
-  country: { id: 1, name: "Argentina" },
-  category: "common",
-  avatarUrl: null,
-  admitted: true,
-  createdAt: new Date().toISOString(),
-};
-
 export default function EditProfile() {
-  const { data: user } = useQuery({
-    queryKey: ["users", "me"],
-    queryFn: async () => {
-      // TODO: reemplazar por la llamada real al back (GET /users/me)
-      await new Promise(r => setTimeout(r, 300));
-      return MOCK_CURRENT_USER;
-    },
-  });
+  const { data: user } = api.users.me.useQuery();
   if (!user) return <Text>Cargando…</Text>;
   return <EditProfileForm user={user} />;
 }
 
 function EditProfileForm({ user }: { user: User }) {
   const queryClient = useQueryClient();
-  const { mutate: updateProfile, isPending } = useMutation({
-    mutationFn: async (patch: UpdateProfileInput) => {
-      // TODO: reemplazar por la llamada real al back (PATCH /users/me)
-      await new Promise(r => setTimeout(r, 300));
-      return { ...user, ...patch } as User;
-    },
-    onSuccess: updated => {
-      // mantenemos en sync la cache ["users","me"] que comparte con profile/index
-      queryClient.setQueryData(["users", "me"], updated);
+  const { data: countries } = api.countries.list.useQuery();
+  const { mutate: updateProfile, isPending } = api.users.update.useMutation({
+    onSuccess: () => {
+      // Refresca la cache ["users","me"] que comparte con profile/index.
+      queryClient.invalidateQueries({ queryKey: api.users.me.queryKey() });
     },
   });
+
   const [form, setForm] = useState({
     name: user.name ?? "",
     surname: user.surname ?? "",
     address: user.address ?? "",
-    country: user.country?.name ?? "",
+    countryId: user.country?.id ?? null,
     email: user.email,
   });
   const [avatarUri, setAvatarUri] = useState(
     user.avatarUrl ?? DEFAULT_AVATAR_URI,
   );
+
+  const selectedCountryName =
+    countries?.find(c => c.id === form.countryId)?.name ??
+    user.country?.name ??
+    "";
 
   const handleSave = () => {
     const nextAvatarUrl = avatarUri === DEFAULT_AVATAR_URI ? null : avatarUri;
@@ -72,13 +62,14 @@ function EditProfileForm({ user }: { user: User }) {
     if (form.name !== (user.name ?? "")) patch.name = form.name;
     if (form.surname !== (user.surname ?? "")) patch.surname = form.surname;
     if (form.address !== (user.address ?? "")) patch.address = form.address;
-    // country es { id, name } | null en el schema. Sin un selector de países
-    // (con id real del back) no podemos crear uno desde texto libre: solo
-    // renombramos preservando el id existente. Si el user no tenía país, queda
-    // pendiente el picker.
-    if (user.country && form.country !== user.country.name)
-      patch.country = { id: user.country.id, name: form.country };
     if (form.email !== user.email) patch.email = form.email;
+
+    const currentCountryId = user.country?.id ?? null;
+    if (form.countryId !== currentCountryId) {
+      const c = countries?.find(x => x.id === form.countryId);
+      patch.country = c ? { id: c.id, name: c.name } : null;
+    }
+
     if (nextAvatarUrl !== user.avatarUrl) patch.avatarUrl = nextAvatarUrl;
 
     if (Object.keys(patch).length === 0) {
@@ -96,6 +87,13 @@ function EditProfileForm({ user }: { user: User }) {
     });
   };
 
+  // Tras elegir/sacar una foto, la guardamos como data URI base64 (no la URI
+  // local file://, que el server no puede leer) para que viaje en el PATCH.
+  const assetToDataUri = (asset: ImagePicker.ImagePickerAsset) =>
+    asset.base64
+      ? `data:${asset.mimeType ?? "image/jpeg"};base64,${asset.base64}`
+      : asset.uri;
+
   const takePhoto = async () => {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== "granted") {
@@ -109,11 +107,10 @@ function EditProfileForm({ user }: { user: User }) {
       mediaTypes: ["images"],
       allowsEditing: true,
       aspect: [1, 1],
-      quality: 0.8,
+      quality: 0.6,
+      base64: true,
     });
-    if (!result.canceled) {
-      setAvatarUri(result.assets[0].uri);
-    }
+    if (!result.canceled) setAvatarUri(assetToDataUri(result.assets[0]));
   };
 
   const pickFromGallery = async () => {
@@ -129,11 +126,10 @@ function EditProfileForm({ user }: { user: User }) {
       mediaTypes: ["images"],
       allowsEditing: true,
       aspect: [1, 1],
-      quality: 0.8,
+      quality: 0.6,
+      base64: true,
     });
-    if (!result.canceled) {
-      setAvatarUri(result.assets[0].uri);
-    }
+    if (!result.canceled) setAvatarUri(assetToDataUri(result.assets[0]));
   };
 
   const handlePickAvatar = () => {
@@ -160,7 +156,7 @@ function EditProfileForm({ user }: { user: User }) {
               <CameraIcon className="size-4 color-white" />
             </Pressable>
             <Avatar
-              alt="@mrzachnugent"
+              alt="avatar"
               className=" self-center border border-border size-full"
             >
               <AvatarImage key={avatarUri} source={{ uri: avatarUri }} />
@@ -200,15 +196,46 @@ function EditProfileForm({ user }: { user: User }) {
                   value={form.address}
                   onChangeText={text => setForm({ ...form, address: text })}
                 />
-                {/* TODO: el conutry no es un string, cambiar */}
-                <EditData
-                  label={"País"}
-                  placeholder={"Mendoza"}
-                  nativeID={"country"}
-                  type={"text"}
-                  value={form.country}
-                  onChangeText={text => setForm({ ...form, country: text })}
-                />
+                {/* País: select real contra GET /countries (setea country_id) */}
+                <View className="flex-col flex-1 py-2 gap-1 items-start">
+                  <Label
+                    nativeID="country"
+                    className="font-bold text-gray-600 text-xs"
+                  >
+                    País
+                  </Label>
+                  <Select
+                    value={
+                      form.countryId
+                        ? {
+                            value: String(form.countryId),
+                            label: selectedCountryName,
+                          }
+                        : undefined
+                    }
+                    onValueChange={opt =>
+                      setForm({
+                        ...form,
+                        countryId: opt ? Number(opt.value) : null,
+                      })
+                    }
+                  >
+                    <SelectTrigger className="w-full bg-secondary border-none rounded-lg">
+                      <SelectValue placeholder="País" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-white border-none drop-shadow-lg">
+                      {(countries ?? []).map(c => (
+                        <SelectItem
+                          key={c.id}
+                          value={String(c.id)}
+                          label={c.name}
+                        >
+                          {c.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </View>
               </View>
             </View>
 

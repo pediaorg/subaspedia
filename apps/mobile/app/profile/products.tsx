@@ -9,7 +9,6 @@ const MOCK_PRODUCTS: Product[] = [
   {
     id: 1,
     name: "Reloj de bolsillo siglo XIX",
-    category: "Antigüedades",
     status: "appraised",
     img: "https://picsum.photos/seed/reloj/200",
     proposalText:
@@ -23,7 +22,6 @@ const MOCK_PRODUCTS: Product[] = [
   {
     id: 2,
     name: "Óleo sobre tela - paisaje",
-    category: "Arte",
     status: "under_review",
     img: "https://picsum.photos/seed/oleo/200",
     proposalText: null,
@@ -36,7 +34,6 @@ const MOCK_PRODUCTS: Product[] = [
   {
     id: 3,
     name: "Vajilla de porcelana Limoges",
-    category: "Diseño",
     status: "auctioned",
     img: "https://picsum.photos/seed/vajilla/200",
     proposalText: null,
@@ -49,7 +46,6 @@ const MOCK_PRODUCTS: Product[] = [
   {
     id: 4,
     name: "Escultura de bronce",
-    category: "Arte",
     status: "rejected",
     img: "https://picsum.photos/seed/escultura/200",
     proposalText: null,
