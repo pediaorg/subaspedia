@@ -4,13 +4,14 @@ import { pub } from "@/api/context";
 
 import { authRouter } from "./routers/auth";
 import { countriesRouter } from "./routers/countries";
-import { usersRouter } from "./routers/users";
+import { productsRouter } from "./routers/products";
 
 export const router = {
   health: pub.handler(async () => {
     return { status: "ok" as const };
   }),
   countries: countriesRouter,
+  products: productsRouter,
   auth: authRouter,
   users: usersRouter,
 };
