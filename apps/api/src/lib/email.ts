@@ -9,12 +9,28 @@ declare global {
     interface Env {
       RESEND_API_KEY?: string;
       RESEND_FROM?: string;
+      WEB_ORIGIN?: string;
     }
   }
 }
 
 const RESEND_ENDPOINT = "https://api.resend.com/emails";
 const DEFAULT_FROM = "Subaspedia <onboarding@resend.dev>";
+const DEFAULT_WEB_ORIGIN = "https://subaspedia.casareski.com";
+
+/**
+ * Botón que apunta al universal link `/logout` de la app: limpia la sesión y
+ * manda al login para forzar un token nuevo (la categoría y la habilitación de
+ * pujas viajan horneadas en el access token).
+ */
+function logoutButton(label: string): string {
+  const origin = env.WEB_ORIGIN ?? DEFAULT_WEB_ORIGIN;
+  return `
+    <p style="margin: 24px 0;">
+      <a href="${origin}/logout" style="display: inline-block; background: #111; color: #fff; text-decoration: none; padding: 12px 20px; border-radius: 8px; font-weight: 600;">${label}</a>
+    </p>
+  `;
+}
 
 /** Genera un código numérico de VERIFICATION_CODE_LENGTH dígitos. */
 export function generateVerificationCode(): string {
@@ -108,6 +124,7 @@ export async function sendCategoryAssignedEmail(
       <h1 style="font-size: 20px;">¡Bienvenido a Subaspedia!</h1>
       <p>Terminamos de revisar tus datos y te asignamos la categoría <strong>${categoryLabel(category)}</strong>.</p>
       <p>Ya podés ingresar a la app, completar tu registro y crear tu clave personal para ver los precios base y las subastas de tu categoría.</p>
+      ${logoutButton("Ingresar a Subaspedia")}
       <p style="color: #666; font-size: 13px;">Para poder pujar, recordá registrar al menos un medio de pago y esperar a que lo validemos.</p>
     `),
   });
@@ -123,7 +140,9 @@ export async function sendPaymentMethodVerifiedEmail(
     html: layout(`
       <h1 style="font-size: 20px;">Medio de pago validado</h1>
       <p>Verificamos uno de tus medios de pago en Subaspedia.</p>
-      <p>Ya podés pujar en las subastas habilitadas para tu categoría. ¡Mucha suerte!</p>
+      <p>Para habilitar las pujas, cerrá sesión y volvé a entrar así actualizamos tu cuenta.</p>
+      ${logoutButton("Actualizar mi sesión")}
+      <p style="color: #666; font-size: 13px;">Después de volver a iniciar sesión vas a poder pujar en las subastas de tu categoría. ¡Mucha suerte!</p>
     `),
   });
 }
