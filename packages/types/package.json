@@ -8,7 +8,10 @@
   "exports": {
     ".": "./src/index.ts",
     "./forms": "./src/forms/index.ts",
-    "./forms/*": "./src/forms/*.ts"
+    "./forms/*": "./src/forms/*.ts",
+    "./user": "./src/user/index.ts",
+    "./product": "./src/product/index.ts",
+    "./payment-method": "./src/payment-method/index.ts"
   },
   "dependencies": {
     "zod": "^4.4.3"
