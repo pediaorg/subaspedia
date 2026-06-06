@@ -1,5 +1,7 @@
 import { env } from "cloudflare:workers";
 
+import type { AuctionCategory } from "@subaspedia/types";
+import { PRODUCT_CATEGORIES } from "@subaspedia/types";
 import { VERIFICATION_CODE_LENGTH } from "@subaspedia/types/forms/auth";
 
 declare global {
@@ -21,22 +23,32 @@ export function generateVerificationCode(): string {
   return n.toString().padStart(VERIFICATION_CODE_LENGTH, "0");
 }
 
+/** Envuelve el contenido en el layout base de los mails de Subaspedia. */
+function layout(inner: string): string {
+  return `
+    <div style="font-family: system-ui, sans-serif; max-width: 480px; margin: 0 auto;">
+      ${inner}
+    </div>
+  `;
+}
+
 /**
- * Envía el código de verificación por email vía Resend. Lee la config del env
- * del Worker (cloudflare:workers), sin necesidad de pasarla por el context.
+ * Envía un email vía Resend. Lee la config del env del Worker
+ * (cloudflare:workers), sin necesidad de pasarla por el context.
  *
  * Si no hay API key configurada (típico en desarrollo local) hace un fallback a
- * console.log para que el circuito siga siendo testeable sin Resend.
+ * console.log para que los circuitos sigan siendo testeables sin Resend.
  */
-export async function sendVerificationEmail(
-  to: string,
-  code: string,
-): Promise<void> {
+async function sendEmail(args: {
+  to: string;
+  subject: string;
+  html: string;
+}): Promise<void> {
   const apiKey = env.RESEND_API_KEY;
   const from = env.RESEND_FROM ?? DEFAULT_FROM;
 
   if (!apiKey) {
-    console.log(`[email:dev] Código de verificación para ${to}: ${code}`);
+    console.log(`[email:dev] "${args.subject}" → ${args.to}`);
     return;
   }
 
@@ -48,16 +60,9 @@ export async function sendVerificationEmail(
     },
     body: JSON.stringify({
       from,
-      to,
-      subject: "Tu código de verificación de Subaspedia",
-      html: `
-        <div style="font-family: system-ui, sans-serif; max-width: 480px; margin: 0 auto;">
-          <h1 style="font-size: 20px;">Verificá tu cuenta</h1>
-          <p>Usá este código para completar tu registro en Subaspedia:</p>
-          <p style="font-size: 32px; font-weight: 700; letter-spacing: 6px;">${code}</p>
-          <p style="color: #666; font-size: 13px;">El código vence en 15 minutos. Si no fuiste vos, ignorá este mensaje.</p>
-        </div>
-      `,
+      to: args.to,
+      subject: args.subject,
+      html: args.html,
     }),
   });
 
@@ -65,4 +70,60 @@ export async function sendVerificationEmail(
     const detail = await res.text().catch(() => "");
     throw new Error(`Resend falló (${res.status}): ${detail}`);
   }
+}
+
+/** Envía el código de verificación por email. */
+export async function sendVerificationEmail(
+  to: string,
+  code: string,
+): Promise<void> {
+  await sendEmail({
+    to,
+    subject: "Tu código de verificación de Subaspedia",
+    html: layout(`
+      <h1 style="font-size: 20px;">Verificá tu cuenta</h1>
+      <p>Usá este código para completar tu registro en Subaspedia:</p>
+      <p style="font-size: 32px; font-weight: 700; letter-spacing: 6px;">${code}</p>
+      <p style="color: #666; font-size: 13px;">El código vence en 15 minutos. Si no fuiste vos, ignorá este mensaje.</p>
+    `),
+  });
+}
+
+function categoryLabel(category: AuctionCategory): string {
+  return PRODUCT_CATEGORIES.find(c => c.value === category)?.label ?? category;
+}
+
+/**
+ * Avisa al postor que la empresa terminó la investigación y le asignó una
+ * categoría. Lo invita a ingresar a la app a completar el registro.
+ */
+export async function sendCategoryAssignedEmail(
+  to: string,
+  category: AuctionCategory,
+): Promise<void> {
+  await sendEmail({
+    to,
+    subject: "Tu cuenta de Subaspedia fue aprobada",
+    html: layout(`
+      <h1 style="font-size: 20px;">¡Bienvenido a Subaspedia!</h1>
+      <p>Terminamos de revisar tus datos y te asignamos la categoría <strong>${categoryLabel(category)}</strong>.</p>
+      <p>Ya podés ingresar a la app, completar tu registro y crear tu clave personal para ver los precios base y las subastas de tu categoría.</p>
+      <p style="color: #666; font-size: 13px;">Para poder pujar, recordá registrar al menos un medio de pago y esperar a que lo validemos.</p>
+    `),
+  });
+}
+
+/** Avisa al cliente que la empresa validó uno de sus medios de pago. */
+export async function sendPaymentMethodVerifiedEmail(
+  to: string,
+): Promise<void> {
+  await sendEmail({
+    to,
+    subject: "Tu medio de pago fue validado",
+    html: layout(`
+      <h1 style="font-size: 20px;">Medio de pago validado</h1>
+      <p>Verificamos uno de tus medios de pago en Subaspedia.</p>
+      <p>Ya podés pujar en las subastas habilitadas para tu categoría. ¡Mucha suerte!</p>
+    `),
+  });
 }

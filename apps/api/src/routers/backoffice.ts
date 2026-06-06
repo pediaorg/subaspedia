@@ -5,6 +5,10 @@ import { z } from "zod";
 import { auctionCategory } from "@subaspedia/types";
 import { type Context, pub } from "@/api/context";
 import { clients, employees, paymentMethods, people } from "@/api/db/schema";
+import {
+  sendCategoryAssignedEmail,
+  sendPaymentMethodVerifiedEmail,
+} from "@/api/lib/email";
 
 // El backoffice representa procesos internos de la empresa (investigación de
 // postores, validación de medios de pago) que NO forman parte de la app del
@@ -64,7 +68,7 @@ export const backofficeRouter = {
     .handler(async ({ context, input }) => {
       const person = await context.db.query.people.findFirst({
         where: { id: input.personId },
-        columns: { id: true },
+        columns: { id: true, email: true },
       });
       if (!person)
         throw new ORPCError("NOT_FOUND", { message: "Persona no encontrada" });
@@ -85,6 +89,10 @@ export const backofficeRouter = {
         admitted: true,
         verifierId,
       });
+
+      // Le avisamos que ya puede ingresar a la app y completar el registro.
+      if (person.email)
+        await sendCategoryAssignedEmail(person.email, input.category);
 
       return { success: true };
     }),
@@ -124,7 +132,7 @@ export const backofficeRouter = {
     .handler(async ({ context, input }) => {
       const pm = await context.db.query.paymentMethods.findFirst({
         where: { id: input.paymentMethodId },
-        columns: { id: true, verified: true },
+        columns: { id: true, verified: true, clientId: true },
       });
       if (!pm)
         throw new ORPCError("NOT_FOUND", {
@@ -139,6 +147,13 @@ export const backofficeRouter = {
         .update(paymentMethods)
         .set({ verified: true, amount: input.amount })
         .where(eq(paymentMethods.id, input.paymentMethodId));
+
+      // Le avisamos que con un medio de pago verificado ya puede pujar.
+      const client = await context.db.query.people.findFirst({
+        where: { id: pm.clientId },
+        columns: { email: true },
+      });
+      if (client?.email) await sendPaymentMethodVerifiedEmail(client.email);
 
       return { success: true };
     }),
