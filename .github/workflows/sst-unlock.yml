@@ -8,6 +8,10 @@ on:
         required: true
         type: string
 
+concurrency:
+  group: sst-unlock-${{ inputs.stage }}
+  cancel-in-progress: false
+
 jobs:
   unlock:
     name: Unlock stage
