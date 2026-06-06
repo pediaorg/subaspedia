@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus } from "lucide-react-native";
-import { Alert, ScrollView, Text, View } from "react-native";
+import { router } from "expo-router";
+import { ScrollView, Text, View } from "react-native";
 
 import type { PaymentMethod } from "@subaspedia/types/payment-method";
 import PaymentMethodCard from "@/components/profile/payment-methods/payment-method-card";
@@ -65,8 +66,7 @@ export default function PaymentMethods() {
   });
 
   function handleAdd() {
-    // TODO: navegar al form de alta (POST /users/me/payment-methods)
-    Alert.alert("TODO", "Form de alta de medio de pago no implementado");
+    router.push("/profile/payment-methods/new");
   }
 
   return (
