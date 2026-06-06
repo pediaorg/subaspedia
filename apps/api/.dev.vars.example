@@ -5,3 +5,7 @@ JWT_SECRET="dev-secret-change-me"
 
 RESEND_API_KEY=""
 RESEND_FROM="Subaspedia <onboarding@resend.dev>"
+
+# Origen de la app web (para los links de los mails, ej. /logout). En prod/preview
+# lo inyecta SST por stage; en dev local apuntá a tu Expo web (puerto 8081).
+WEB_ORIGIN="http://localhost:8081"

@@ -14,6 +14,7 @@ export default function RootLayout() {
     <QueryClientProvider client={queryClient}>
       <Stack>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="profile" options={{ headerShown: false }} />
         <Stack.Screen
           name="login"
           options={{
@@ -23,6 +24,7 @@ export default function RootLayout() {
           }}
         />
         <Stack.Screen name="register" options={{ headerShown: false }} />
+        <Stack.Screen name="logout" options={{ headerShown: false }} />
       </Stack>
 
       <AccessGuard />

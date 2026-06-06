@@ -3,8 +3,10 @@ import type { RouterClient } from "@orpc/server";
 import { pub } from "@/api/context";
 
 import { authRouter } from "./routers/auth";
+import { backofficeRouter } from "./routers/backoffice";
 import { countriesRouter } from "./routers/countries";
 import { productsRouter } from "./routers/products";
+import { userRouter } from "./routers/user";
 import { usersRouter } from "./routers/users";
 
 export const router = {
@@ -14,7 +16,8 @@ export const router = {
   countries: countriesRouter,
   products: productsRouter,
   auth: authRouter,
-  users: usersRouter,
+  backoffice: backofficeRouter,
+  user: userRouter,
 };
 
 export type Router = typeof router;

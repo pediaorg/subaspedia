@@ -93,7 +93,7 @@ jobs:
       - name: SST deploy preview
         env:
           STAGE: ${{ steps.stage.outputs.stage }}
-          SST_DO_BOOTSTRAP: ${{ steps.bootstrap.outputs.cache-hit == 'true' && '' || '1' }}
+          SST_DO_BOOTSTRAP: ${{ steps.bootstrap.outputs.cache-hit == 'true' && '0' || '1' }}
         run: |
           pnpm sst deploy --stage "$STAGE" --print-logs
           touch .stage-bootstrapped

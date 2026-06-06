@@ -13,6 +13,20 @@
     },
     "android": {
       "package": "com.casareski.subaspedia",
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "subaspedia.casareski.com",
+              "pathPrefix": "/logout"
+            }
+          ],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ],
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -43,7 +57,8 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "La app accede a tus fotos para subir el frente y dorso de tu documento."
+          "photosPermission": "La app necesita acceso a tus fotos para que puedas elegir una imagen de perfil.",
+          "cameraPermission": "La app necesita acceso a la cámara para que puedas sacar una foto de perfil."
         }
       ]
     ],

@@ -26,6 +26,15 @@ import {
 // El código de verificación vence a los 15 minutos de generado.
 const VERIFICATION_TTL_MS = 15 * 60 * 1000;
 
+// Convierte un data URI base64 (data:image/...;base64,XXXX) en bytes para
+// guardarlo en una columna blob. Devuelve null si no hay imagen.
+function decodeDataUri(value: string | null): Buffer | null {
+  if (!value) return null;
+  const comma = value.indexOf(",");
+  const b64 = comma >= 0 ? value.slice(comma + 1) : value;
+  return Buffer.from(b64, "base64");
+}
+
 async function resolveClaims(
   db: Context["db"],
   userId: number,
@@ -166,14 +175,12 @@ export const authRouter = {
       const [created] = await context.db
         .insert(people)
         .values({
-          name: pending.name,
-          lastName: pending.lastName,
+          name: `${pending.name} ${pending.lastName}`.trim(),
           address: pending.address,
           status: "active",
           email: pending.email,
-          // El avatar arranca en default (photo NULL); el usuario lo actualiza
-          // desde el perfil. El DNI (frente/dorso) queda en el dossier de KYC
-          // (email_verifications), no como foto de perfil.
+          // Guardamos el frente del documento (base64) como foto de la persona.
+          photo: decodeDataUri(pending.dniFront),
           passwordHash,
         })
         .returning({ id: people.id });
