@@ -1,14 +1,9 @@
 import { z } from "zod";
 
-import { auctionCategory } from "../index";
-
 export const MIN_PRODUCT_IMAGES = 6;
 
 export const newProductSchema = z.object({
   name: z.string().trim().min(1, "Ingresá un nombre"),
-  category: auctionCategory.nonoptional("Seleccioná una categoría"),
-  stock: z.string().optional(),
-  price: z.string().trim().min(1, "Ingresá un precio"),
   description: z.string().optional(),
   interest: z.string().optional(),
   images: z
