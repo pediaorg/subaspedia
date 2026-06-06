@@ -15,15 +15,16 @@ tRPC-style hooks built on top of oRPC + TanStack Query.
 import { api } from "@/lib/api";
 
 // Query
-const { data } = api.countries.list.useQuery();
-const { data } = api.users.byId.useQuery({ id: 1 }, { staleTime: 60_000 });
+const countries = api.countries.list.useQuery();
+// countries.data, countries.isLoading, countries.error
+const user = api.users.byId.useQuery({ id: 1 }, { staleTime: 60_000 });
 
 // Suspense
-const { data } = api.countries.list.useSuspenseQuery();
+const countries = api.countries.list.useSuspenseQuery();
 
 // Mutation
-const m = api.countries.create.useMutation({ onSuccess: () => {} });
-m.mutate({ name: "AR", capital: "BA", nationality: "argentina" });
+const createCountry = api.countries.create.useMutation({ onSuccess: () => {} });
+createCountry.mutate({ name: "AR", capital: "BA", nationality: "argentina" });
 
 // Infinite
 api.items.list.useInfiniteQuery(
@@ -35,6 +36,25 @@ api.items.list.useInfiniteQuery(
 queryClient.invalidateQueries({ queryKey: api.countries.list.queryKey() });
 await api.countries.create.call({ ... });
 ```
+
+## Session state (apps/mobile)
+
+A single hook `useAuth` exposes both auth tokens and profile claims (category,
+payment method status) decoded from the JWT. Returns a **flat object** (no
+`{ data, isLoading }` wrapper). Consume it as a namespace:
+
+```ts
+import { useAuth } from "@/lib/auth";
+
+const auth = useAuth();
+// auth.accessToken, auth.isAuthed, auth.loading
+// auth.category, auth.hasVerifiedPaymentMethod
+// auth.canAccessAuctions, auth.canBid
+```
+
+Use this inside `AccessGuard` and any screen that needs to gate UI by
+session/profile state — do not roll your own auth lookups. Profile claims come
+from the JWT, so they refresh at most every `ACCESS_TTL` (15 min).
 
 ### Rules
 
