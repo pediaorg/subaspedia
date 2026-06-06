@@ -4,8 +4,11 @@ import { pub } from "@/api/context";
 
 import { auctionsRouter } from "./routers/auctions";
 import { authRouter } from "./routers/auth";
+import { backofficeRouter } from "./routers/backoffice";
 import { countriesRouter } from "./routers/countries";
 import { productsRouter } from "./routers/products";
+import { userRouter } from "./routers/user";
+import { usersRouter } from "./routers/users";
 
 export const router = {
   health: pub.handler(async () => {
@@ -15,6 +18,9 @@ export const router = {
   countries: countriesRouter,
   products: productsRouter,
   auth: authRouter,
+  backoffice: backofficeRouter,
+  user: userRouter,
+  users: usersRouter,
 };
 
 export type Router = typeof router;

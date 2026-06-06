@@ -53,11 +53,10 @@ app.get("/photo/:id", async c => {
     return c.text("Invalid id", 400);
   }
 
-  const [row] = await createDb(c.env.DB)
-    .select({ photo: photos.photo })
-    .from(photos)
-    .where(eq(photos.id, id))
-    .limit(1);
+  const row = await createDb(c.env.DB).query.photos.findFirst({
+    where: { id },
+    columns: { photo: true },
+  });
 
   if (!row) return c.text("Not found", 404);
 

@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.casareski.subaspedia",
+      "sha256_cert_fingerprints": [
+        "30:29:D9:4E:DA:0F:DF:23:CE:CE:FC:67:10:9E:D3:BB:4E:4B:9C:64:5C:68:16:CF:38:1A:49:48:A0:FA:46:58"
+      ]
+    }
+  }
+]

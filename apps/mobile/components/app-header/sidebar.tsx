@@ -1,10 +1,11 @@
 import { Portal } from "@rn-primitives/portal";
 import { type Href, useRouter } from "expo-router";
 import { User } from "lucide-react-native";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Pressable, StyleSheet, useWindowDimensions, View } from "react-native";
 import Animated, {
   interpolate,
+  runOnJS,
   useAnimatedStyle,
   useSharedValue,
   withTiming,
@@ -36,9 +37,13 @@ export function Sidebar({ open, onClose }: Props) {
   const { width } = useWindowDimensions();
   const panelWidth = width * 0.5;
   const progress = useSharedValue(0);
+  const [mounted, setMounted] = useState(open);
 
   useEffect(() => {
-    progress.value = withTiming(open ? 1 : 0, { duration: 250 });
+    if (open) setMounted(true);
+    progress.value = withTiming(open ? 1 : 0, { duration: 250 }, finished => {
+      if (finished && !open) runOnJS(setMounted)(false);
+    });
   }, [open, progress]);
 
   const backdropStyle = useAnimatedStyle(() => ({
@@ -57,6 +62,8 @@ export function Sidebar({ open, onClose }: Props) {
     onClose();
     router.push(href);
   };
+
+  if (!mounted) return null;
 
   return (
     <Portal name="app-sidebar">
