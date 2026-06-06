@@ -105,9 +105,10 @@ INSERT INTO auctions (id, date, time, status, auctioneer_id, location, attendee_
   (1, '2027-03-01', '18:00', 'open', 2, 'Salón Central', 100, 1, 1, 'gold');
 
 -- ---- products (FK -> employees(reviewer), owners, insurances) ---------------
-INSERT INTO products (id, date, available, catalog_description, full_description, reviewer_id, owner_id, insurance_policy) VALUES
-  (1, '2026-11-01', 1, 'Reloj de bolsillo siglo XIX', 'Reloj de bolsillo de oro, siglo XIX, en excelente estado de conservación.', 1, 4, 'POL-001'),
-  (2, '2026-11-05', 1, 'Óleo sobre tela',             'Paisaje al óleo sobre tela, autor anónimo, con marco original.',          1, 4, NULL);
+-- `name` es NOT NULL en el schema (título corto del bien para el catálogo).
+INSERT INTO products (id, date, available, catalog_description, full_description, reviewer_id, owner_id, insurance_policy, name) VALUES
+  (1, '2026-11-01', 1, 'Reloj de bolsillo siglo XIX', 'Reloj de bolsillo de oro, siglo XIX, en excelente estado de conservación.', 1, 4, 'POL-001', 'Reloj de bolsillo de oro'),
+  (2, '2026-11-05', 1, 'Óleo sobre tela',             'Paisaje al óleo sobre tela, autor anónimo, con marco original.',          1, 4, NULL,      'Óleo sobre tela');
 
 -- ---- photos (FK -> products; photo es BLOB NOT NULL, placeholder PNG header)
 INSERT INTO photos (id, product_id, photo) VALUES
@@ -119,9 +120,11 @@ INSERT INTO catalogs (id, description, auction_id, manager_id) VALUES
   (1, 'Catálogo Subasta Marzo 2027', 1, 1);
 
 -- ---- catalog_items (FK -> catalogs, products; checks: base_price/commission > 0.01)
-INSERT INTO catalog_items (id, catalog_id, product_id, base_price, commission, auctioned) VALUES
-  (1, 1, 1, 180000, 12, 0),
-  (2, 1, 2, 90000,  10, 0);
+-- `state` (enum) reemplazó a la vieja columna `auctioned`. El reloj (item 1) ya
+-- se remató -> 'subastado'; el óleo (item 2) está aceptado y a la espera -> 'aceptado'.
+INSERT INTO catalog_items (id, catalog_id, product_id, base_price, commission, state) VALUES
+  (1, 1, 1, 180000, 12, 'subastado'),
+  (2, 1, 2, 90000,  10, 'aceptado');
 
 -- ---- attendees (FK -> clients, auctions) -----------------------------------
 INSERT INTO attendees (id, bidder_number, client_id, auction_id) VALUES

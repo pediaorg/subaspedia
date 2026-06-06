@@ -85,7 +85,6 @@ export default function ProductCard({ product }: ProductProps) {
           <Text className="font-bold text-sm text-gray-800" numberOfLines={1}>
             {product.name}
           </Text>
-          <Text className="text-xs text-gray-500">{product.category}</Text>
           <StatusBadge status={product.status} />
           {product.status === "auctioned" &&
             product.salePrice !== null &&
