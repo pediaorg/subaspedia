@@ -41,9 +41,30 @@ app.use("*", (c, next) =>
     credentials: true,
   })(c, next),
 );
-app.use(secureHeaders());
+app.use(secureHeaders({ crossOriginResourcePolicy: "cross-origin" }));
 
 app.get("/", c => c.text("Subaspedia API"));
+
+app.get("/photo/:id", async c => {
+  const id = Number(c.req.param("id"));
+  if (!Number.isInteger(id) || id <= 0) {
+    return c.text("Invalid id", 400);
+  }
+
+  const row = await createDb(c.env.DB).query.photos.findFirst({
+    where: { id },
+    columns: { photo: true },
+  });
+
+  if (!row) return c.text("Not found", 404);
+
+  return new Response(row.photo, {
+    headers: {
+      "Content-Type": "image/jpeg",
+      "Cache-Control": "public, max-age=31536000, immutable",
+    },
+  });
+});
 
 app.use("/rpc/*", async (c, next) => {
   const cookieJar: CookieDirective[] = [];

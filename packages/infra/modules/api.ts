@@ -10,6 +10,7 @@ export const api = new sst.cloudflare.Worker("Api", {
   link: [db, ...secrets],
   environment: {
     WEB_ORIGIN: `https://${webDomain}`,
+    RESEND_FROM: "Subaspedia <no-reply@subaspedia.casareski.com>",
   },
   transform: {
     worker: workerArgs => {

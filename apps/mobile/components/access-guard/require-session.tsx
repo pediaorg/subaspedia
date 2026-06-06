@@ -1,9 +1,11 @@
-import { ActivityIndicator, View } from "react-native";
+import { View } from "react-native";
+
+import { SplashView } from "./splash-view";
 
 export function RequireSession() {
   return (
-    <View className="absolute inset-0 z-50 items-center justify-center bg-white">
-      <ActivityIndicator size="large" />
+    <View className="absolute inset-0 z-50">
+      <SplashView />
     </View>
   );
 }
