@@ -27,6 +27,7 @@ export const people = sqliteTable(
     id: integer().primaryKey({ autoIncrement: true }),
     document: text(),
     name: text(),
+    lastName: text("last_name"),
     address: text(),
     status: text({ enum: ["active", "inactive"] }),
     photo: blob({ mode: "buffer" }),

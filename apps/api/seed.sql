@@ -46,7 +46,6 @@ DELETE FROM employees;
 DELETE FROM people;
 DELETE FROM countries;
 DELETE FROM email_verifications;
-DELETE FROM users;
 
 -- ---- countries -------------------------------------------------------------
 INSERT INTO countries (id, name, short_name, capital, nationality, languages) VALUES
@@ -88,8 +87,8 @@ INSERT INTO clients (id, country_id, admitted, category, verifier_id) VALUES
 -- ---- payment_methods (FK -> clients; checks: type/currency enum) -----------
 -- Juan (client 3) tiene un medio de pago verificado -> puede pujar y el JWT
 -- arranca con hasVerifiedPaymentMethod = true.
-INSERT INTO payment_methods (id, client_id, type, verified, currency, details) VALUES
-  (1, 3, 'credit_card', 1, 'ARS', 'Tarjeta de crédito local (Visa)');
+INSERT INTO payment_methods (id, client_id, type, verified, details) VALUES
+  (1, 3, 'credit_card', 1, 'Tarjeta de crédito local (Visa)');
 
 -- ---- owners (FK -> people, countries, employees; check: risk_rating 1..6) --
 INSERT INTO owners (id, country_id, financial_verification, judicial_verification, risk_rating, verifier_id) VALUES
@@ -142,14 +141,5 @@ INSERT INTO bids (id, attendee_id, item_id, amount, winner) VALUES
 -- Venta registrada: el reloj (product 1) de Lucía (owner 4) se lo lleva Juan (client 3).
 INSERT INTO auction_records (id, auction_id, owner_id, product_id, client_id, amount, commission) VALUES
   (1, 1, 4, 1, 3, 185000, 12);
-
--- ---- users (login real) ----------------------------------------------------
--- email: juancasablanca@jamon.com  /  password: password123
--- El hash es PBKDF2 (mismo esquema que apps/api/src/lib/auth/index.ts).
--- Nota: esta tabla NO tiene FK con people/clients todavía (decisión pendiente
--- de cómo unir el login con el dominio). El id 1 acá es independiente del
--- people.id de Juan (que es 3).
-INSERT INTO users (id, email, password_hash) VALUES
-  (1, 'juancasablanca@jamon.com', 'pbkdf2$100000$cbd1d69840c1790f0188bca9cae16cce$761bb62aa9686ce177dcd80e4dfbbec761ed08dc295cdab01221f3dedb2cc9d3');
 
 PRAGMA foreign_keys = ON;

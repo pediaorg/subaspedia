@@ -18,6 +18,7 @@ export const router = {
   auth: authRouter,
   backoffice: backofficeRouter,
   user: userRouter,
+  users: usersRouter,
 };
 
 export type Router = typeof router;
