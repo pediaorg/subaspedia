@@ -111,7 +111,7 @@ export default function Profile() {
           />
           <MenuItem
             icon={LucideHammer}
-            label="subastas"
+            label="Subastas"
             href="/profile/auctions"
           />
           <MenuItem

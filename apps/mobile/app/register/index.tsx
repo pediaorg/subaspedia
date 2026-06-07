@@ -1,7 +1,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as Burnt from "burnt";
 import * as ImagePicker from "expo-image-picker";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { Controller, useForm } from "react-hook-form";
 import { ScrollView, View } from "react-native";
 
@@ -29,6 +29,7 @@ import { RegisterHeader } from "./_/header";
 const INPUT = "bg-secondary border-none";
 
 export default function RegisterScreen() {
+  const { redirect } = useLocalSearchParams<{ redirect?: string }>();
   const { data: countries } = api.countries.list.useQuery();
 
   const form = useForm<RegisterStep1Input>({
@@ -47,7 +48,10 @@ export default function RegisterScreen() {
 
   const register = api.auth.register.useMutation({
     onSuccess: ({ email }) =>
-      router.push({ pathname: "/register/verify", params: { email } }),
+      router.push({
+        pathname: "/register/verify",
+        params: { email, ...(redirect ? { redirect } : {}) },
+      }),
   });
 
   const onSubmit = (data: RegisterStep1Input) => register.mutate(data);

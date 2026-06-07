@@ -1,40 +1,49 @@
-import { router, Stack } from "expo-router";
-import { useEffect } from "react";
-import Animated, {
-  runOnJS,
-  useAnimatedStyle,
-  useSharedValue,
-  withDelay,
-  withTiming,
-} from "react-native-reanimated";
+import { Stack } from "expo-router";
+import { Menu } from "lucide-react-native";
+import { useState } from "react";
+import { Pressable, ScrollView, View } from "react-native";
 
-import { SplashView } from "@/components/access-guard/splash-view";
-import { useAuth } from "@/lib/auth";
+import { Sidebar } from "@/components/app-header/sidebar";
+import { SearchBar } from "@/components/search-bar";
+import { Icon } from "@/components/ui/icon";
+import { Text } from "@/components/ui/text";
 
-export default function Splash() {
-  const { loading } = useAuth();
-  const opacity = useSharedValue(1);
-  const style = useAnimatedStyle(() => ({ opacity: opacity.value, flex: 1 }));
+import { AuctionsPreview } from "./_/auctions";
+import { FeaturedCarousel } from "./_/featured-carousel";
 
-  // Arranca visible (sin fade-in). Cuando la sesión termina de cargar, se
-  // mantiene un momento y hace fade-out; recién ahí navega. Se usa opacity
-  // animada y no FadeOut de layout porque en web es lo único que reanimated corre.
-  useEffect(() => {
-    if (loading) return;
-    opacity.value = withDelay(
-      500,
-      withTiming(0, { duration: 350 }, finished => {
-        if (finished) runOnJS(router.replace)("/(tabs)");
-      }),
-    );
-  }, [loading]);
-
+export default function HomeScreen() {
+  const [menuOpen, setMenuOpen] = useState(false);
   return (
     <>
       <Stack.Screen options={{ headerShown: false }} />
-      <Animated.View style={style}>
-        <SplashView />
-      </Animated.View>
+      <ScrollView
+        className="flex-1"
+        contentContainerClassName="gap-5 p-4 pb-12"
+        showsVerticalScrollIndicator={false}
+      >
+        <View className="flex-row items-start justify-between">
+          <View>
+            <Text className="text-3xl font-extrabold">Subaspedia</Text>
+            <Text className="text-muted-foreground text-sm font-semibold">
+              Tu página de subastas favorita
+            </Text>
+          </View>
+          <Pressable
+            onPress={() => setMenuOpen(true)}
+            accessibilityLabel="Abrir menú"
+            hitSlop={8}
+            className="pt-1"
+          >
+            <Icon as={Menu} size={28} className="text-foreground" />
+          </Pressable>
+        </View>
+
+        <SearchBar />
+        <FeaturedCarousel />
+        <AuctionsPreview />
+      </ScrollView>
+
+      <Sidebar open={menuOpen} onClose={() => setMenuOpen(false)} />
     </>
   );
 }

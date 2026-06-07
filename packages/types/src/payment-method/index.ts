@@ -17,42 +17,19 @@ export const PAYMENT_METHOD_TYPE_LABELS = [
   },
 ] as { value: PaymentMethodType; label: string }[];
 
-// Local (Argentina) o del exterior. Aplica a banco y tarjeta; el cheque
-// certificado es siempre local en este modelo.
-export const paymentMethodScope = z.enum(["local", "foreign"]);
-export type PaymentMethodScope = z.infer<typeof paymentMethodScope>;
-
-// Campos comunes a todos los medios de pago.
-const paymentMethodBase = {
+// El medio de pago tal como lo persiste la tabla `payment_methods`: el dato
+// identificatorio viaja como texto ya enmascarado (`details`), no en campos por
+// tipo. (Antes esto era una discriminated union rica con bankName/last4/scope,
+// pero la DB no guarda esos campos -> no se pueden devolver en el GET.)
+export const paymentMethodSchema = z.object({
   id: z.number().int().positive(),
-  holderName: z.string(), // titular
+  type: paymentMethodType,
   // Sin medio verificado solo se puede mirar, no pujar (regla de dominio).
   verified: z.boolean(),
-};
-
-export const paymentMethodSchema = z.discriminatedUnion("type", [
-  z.object({
-    ...paymentMethodBase,
-    type: z.literal(paymentMethodType.enum.bank_account),
-    scope: paymentMethodScope,
-    // CBU si es local, IBAN si es del exterior.
-    accountNumber: z.string(),
-    bankName: z.string(),
-  }),
-  z.object({
-    ...paymentMethodBase,
-    type: z.literal(paymentMethodType.enum.credit_card),
-    scope: paymentMethodScope,
-    // Nunca guardamos el PAN completo: solo los últimos 4 y la marca.
-    last4: z.string().length(4),
-    brand: z.string(),
-  }),
-  z.object({
-    ...paymentMethodBase,
-    type: z.literal(paymentMethodType.enum.certified_check),
-    checkNumber: z.string(),
-    bankName: z.string(),
-  }),
-]);
+  // Detalle enmascarado que arma la app al cargar el medio (ej. "Visa ****4242").
+  details: z.string(),
+  // Comprobante/foto del medio (data URI base64), opcional.
+  photo: z.string().nullable(),
+});
 
 export type PaymentMethod = z.infer<typeof paymentMethodSchema>;

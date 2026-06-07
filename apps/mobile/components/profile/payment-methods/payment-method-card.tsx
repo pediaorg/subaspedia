@@ -1,7 +1,10 @@
 import { AlertCircle, BadgeCheck, Trash2 } from "lucide-react-native";
 import { Pressable, Text, View } from "react-native";
 
-import type { PaymentMethod } from "@subaspedia/types/payment-method";
+import {
+  PAYMENT_METHOD_TYPE_LABELS,
+  type PaymentMethod,
+} from "@subaspedia/types/payment-method";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -20,41 +23,16 @@ type PaymentMethodCardProps = {
   onDelete: (id: number) => void;
 };
 
-// Deriva título + identificador enmascarado según el tipo. El switch sobre
-// `method.type` le da narrowing a TS: dentro de cada case solo existen los
-// campos de esa variante (last4 en tarjeta, accountNumber en banco, etc.).
-function describe(method: PaymentMethod): { title: string; subtitle: string } {
-  switch (method.type) {
-    case "bank_account":
-      return {
-        title:
-          method.scope === "local" ? "Cuenta bancaria" : "Cuenta del exterior",
-        subtitle: `${method.bankName} · ${maskTail(method.accountNumber)}`,
-      };
-    case "credit_card":
-      return {
-        title: method.brand,
-        subtitle: `•••• ${method.last4}`,
-      };
-    case "certified_check":
-      return {
-        title: "Cheque certificado",
-        subtitle: `${method.bankName} · N° ${method.checkNumber}`,
-      };
-  }
-}
-
-// Deja a la vista solo los últimos 4 dígitos de un identificador largo (CBU/IBAN).
-function maskTail(value: string): string {
-  return `•••• ${value.slice(-4)}`;
+// La DB guarda el detalle ya enmascarado en `details` (no campos por tipo), así
+// que la card muestra el label del tipo como título y ese texto como subtítulo.
+function typeLabel(type: PaymentMethod["type"]): string {
+  return PAYMENT_METHOD_TYPE_LABELS.find(t => t.value === type)?.label ?? type;
 }
 
 export default function PaymentMethodCard({
   method,
   onDelete,
 }: PaymentMethodCardProps) {
-  const { title, subtitle } = describe(method);
-
   return (
     <Card className="flex-row items-center gap-3 border-0 rounded-2xl bg-white px-4 py-3 drop-shadow-md/20">
       <Icon
@@ -64,15 +42,16 @@ export default function PaymentMethodCard({
       />
       <View className="flex-1 flex-col gap-0.5">
         <Text className="font-bold text-sm text-gray-800" numberOfLines={1}>
-          {title}
+          {typeLabel(method.type)}
         </Text>
         <Text className="text-xs text-gray-600" numberOfLines={1}>
-          {subtitle}
+          {method.details}
         </Text>
-        <Text className="text-xs text-gray-500" numberOfLines={1}>
-          {method.holderName}
-          {!method.verified && " · sin verificar"}
-        </Text>
+        {!method.verified && (
+          <Text className="text-xs text-gray-500" numberOfLines={1}>
+            sin verificar
+          </Text>
+        )}
       </View>
 
       <AlertDialog>

@@ -14,10 +14,13 @@
 --   * Juan Casablanca (cliente GOLD, es el usuario logueable)
 --   * Ana López (cliente común, segunda postora)
 --   * Lucía Fernández (dueña de los bienes)
---   * 1 subasta GOLD futura con catálogo de 2 productos
+--   * 1 subasta GOLD futura con catálogo de productos
 --   * 2 postores con pujas; Juan gana el reloj -> queda en auction_records
 --   * 1 medio de pago verificado para Juan (habilita pujar / claim del JWT)
 --   * 1 usuario logueable: juancasablanca@jamon.com / password123
+--   * Juan también es OWNER: 4 productos propios (products 3-6) que cubren los
+--     estados de "Mis productos" sin propuesta (under_review/approved/rejected/
+--     auctioned). Sirven para GET /products del perfil.
 --
 -- NOTA (refactor 2026-06-01): ya no existe la tabla `users`. Las credenciales
 -- (email + password_hash) viven en `people`. El usuario logueable ES la
@@ -91,7 +94,10 @@ INSERT INTO payment_methods (id, client_id, type, verified, details) VALUES
   (1, 3, 'credit_card', 1, 'Tarjeta de crédito local (Visa)');
 
 -- ---- owners (FK -> people, countries, employees; check: risk_rating 1..6) --
+-- Juan (people.id=3) es client GOLD y ADEMÁS owner: vende bienes por la app.
+-- Por eso aparece tanto en `clients` como en `owners` (mismo people.id).
 INSERT INTO owners (id, country_id, financial_verification, judicial_verification, risk_rating, verifier_id) VALUES
+  (3, 1, 1, 1, 2, 1),
   (4, 1, 1, 1, 2, 1);
 
 -- ---- auctioneers (FK -> people) --------------------------------------------
@@ -108,12 +114,26 @@ INSERT INTO auctions (id, date, time, status, auctioneer_id, location, attendee_
 -- `name` es NOT NULL en el schema (título corto del bien para el catálogo).
 INSERT INTO products (id, date, available, catalog_description, full_description, reviewer_id, owner_id, insurance_policy, name) VALUES
   (1, '2026-11-01', 1, 'Reloj de bolsillo siglo XIX', 'Reloj de bolsillo de oro, siglo XIX, en excelente estado de conservación.', 1, 4, 'POL-001', 'Reloj de bolsillo de oro'),
-  (2, '2026-11-05', 1, 'Óleo sobre tela',             'Paisaje al óleo sobre tela, autor anónimo, con marco original.',          1, 4, NULL,      'Óleo sobre tela');
+  (2, '2026-11-05', 1, 'Óleo sobre tela',             'Paisaje al óleo sobre tela, autor anónimo, con marco original.',          1, 4, NULL,      'Óleo sobre tela'),
+  -- Productos subidos por Juan (owner 3). Cubren los estados que ve "Mis
+  -- productos" sin pasar por la propuesta (no hay ninguno 'tasado'/appraised):
+  --   3 -> sin catalog_item       => under_review (recién subido, en tasación)
+  --   4 -> catalog_item 'aceptado'  => approved
+  --   5 -> catalog_item 'rechazado' => rejected
+  --   6 -> catalog_item 'subastado' => auctioned (+ auction_record con la venta)
+  (3, '2026-06-06', 0, 'None',                 'Cámara de fotos vintage en su estuche original de cuero.', NULL, 3, NULL, 'Cámara vintage'),
+  (4, '2026-06-02', 1, 'Guitarra criolla',     'Guitarra criolla de luthier, caja de cedro macizo.',       1,    3, NULL, 'Guitarra criolla'),
+  (5, '2026-05-20', 0, 'None',                 'Cuadro de paisaje al óleo, sin firma identificable.',      1,    3, NULL, 'Cuadro sin firma'),
+  (6, '2026-04-10', 1, 'Vajilla de porcelana', 'Vajilla de porcelana Limoges, juego de 12 cubiertos.',     1,    3, NULL, 'Vajilla Limoges');
 
 -- ---- photos (FK -> products; photo es BLOB NOT NULL, placeholder PNG header)
 INSERT INTO photos (id, product_id, photo) VALUES
   (1, 1, x'89504e470d0a1a0a'),
-  (2, 2, x'89504e470d0a1a0a');
+  (2, 2, x'89504e470d0a1a0a'),
+  (3, 3, x'89504e470d0a1a0a'),
+  (4, 4, x'89504e470d0a1a0a'),
+  (5, 5, x'89504e470d0a1a0a'),
+  (6, 6, x'89504e470d0a1a0a');
 
 -- ---- catalogs (FK -> auctions, employees(manager)) -------------------------
 INSERT INTO catalogs (id, description, auction_id, manager_id) VALUES
@@ -124,7 +144,11 @@ INSERT INTO catalogs (id, description, auction_id, manager_id) VALUES
 -- se remató -> 'subastado'; el óleo (item 2) está aceptado y a la espera -> 'aceptado'.
 INSERT INTO catalog_items (id, catalog_id, product_id, base_price, commission, state) VALUES
   (1, 1, 1, 180000, 12, 'subastado'),
-  (2, 1, 2, 90000,  10, 'aceptado');
+  (2, 1, 2, 90000,  10, 'aceptado'),
+  -- catalog_items de los productos de Juan (le dan su `status` a "Mis productos").
+  (3, 1, 4, 50000,  10, 'aceptado'),
+  (4, 1, 5, 30000,  10, 'rechazado'),
+  (5, 1, 6, 120000, 12, 'subastado');
 
 -- ---- attendees (FK -> clients, auctions) -----------------------------------
 INSERT INTO attendees (id, bidder_number, client_id, auction_id) VALUES
@@ -140,6 +164,9 @@ INSERT INTO bids (id, attendee_id, item_id, amount, winner) VALUES
 -- ---- auction_records (FK -> auctions, owners, products, clients; checks > 0.01)
 -- Venta registrada: el reloj (product 1) de Lucía (owner 4) se lo lleva Juan (client 3).
 INSERT INTO auction_records (id, auction_id, owner_id, product_id, client_id, amount, commission) VALUES
-  (1, 1, 4, 1, 3, 185000, 12);
+  (1, 1, 4, 1, 3, 185000, 12),
+  -- La vajilla (product 6) de Juan (owner 3) se la lleva Ana (client 5).
+  -- Da salePrice/saleDate a su card "Subastado" (saleDate = auctions.date).
+  (2, 1, 3, 6, 5, 135000, 12);
 
 PRAGMA foreign_keys = ON;
