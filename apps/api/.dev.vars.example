@@ -4,7 +4,6 @@ JWT_SECRET="dev-secret-change-me"
 # por consola en lugar de enviarse por email (ver src/lib/email.ts).
 
 RESEND_API_KEY=""
-RESEND_FROM="Subaspedia <onboarding@resend.dev>"
 
 # Origen de la app web (para los links de los mails, ej. /logout). En prod/preview
 # lo inyecta SST por stage; en dev local apuntá a tu Expo web (puerto 8081).

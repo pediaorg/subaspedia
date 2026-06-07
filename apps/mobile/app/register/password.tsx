@@ -12,12 +12,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Text } from "@/components/ui/text";
 import { api } from "@/lib/api";
+import { safeRedirect } from "@/lib/auth-redirect";
 import { authStore } from "@/lib/auth";
 
 export default function NewPasswordScreen() {
-  const { email, code } = useLocalSearchParams<{
+  const { email, code, redirect } = useLocalSearchParams<{
     email: string;
     code: string;
+    redirect?: string;
   }>();
 
   const form = useForm<NewPasswordInput>({
@@ -29,7 +31,7 @@ export default function NewPasswordScreen() {
   const complete = api.auth.completeRegistration.useMutation({
     onSuccess: tokens => {
       authStore.set(tokens);
-      router.replace("/");
+      router.replace(safeRedirect(redirect));
     },
   });
 

@@ -26,9 +26,7 @@ export default function PaymentMethods() {
   });
 
   function handleAdd() {
-    // Form de alta existente (pega a user.addPaymentMethod). Al volver, su
-    // onSuccess invalida este listado para que aparezca el nuevo medio.
-    router.push("/payment-method");
+    router.push("/profile/payment-methods/new");
   }
 
   return (
