@@ -1,68 +1,28 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus } from "lucide-react-native";
+import { useQueryClient } from "@tanstack/react-query";
 import { router } from "expo-router";
-import { ScrollView, Text, View } from "react-native";
+import { Plus } from "lucide-react-native";
+import { Alert, ScrollView, Text, View } from "react-native";
 
-import type { PaymentMethod } from "@subaspedia/types/payment-method";
 import PaymentMethodCard from "@/components/profile/payment-methods/payment-method-card";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
 import { Separator } from "@/components/ui/separator";
-
-const MOCK_PAYMENT_METHODS: PaymentMethod[] = [
-  {
-    id: 1,
-    type: "credit_card",
-    scope: "local",
-    holderName: "Juan Casablanca",
-    verified: true,
-    brand: "Visa",
-    last4: "4242",
-  },
-  {
-    id: 2,
-    type: "bank_account",
-    scope: "local",
-    holderName: "Juan Casablanca",
-    verified: false,
-    bankName: "Banco Nación",
-    accountNumber: "0110599520000001234567",
-  },
-  {
-    id: 3,
-    type: "certified_check",
-    holderName: "Juan Casablanca",
-    verified: false,
-    bankName: "Banco Galicia",
-    checkNumber: "00012345",
-  },
-];
+import { api } from "@/lib/api";
 
 export default function PaymentMethods() {
   const queryClient = useQueryClient();
 
-  const { data: methods, isLoading } = useQuery({
-    queryKey: ["payment-methods"],
-    queryFn: async () => {
-      // TODO: reemplazar por la llamada real (GET /users/me/payment-methods)
-      await new Promise(r => setTimeout(r, 300));
-      return MOCK_PAYMENT_METHODS;
-    },
-  });
+  // GET real: lista los medios de pago del usuario logueado (user.listPaymentMethods).
+  const { data: methods, isLoading } = api.user.listPaymentMethods.useQuery();
 
-  const { mutate: deleteMethod } = useMutation({
-    mutationFn: async (id: number) => {
-      // TODO: reemplazar por la llamada real (DELETE /users/me/payment-methods/{id})
-      await new Promise(r => setTimeout(r, 300));
-      return id;
+  const { mutate: deleteMethod } = api.user.deletePaymentMethod.useMutation({
+    onSuccess: () => {
+      // Refresca el listado real (mismo queryKey que usa el GET de arriba).
+      queryClient.invalidateQueries({
+        queryKey: api.user.listPaymentMethods.queryKey(),
+      });
     },
-    onSuccess: id => {
-      // El mock no persiste: actualizamos la cache a mano en lugar de invalidar
-      // (invalidar refetchearía el MOCK estático y el item reaparecería).
-      queryClient.setQueryData<PaymentMethod[]>(["payment-methods"], old =>
-        old?.filter(m => m.id !== id),
-      );
-    },
+    onError: error => Alert.alert("Error", error.message),
   });
 
   function handleAdd() {
@@ -89,7 +49,7 @@ export default function PaymentMethods() {
           <PaymentMethodCard
             key={method.id}
             method={method}
-            onDelete={deleteMethod}
+            onDelete={id => deleteMethod({ id })}
           />
         ))}
 
