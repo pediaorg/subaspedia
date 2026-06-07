@@ -28,7 +28,6 @@ const currencyFormatter = new Intl.NumberFormat("es-AR", {
 const MOCK_PRODUCT: Product = {
   id: 1,
   name: "Reloj de bolsillo siglo XIX",
-  category: "Antigüedades",
   status: "appraised",
   img: "https://picsum.photos/seed/reloj/200",
   proposalText:
@@ -129,7 +128,6 @@ export default function ProposalScreen() {
               <Text className="font-bold text-lg" numberOfLines={2}>
                 {product.name}
               </Text>
-              <Text className="text-sm text-gray-500">{product.category}</Text>
             </View>
           </View>
 
