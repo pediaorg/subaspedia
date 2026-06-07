@@ -1,7 +1,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as Burnt from "burnt";
 import * as ImagePicker from "expo-image-picker";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { Controller, useForm } from "react-hook-form";
 import { ScrollView, View } from "react-native";
 
@@ -29,6 +29,7 @@ import { RegisterHeader } from "./_/header";
 const INPUT = "bg-secondary border-none";
 
 export default function RegisterScreen() {
+  const { redirect } = useLocalSearchParams<{ redirect?: string }>();
   const { data: countries } = api.countries.list.useQuery();
 
   const form = useForm<RegisterStep1Input>({
@@ -47,12 +48,13 @@ export default function RegisterScreen() {
 
   const register = api.auth.register.useMutation({
     onSuccess: ({ email }) =>
-      router.push({ pathname: "/register/verify", params: { email } }),
+      router.push({
+        pathname: "/register/verify",
+        params: { email, ...(redirect ? { redirect } : {}) },
+      }),
   });
 
   const onSubmit = (data: RegisterStep1Input) => register.mutate(data);
-
-  const submit = form.handleSubmit(onSubmit);
 
   // Un picker por cara del documento (frente y dorso).
   const dniFront = form.watch("dniFront");
@@ -107,7 +109,6 @@ export default function RegisterScreen() {
                 onChangeText={field.onChange}
                 onBlur={field.onBlur}
                 placeholder="Tu nombre"
-                onSubmitEditing={submit}
                 className={INPUT}
               />
             </FormField>
@@ -124,7 +125,6 @@ export default function RegisterScreen() {
                 onChangeText={field.onChange}
                 onBlur={field.onBlur}
                 placeholder="Tu apellido"
-                onSubmitEditing={submit}
                 className={INPUT}
               />
             </FormField>
@@ -146,7 +146,6 @@ export default function RegisterScreen() {
                   onChangeText={field.onChange}
                   onBlur={field.onBlur}
                   placeholder="Domicilio legal"
-                  onSubmitEditing={submit}
                   className={INPUT}
                 />
               </FormField>
@@ -198,8 +197,6 @@ export default function RegisterScreen() {
                 autoCapitalize="none"
                 keyboardType="email-address"
                 placeholder="tu@email.com"
-                returnKeyType="go"
-                onSubmitEditing={submit}
                 className={INPUT}
               />
             </FormField>
@@ -236,7 +233,7 @@ export default function RegisterScreen() {
         <Button
           size="lg"
           disabled={!form.formState.isValid || register.isPending}
-          onPress={submit}
+          onPress={form.handleSubmit(onSubmit)}
           className="bg-accent-foreground mt-2 self-center rounded-full border-0 px-12 py-4 shadow-none"
         >
           <Text className="text-base font-bold text-white">

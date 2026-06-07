@@ -10,12 +10,18 @@ import { Text } from "@/components/ui/text";
 import { api } from "@/lib/api";
 
 export default function VerifyScreen() {
-  const { email } = useLocalSearchParams<{ email: string }>();
+  const { email, redirect } = useLocalSearchParams<{
+    email: string;
+    redirect?: string;
+  }>();
   const [code, setCode] = useState("");
 
   const verify = api.auth.verifyCode.useMutation({
     onSuccess: () =>
-      router.push({ pathname: "/register/password", params: { email, code } }),
+      router.push({
+        pathname: "/register/password",
+        params: { email, code, ...(redirect ? { redirect } : {}) },
+      }),
   });
 
   const submit = () => {

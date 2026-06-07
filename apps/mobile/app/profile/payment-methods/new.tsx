@@ -1,8 +1,9 @@
+import { useQueryClient } from "@tanstack/react-query";
 import * as Burnt from "burnt";
 import * as ImagePicker from "expo-image-picker";
 import { router, Stack } from "expo-router";
 import {
-  ChevronLeft,
+  ArrowLeft,
   CreditCard,
   ImagePlus,
   Landmark,
@@ -77,8 +78,13 @@ export default function PaymentMethodScreen() {
     );
   };
 
+  const queryClient = useQueryClient();
   const addPaymentMethod = api.user.addPaymentMethod.useMutation({
     onSuccess: () => {
+      // Refresca el listado de "Métodos de pago" para que aparezca el nuevo.
+      queryClient.invalidateQueries({
+        queryKey: api.user.listPaymentMethods.queryKey(),
+      });
       Burnt.toast({
         title: "Medio agregado",
         message: "Queda pendiente de validación por la empresa.",
@@ -122,231 +128,245 @@ export default function PaymentMethodScreen() {
     });
 
   return (
-    <View className="flex-1 bg-white">
+    <View className="flex-1 bg-muted">
       <Stack.Screen options={{ headerShown: false }} />
 
-      {/* Header con back, igual al de registro */}
-      <View className="px-4 pb-1 pt-3">
+      {/* Header con back, consistente con el ProfileHeader del resto del
+          perfil: mismo ícono (ArrowLeft), círculo y posición (px-6 py-14). */}
+      <View className="flex-row items-center px-6 py-14">
         <Pressable
           hitSlop={12}
           onPress={() =>
             router.canGoBack() ? router.back() : router.replace("/")
           }
-          className="bg-white drop-shadow-md/30 h-10 w-10 items-center justify-center rounded-full"
         >
-          <Icon as={ChevronLeft} size={22} className="text-foreground" />
+          <View
+            className="size-10 items-center justify-center rounded-full bg-white"
+            style={{
+              shadowColor: "#000",
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.2,
+              shadowRadius: 4,
+              elevation: 4,
+            }}
+          >
+            <Icon as={ArrowLeft} size={24} className="text-foreground" />
+          </View>
         </Pressable>
       </View>
 
-      <ScrollView
-        contentContainerClassName="grow gap-4 px-6 pb-12"
-        keyboardShouldPersistTaps="handled"
-      >
-        <View className="items-center gap-2">
-          <Text variant="h3" className="font-bold">
-            Método de pago
-          </Text>
-          <Separator className="w-24 bg-gray-300" />
-        </View>
+      {/* Cajón blanco que sube desde abajo (contenedor 2) */}
+      <View className="flex-1 overflow-hidden rounded-t-3xl bg-white">
+        <ScrollView
+          contentContainerClassName="grow gap-4 px-6 pb-12 pt-8"
+          keyboardShouldPersistTaps="handled"
+        >
+          <View className="items-center gap-2">
+            <Text variant="h3" className="font-bold">
+              Método de pago
+            </Text>
+            <Separator className="w-24 bg-gray-300" />
+          </View>
 
-        {/* Selector de tipo de medio */}
-        <View className="flex-row gap-2">
-          {TYPES.map(t => (
-            <Button
-              key={t.value}
-              size="sm"
-              variant={type === t.value ? "default" : "outline"}
-              onPress={() => setType(t.value)}
-              className={
-                type === t.value
-                  ? "bg-accent-foreground flex-1 rounded-full border-0"
-                  : "flex-1 rounded-full"
-              }
-            >
-              <Text
+          {/* Selector de tipo de medio */}
+          <View className="flex-row gap-2">
+            {TYPES.map(t => (
+              <Button
+                key={t.value}
+                size="sm"
+                variant={type === t.value ? "default" : "outline"}
+                onPress={() => setType(t.value)}
                 className={
                   type === t.value
-                    ? "text-sm font-semibold text-white"
-                    : "text-sm font-medium"
+                    ? "bg-accent-foreground flex-1 rounded-full border-0"
+                    : "flex-1 rounded-full"
                 }
               >
-                {t.label}
-              </Text>
-            </Button>
-          ))}
-        </View>
-
-        {/* Preview tipo tarjeta (como el wireframe). Se llena en vivo con los
-            datos, ocultando lo sensible (número/CBU enmascarados, CVV nunca). */}
-        <CardPreview
-          type={type}
-          cardNumber={cardNumber}
-          holder={holder}
-          expiry={expiry}
-          bank={bank}
-          cbu={cbu}
-          checkBank={checkBank}
-          checkNumber={checkNumber}
-          checkAmount={checkAmount}
-        />
-
-        {/* Campos según el tipo */}
-        {type === "credit_card" && (
-          <>
-            <FormField label="Número de tarjeta">
-              <Input
-                value={cardNumber}
-                onChangeText={setCardNumber}
-                keyboardType="number-pad"
-                placeholder="0000 0000 0000 0000"
-                maxLength={19}
-                className={INPUT}
-              />
-            </FormField>
-
-            <View className="flex-row gap-3">
-              <FormField label="Vencimiento" className="flex-1">
-                <Input
-                  value={expiry}
-                  onChangeText={setExpiry}
-                  placeholder="MM/AA"
-                  maxLength={5}
-                  className={INPUT}
-                />
-              </FormField>
-              <FormField label="CVV" className="flex-1">
-                <Input
-                  value={cvv}
-                  onChangeText={setCvv}
-                  keyboardType="number-pad"
-                  placeholder="123"
-                  maxLength={4}
-                  secureTextEntry
-                  className={INPUT}
-                />
-              </FormField>
-            </View>
-
-            <FormField label="Titular">
-              <Input
-                value={holder}
-                onChangeText={setHolder}
-                placeholder="Nombre como figura en la tarjeta"
-                autoCapitalize="characters"
-                className={INPUT}
-              />
-            </FormField>
-          </>
-        )}
-
-        {type === "bank_account" && (
-          <>
-            <FormField label="Banco">
-              <Input
-                value={bank}
-                onChangeText={setBank}
-                placeholder="Ej: Banco Galicia"
-                className={INPUT}
-              />
-            </FormField>
-            <FormField label="CBU / IBAN">
-              <Input
-                value={cbu}
-                onChangeText={setCbu}
-                keyboardType="number-pad"
-                placeholder="0000000000000000000000"
-                className={INPUT}
-              />
-            </FormField>
-            <FormField label="Titular">
-              <Input
-                value={holder}
-                onChangeText={setHolder}
-                placeholder="Nombre del titular"
-                className={INPUT}
-              />
-            </FormField>
-          </>
-        )}
-
-        {type === "certified_check" && (
-          <>
-            <FormField label="Banco emisor">
-              <Input
-                value={checkBank}
-                onChangeText={setCheckBank}
-                placeholder="Ej: Banco Nación"
-                className={INPUT}
-              />
-            </FormField>
-            <FormField label="Número de cheque">
-              <Input
-                value={checkNumber}
-                onChangeText={setCheckNumber}
-                keyboardType="number-pad"
-                placeholder="00000000"
-                className={INPUT}
-              />
-            </FormField>
-            <FormField label="Monto certificado">
-              <Input
-                value={checkAmount}
-                onChangeText={setCheckAmount}
-                keyboardType="numeric"
-                placeholder="0.00"
-                className={INPUT}
-              />
-            </FormField>
-          </>
-        )}
-
-        <FormField label="Comprobante (opcional)">
-          <Pressable
-            onPress={pickPhoto}
-            className="border-border bg-secondary active:bg-muted h-44 items-center justify-center overflow-hidden rounded-xl border border-dashed"
-          >
-            {photo ? (
-              <Image
-                source={{ uri: photo }}
-                className="h-full w-full"
-                resizeMode="cover"
-              />
-            ) : (
-              <View className="items-center gap-2">
-                <Icon
-                  as={ImagePlus}
-                  size={28}
-                  className="text-muted-foreground"
-                />
-                <Text className="text-muted-foreground text-sm">
-                  Subir foto del medio de pago
+                <Text
+                  className={
+                    type === t.value
+                      ? "text-sm font-semibold text-white"
+                      : "text-sm font-medium"
+                  }
+                >
+                  {t.label}
                 </Text>
+              </Button>
+            ))}
+          </View>
+
+          {/* Preview tipo tarjeta (como el wireframe). Se llena en vivo con los
+            datos, ocultando lo sensible (número/CBU enmascarados, CVV nunca). */}
+          <CardPreview
+            type={type}
+            cardNumber={cardNumber}
+            holder={holder}
+            expiry={expiry}
+            bank={bank}
+            cbu={cbu}
+            checkBank={checkBank}
+            checkNumber={checkNumber}
+            checkAmount={checkAmount}
+          />
+
+          {/* Campos según el tipo */}
+          {type === "credit_card" && (
+            <>
+              <FormField label="Número de tarjeta">
+                <Input
+                  value={cardNumber}
+                  onChangeText={setCardNumber}
+                  keyboardType="number-pad"
+                  placeholder="0000 0000 0000 0000"
+                  maxLength={19}
+                  className={INPUT}
+                />
+              </FormField>
+
+              <View className="flex-row gap-3">
+                <FormField label="Vencimiento" className="flex-1">
+                  <Input
+                    value={expiry}
+                    onChangeText={setExpiry}
+                    placeholder="MM/AA"
+                    maxLength={5}
+                    className={INPUT}
+                  />
+                </FormField>
+                <FormField label="CVV" className="flex-1">
+                  <Input
+                    value={cvv}
+                    onChangeText={setCvv}
+                    keyboardType="number-pad"
+                    placeholder="123"
+                    maxLength={4}
+                    secureTextEntry
+                    className={INPUT}
+                  />
+                </FormField>
               </View>
-            )}
-          </Pressable>
-        </FormField>
 
-        {addPaymentMethod.error ? (
-          <Text className="text-destructive text-center text-sm">
-            {addPaymentMethod.error.message}
+              <FormField label="Titular">
+                <Input
+                  value={holder}
+                  onChangeText={setHolder}
+                  placeholder="Nombre como figura en la tarjeta"
+                  autoCapitalize="characters"
+                  className={INPUT}
+                />
+              </FormField>
+            </>
+          )}
+
+          {type === "bank_account" && (
+            <>
+              <FormField label="Banco">
+                <Input
+                  value={bank}
+                  onChangeText={setBank}
+                  placeholder="Ej: Banco Galicia"
+                  className={INPUT}
+                />
+              </FormField>
+              <FormField label="CBU / IBAN">
+                <Input
+                  value={cbu}
+                  onChangeText={setCbu}
+                  keyboardType="number-pad"
+                  placeholder="0000000000000000000000"
+                  className={INPUT}
+                />
+              </FormField>
+              <FormField label="Titular">
+                <Input
+                  value={holder}
+                  onChangeText={setHolder}
+                  placeholder="Nombre del titular"
+                  className={INPUT}
+                />
+              </FormField>
+            </>
+          )}
+
+          {type === "certified_check" && (
+            <>
+              <FormField label="Banco emisor">
+                <Input
+                  value={checkBank}
+                  onChangeText={setCheckBank}
+                  placeholder="Ej: Banco Nación"
+                  className={INPUT}
+                />
+              </FormField>
+              <FormField label="Número de cheque">
+                <Input
+                  value={checkNumber}
+                  onChangeText={setCheckNumber}
+                  keyboardType="number-pad"
+                  placeholder="00000000"
+                  className={INPUT}
+                />
+              </FormField>
+              <FormField label="Monto certificado">
+                <Input
+                  value={checkAmount}
+                  onChangeText={setCheckAmount}
+                  keyboardType="numeric"
+                  placeholder="0.00"
+                  className={INPUT}
+                />
+              </FormField>
+            </>
+          )}
+
+          <FormField label="Comprobante (opcional)">
+            <Pressable
+              onPress={pickPhoto}
+              className="border-border bg-secondary active:bg-muted h-44 items-center justify-center overflow-hidden rounded-xl border border-dashed"
+            >
+              {photo ? (
+                <Image
+                  source={{ uri: photo }}
+                  className="h-full w-full"
+                  resizeMode="cover"
+                />
+              ) : (
+                <View className="items-center gap-2">
+                  <Icon
+                    as={ImagePlus}
+                    size={28}
+                    className="text-muted-foreground"
+                  />
+                  <Text className="text-muted-foreground text-sm">
+                    Subir foto del medio de pago
+                  </Text>
+                </View>
+              )}
+            </Pressable>
+          </FormField>
+
+          {addPaymentMethod.error ? (
+            <Text className="text-destructive text-center text-sm">
+              {addPaymentMethod.error.message}
+            </Text>
+          ) : null}
+
+          <Button
+            size="lg"
+            disabled={addPaymentMethod.isPending}
+            onPress={onAdd}
+            className="bg-accent-foreground mt-2 self-center rounded-full border-0 px-12 py-4 shadow-none"
+          >
+            <Text className="text-base font-bold text-white">
+              {addPaymentMethod.isPending ? "Agregando..." : "Agregar"}
+            </Text>
+          </Button>
+
+          <Text className="text-accent-foreground text-center text-xs">
+            La empresa validará tu medio de pago antes de habilitarte a pujar.
           </Text>
-        ) : null}
-
-        <Button
-          size="lg"
-          disabled={addPaymentMethod.isPending}
-          onPress={onAdd}
-          className="bg-accent-foreground mt-2 self-center rounded-full border-0 px-12 py-4 shadow-none"
-        >
-          <Text className="text-base font-bold text-white">
-            {addPaymentMethod.isPending ? "Agregando..." : "Agregar"}
-          </Text>
-        </Button>
-
-        <Text className="text-accent-foreground text-center text-xs">
-          La empresa validará tu medio de pago antes de habilitarte a pujar.
-        </Text>
-      </ScrollView>
+        </ScrollView>
+      </View>
     </View>
   );
 }

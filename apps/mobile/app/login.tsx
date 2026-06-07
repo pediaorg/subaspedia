@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Link, router, Stack } from "expo-router";
+import { Link, router, Stack, useLocalSearchParams } from "expo-router";
 import { X } from "lucide-react-native";
 import { Controller, useForm } from "react-hook-form";
 import { Pressable, View } from "react-native";
@@ -12,9 +12,12 @@ import { Icon } from "@/components/ui/icon";
 import { Input } from "@/components/ui/input";
 import { Text } from "@/components/ui/text";
 import { api } from "@/lib/api";
+import { safeRedirect } from "@/lib/auth-redirect";
 import { authStore } from "@/lib/auth";
 
 export default function LoginScreen() {
+  const { redirect } = useLocalSearchParams<{ redirect?: string }>();
+
   const form = useForm<LoginInput>({
     resolver: zodResolver(loginSchema),
     mode: "onChange",
@@ -24,7 +27,7 @@ export default function LoginScreen() {
   const login = api.auth.login.useMutation({
     onSuccess: tokens => {
       authStore.set(tokens);
-      router.replace("/");
+      router.replace(safeRedirect(redirect));
     },
   });
 
@@ -33,7 +36,16 @@ export default function LoginScreen() {
 
   const submit = form.handleSubmit(onSubmit);
 
-  const close = () => router.canGoBack() && router.back();
+  // Si no hay historial (entraste directo a /login) igual podés salir a home.
+  const close = () =>
+    router.canGoBack() ? router.back() : router.replace("/");
+
+  // Arrastramos el `redirect` al registro para no perder el destino si el
+  // usuario completa el alta en vez de loguearse.
+  const registerHref = {
+    pathname: "/register" as const,
+    params: redirect ? { redirect } : {},
+  };
 
   return (
     <>
@@ -113,7 +125,7 @@ export default function LoginScreen() {
                   </Pressable>
                 )}
               />
-              <Pressable onPress={() => router.push("/register")}>
+              <Pressable onPress={() => router.push(registerHref)}>
                 <Text className="text-accent-foreground text-sm">
                   ¿Olvidaste tu contraseña?
                 </Text>
@@ -142,7 +154,7 @@ export default function LoginScreen() {
                 ¿No tenés cuenta?
               </Text>
               <Link
-                href="/register"
+                href={registerHref}
                 className="text-accent-foreground text-sm font-semibold"
               >
                 Registrate
