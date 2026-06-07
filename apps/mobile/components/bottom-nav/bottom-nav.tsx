@@ -7,7 +7,13 @@ import { useAuth } from "@/lib/auth";
 import { navItems } from "./items";
 import { NavItem } from "./nav-item";
 
-const HIDDEN: string[] = ["/", "/login", "/profile"];
+const HIDDEN: (string | RegExp)[] = [
+  "/",
+  "/login",
+  "/profile",
+  // Puedes usar RegExp para rutas dinamicas. Ej: /auctions/:id
+  /^\/auctions\/[^/]+$/,
+];
 
 function isActive(pathname: string, href: string) {
   if (href === "/") return pathname === "/";
@@ -20,7 +26,12 @@ export function BottomNav() {
   const { isAuthed } = useAuth();
   const insets = useSafeAreaInsets();
 
-  if (HIDDEN.some(h => isActive(pathname, h))) return null;
+  if (
+    HIDDEN.some(h =>
+      h instanceof RegExp ? h.test(pathname) : isActive(pathname, h),
+    )
+  )
+    return null;
 
   return (
     <View
