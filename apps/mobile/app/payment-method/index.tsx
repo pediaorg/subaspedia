@@ -1,3 +1,4 @@
+import { useQueryClient } from "@tanstack/react-query";
 import * as Burnt from "burnt";
 import * as ImagePicker from "expo-image-picker";
 import { router, Stack } from "expo-router";
@@ -77,8 +78,13 @@ export default function PaymentMethodScreen() {
     );
   };
 
+  const queryClient = useQueryClient();
   const addPaymentMethod = api.user.addPaymentMethod.useMutation({
     onSuccess: () => {
+      // Refresca el listado de "Métodos de pago" para que aparezca el nuevo.
+      queryClient.invalidateQueries({
+        queryKey: api.user.listPaymentMethods.queryKey(),
+      });
       Burnt.toast({
         title: "Medio agregado",
         message: "Queda pendiente de validación por la empresa.",
