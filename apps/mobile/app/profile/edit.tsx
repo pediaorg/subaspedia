@@ -172,7 +172,7 @@ function EditProfileForm({ user }: { user: User }) {
               <View className="flex-row gap-4">
                 <EditData
                   label={"Nombre"}
-                  placeholder={"Juan"}
+                  placeholder={"Ej. María"}
                   nativeID={"name"}
                   type={"text"}
                   value={form.name}
@@ -180,7 +180,7 @@ function EditProfileForm({ user }: { user: User }) {
                 />
                 <EditData
                   label={"Apellido"}
-                  placeholder={"Casareski"}
+                  placeholder={"Ej. Pérez"}
                   nativeID={"surname"}
                   type={"text"}
                   value={form.surname}
@@ -190,7 +190,7 @@ function EditProfileForm({ user }: { user: User }) {
               <View className="flex-row gap-4">
                 <EditData
                   label={"Dirección Legal"}
-                  placeholder={"Lima 970"}
+                  placeholder={"Ej. Av. Corrientes 1234"}
                   nativeID={"dir"}
                   type={"text"}
                   value={form.address}
@@ -246,7 +246,7 @@ function EditProfileForm({ user }: { user: User }) {
               </Text>
               <EditData
                 label={"Correo electrónico"}
-                placeholder={"Juan@casablanca"}
+                placeholder={"ejemplo@correo.com"}
                 nativeID={"email"}
                 type={"email"}
                 value={form.email}

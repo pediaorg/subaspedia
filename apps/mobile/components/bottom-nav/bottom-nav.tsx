@@ -5,7 +5,14 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { NAV_ITEMS } from "./items";
 import { NavItem } from "./nav-item";
 
-const SHOWN: string[] = ["/", "/auctions", "/new-product", "/rank-up", "/faq"];
+const SHOWN: string[] = [
+  "/",
+  "/auctions",
+  "/new-product",
+  "/rank-up",
+  "/faq",
+  "/profile",
+];
 
 function matches(pathname: string, href: string) {
   if (href === "/") return pathname === "/";
