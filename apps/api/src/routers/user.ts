@@ -1,11 +1,15 @@
 import { ORPCError } from "@orpc/server";
-import { and, eq } from "drizzle-orm";
+import { and, count, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { createPaymentMethodSchema } from "@subaspedia/types/forms/payment";
-import { paymentMethodSchema } from "@subaspedia/types/payment-method";
+import {
+  MAX_PAYMENT_METHODS,
+  paymentMethodSchema,
+} from "@subaspedia/types/payment-method";
+import { rankSummarySchema } from "@subaspedia/types/user";
 import { authed } from "@/api/context";
-import { paymentMethods } from "@/api/db/schema";
+import { attendees, bids, paymentMethods } from "@/api/db/schema";
 
 export const userRouter = {
   // GET /users/me/payment-methods — los medios de pago del client logueado.
@@ -81,6 +85,54 @@ export const userRouter = {
 
       return { success: true };
     }),
+
+  // GET /users/me/rank-summary — todo lo que muestra la pantalla de Rango en
+  // una sola llamada: categoría del client, medios de pago (x/max) y actividad
+  // (subastas participadas, ganadas y total ofertado). La actividad sale de
+  // bids -> attendees filtrando por el client logueado.
+  rankSummary: authed.output(rankSummarySchema).handler(async ({ context }) => {
+    const userId = context.userId;
+
+    const client = await context.db.query.clients.findFirst({
+      where: { id: userId },
+      columns: { category: true },
+    });
+
+    const [pmRow] = await context.db
+      .select({ value: count() })
+      .from(paymentMethods)
+      .where(eq(paymentMethods.clientId, userId));
+
+    // Una fila de attendees = una subasta a la que se inscribió el client.
+    const [participatedRow] = await context.db
+      .select({ value: count() })
+      .from(attendees)
+      .where(eq(attendees.clientId, userId));
+
+    // Ganadas = pujas marcadas winner; ofertado = suma de todas sus pujas.
+    // coalesce para que sum() devuelva 0 (no null) cuando no pujó nunca.
+    const [bidStats] = await context.db
+      .select({
+        won: sql<number>`coalesce(sum(case when ${bids.winner} then 1 else 0 end), 0)`,
+        totalBid: sql<number>`coalesce(sum(${bids.amount}), 0)`,
+      })
+      .from(bids)
+      .innerJoin(attendees, eq(bids.attendeeId, attendees.id))
+      .where(eq(attendees.clientId, userId));
+
+    return {
+      category: client?.category ?? null,
+      paymentMethods: {
+        count: pmRow?.value ?? 0,
+        max: MAX_PAYMENT_METHODS,
+      },
+      activity: {
+        participated: participatedRow?.value ?? 0,
+        won: Number(bidStats?.won ?? 0),
+        totalBid: Number(bidStats?.totalBid ?? 0),
+      },
+    };
+  }),
 
   paymentLimit: authed.handler(async ({ context }) => {
     const client = await context.db.query.clients.findFirst({
