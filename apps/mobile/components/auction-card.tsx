@@ -1,3 +1,4 @@
+import { useRouter } from "expo-router";
 import { Image, Pressable, Text, View } from "react-native";
 
 import { Button } from "@/components/ui/button";
@@ -14,6 +15,8 @@ export function AuctionCard({
   onOpenCatalog,
   onEnter,
 }: AuctionCardProps) {
+  const router = useRouter();
+
   return (
     <View className="w-full mt-3 mb-5 drop-shadow-xl/50 rounded-md bg-white transition delay-150 duration-300 ease-in-out hover:-translate-y-1 active:-translate-y-1">
       <Image
@@ -38,7 +41,15 @@ export function AuctionCard({
         <Button
           className="border-border h-8 bg-white rounded-full drop-shadow-lg hover:bg-white/90 active:bg-white/90 focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-primary/80"
           size="sm"
-          onPress={onEnter}
+          onPress={() => {
+            // Si pasaste una función desde el padre (index.tsx), la ejecuta.
+            // Si no, hace la navegación estándar.
+            if (onEnter) {
+              onEnter();
+            } else {
+              router.push(`/auctions/${auction.id}`);
+            }
+          }}
         >
           Entrar
         </Button>

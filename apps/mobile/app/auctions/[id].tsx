@@ -1,10 +1,14 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useQueryClient } from "@tanstack/react-query";
-import { Stack, useLocalSearchParams, useRouter } from "expo-router";
+import {
+  Stack,
+  useLocalSearchParams,
+  useNavigation,
+  useRouter,
+} from "expo-router";
 import React, { useMemo, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   Image,
   KeyboardAvoidingView,
   Platform,
@@ -14,8 +18,13 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { Sidebar } from "@/components/app-header/sidebar";
+import { CatalogDialog } from "@/components/auctions/catalog-dialog";
+import { ProductDialog } from "@/components/auctions/product-dialog";
 import { api } from "@/lib/api";
+import type { Product } from "@/lib/auctions";
 import { useAuth } from "@/lib/auth";
 import { photoUri } from "@/lib/photo";
 
@@ -25,14 +34,28 @@ export default function AuctionDetailScreen() {
   const queryClient = useQueryClient();
   const { canBid } = useAuth();
 
+  const CATEGORY_LABELS: Record<string, string> = {
+    common: "Común",
+    special: "Especial",
+    silver: "Plata",
+    gold: "Oro",
+    platinum: "Platino",
+  };
+
+  const navigation = useNavigation();
+  const insets = useSafeAreaInsets();
+
   // 1. Estados locales
   const [bidAmount, setBidAmount] = useState("");
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [isCatalogOpen, setIsCatalogOpen] = useState(false);
+  const [detailProduct, setDetailProduct] = useState<Product | null>(null);
 
   // 2. Parseo seguro del ID (Evita llamadas a la API con NaN)
   const auctionId = Number(id);
   const isValidId = !isNaN(auctionId) && auctionId > 0;
 
-  // 3. Queries (Mismo patrón que index.tsx)
+  // 3. Queries
   const { data: rawAuction, isLoading: auctionLoading } =
     api.auctions.getDetail.useQuery(
       { auctionId: isValidId ? auctionId : 0 },
@@ -44,54 +67,62 @@ export default function AuctionDetailScreen() {
     { enabled: isValidId },
   );
 
-  // 4. Transformación / Memorización de datos
   const auction = useMemo(() => rawAuction ?? null, [rawAuction]);
   const bids = useMemo(() => rawBids ?? [], [rawBids]);
+
+  const catalogProducts = useMemo<Product[]>(() => {
+    if (!auction?.catalogs?.[0]?.items) return [];
+
+    return auction.catalogs[0].items.map(item => {
+      const photos = item.product?.photos || [];
+      const images = photos
+        .map(ph => photoUri(ph.id))
+        .filter((u): u is string => u !== null);
+      const mainImage = photos.length > 0 ? photoUri(photos[0].id) : null;
+
+      const base = {
+        id: String(item.id),
+        name: item.product?.name || "Sin nombre",
+        category: "—",
+        image: mainImage ?? "https://placehold.co/600x400",
+        images: images,
+        description: item.product?.fullDescription || "",
+        currentOwner: "—",
+        basePrice: item.basePrice,
+      };
+
+      return { ...base, kind: "object" as const };
+    });
+  }, [auction]);
 
   // 5. Mutación
   const { mutate: placeBid, isPending: isBidding } =
     api.auctions.placeBid.useMutation({
       onSuccess: () => {
-        console.log("¡ÉXITO! La mutación terminó bien");
         setBidAmount("");
-        queryClient.invalidateQueries({
-          queryKey: api.auctions.getDetail.queryKey({ input: { auctionId } }),
-        });
-        queryClient.invalidateQueries({
-          queryKey: api.auctions.getBids.queryKey({ input: { auctionId } }),
-        });
-        alert("✓ Puja realizada"); // Usamos alert() nativo de web por si acaso
+        queryClient.invalidateQueries();
+
+        alert("Puja realizada");
       },
       onError: error => {
-        console.log("ERROR EN LA MUTACIÓN:", error);
         alert("Error: " + (error.message || "No se pudo registrar"));
       },
     });
 
   // 6. Handlers
   const handlePlaceBid = () => {
-    console.log("1. Botón clickeado. Monto escrito:", bidAmount);
-    console.log("2. Permiso para pujar (canBid):", canBid);
-
-    // if (!canBid) {
-    //   console.log("-> DETENIDO: canBid es falso. El usuario no tiene permiso.");
-    //   alert("No puedes pujar. Necesitas verificar un medio de pago");
-    //   return;
-    // }
+    if (!canBid) {
+      alert("No puedes pujar. Necesitas verificar un medio de pago");
+      return;
+    }
 
     const amount = parseFloat(bidAmount);
-    console.log("3. Monto convertido a número:", amount);
 
     if (isNaN(amount) || amount <= 0) {
-      console.log("-> DETENIDO: El monto es inválido o menor a 0.");
       alert("Monto inválido. Ingresa un monto mayor a 0");
       return;
     }
 
-    console.log(
-      "4. Todo en orden, enviando al backend... auctionId:",
-      auctionId,
-    );
     placeBid({
       auctionId,
       amount,
@@ -122,44 +153,50 @@ export default function AuctionDetailScreen() {
           </View>
         ) : (
           <>
+            {/* HEADER */}
+            <View
+              className="absolute w-full flex-row justify-between px-6 z-50"
+              style={{ top: Math.max(insets.top, 20) }}
+              pointerEvents="box-none"
+            >
+              <TouchableOpacity
+                onPress={() => router.navigate("/auctions")}
+                className="bg-white/90 rounded-full p-3 shadow-sm"
+              >
+                <Ionicons name="arrow-back" size={24} color="black" />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={() => setMenuOpen(true)}
+                className="bg-white/90 rounded-full p-3 shadow-sm"
+              >
+                <Ionicons name="menu" size={24} color="black" />
+              </TouchableOpacity>
+            </View>
+
+            {/* --- SCROLL --- */}
             <ScrollView
               className="flex-1"
               showsVerticalScrollIndicator={false}
               bounces={false}
             >
-              {/* Contenedor de la Imagen Superior */}
               <View className="relative w-full h-80">
                 <Image
                   source={{
                     uri:
-                      (auction.photoId ? photoUri(auction.photoId) : null) ||
+                      (auction.photoId ? photoUri(auction.photoId) : null) ??
                       "https://images.unsplash.com/photo-1590483864073-2b28c5a93df6?q=80&w=800&auto=format&fit=crop",
                   }}
                   className="w-full h-full"
                   resizeMode="cover"
                 />
-
-                {/* Botones superpuestos a la imagen */}
-                <View className="absolute top-14 w-full flex-row justify-between px-6 z-10">
-                  <TouchableOpacity
-                    onPress={() => router.back()}
-                    className="bg-white/90 rounded-full p-2 shadow-sm"
-                  >
-                    <Ionicons name="arrow-back" size={24} color="black" />
-                  </TouchableOpacity>
-                  <TouchableOpacity className="bg-white/90 rounded-full p-2 shadow-sm">
-                    <Ionicons name="menu" size={24} color="black" />
-                  </TouchableOpacity>
-                </View>
               </View>
 
               {/* Contenedor Principal */}
               <View className="flex-1 bg-[#F8F9FA] rounded-t-3xl -mt-6 px-6 pt-8 pb-8">
-                {/* Título, Fecha y Etiqueta LIVE */}
                 <View className="flex-row justify-between items-start mb-2">
                   <View className="flex-1 mr-4">
                     <Text className="text-3xl font-black text-gray-900 leading-tight">
-                      {/* Uso de ?. para evitar crasheos si la base de datos no trae catálogos */}
                       {auction.catalogs?.[0]?.items?.[0]?.product?.name ||
                         "Juego de té"}
                     </Text>
@@ -185,27 +222,48 @@ export default function AuctionDetailScreen() {
                 {/* Grid de Información */}
                 <View className="flex-row flex-wrap justify-between gap-y-4">
                   {/* Card: Catálogo */}
-                  <View className="w-[48%] bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
-                    <Text className="text-blue-500 font-bold text-lg mb-1">
+                  <TouchableOpacity
+                    className="w-[48%] bg-white rounded-2xl p-4 shadow-sm border border-gray-100"
+                    onPress={() => setIsCatalogOpen(true)}
+                  >
+                    <Text className="text-blue-500 font-bold text-lg mb-2">
                       Catálogo
                     </Text>
-                    <Text className="text-gray-600 font-medium">
-                      {auction.catalogs?.length || 0} items
-                    </Text>
-                  </View>
+                    <View className="flex flex-row items-center">
+                      {catalogProducts.slice(0, 4).map((product, index) => (
+                        <Image
+                          key={product.id}
+                          source={{ uri: product.image }}
+                          className={`w-8 h-8 rounded-full border-2 border-white shadow-sm ${
+                            index === 0 ? "" : "-ml-3"
+                          }`}
+                        />
+                      ))}
+
+                      {catalogProducts.length > 4 && (
+                        <View className="w-8 h-8 rounded-full border-2 border-white bg-gray-200 -ml-3 items-center justify-center">
+                          <Text className="text-xs font-bold text-gray-600">
+                            +{catalogProducts.length - 4}
+                          </Text>
+                        </View>
+                      )}
+                    </View>
+                  </TouchableOpacity>
 
                   {/* Card: Categoría */}
-                  <View className="w-[48%] bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+                  <View className="w-[48%] bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex flex-col justify-around">
                     <Text className="text-blue-500 font-bold text-lg mb-1">
                       Categoría
                     </Text>
                     <Text className="text-gray-600 font-medium">
-                      {auction.category || "Sin categoría"}
+                      {auction.category
+                        ? CATEGORY_LABELS[auction.category] || auction.category
+                        : "Sin categoría"}
                     </Text>
                   </View>
 
                   {/* Card: Ubicación */}
-                  <View className="w-[48%] bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+                  <View className="w-[48%] bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex flex-col justify-around">
                     <Text className="text-blue-500 font-bold text-lg mb-1">
                       Ubicación
                     </Text>
@@ -216,14 +274,10 @@ export default function AuctionDetailScreen() {
 
                   {/* Card: Precio Actual */}
                   <View className="w-[48%] bg-white rounded-2xl p-4 shadow-sm border border-gray-100 justify-center items-center flex-row">
-                    <Ionicons
-                      name="pricetag"
-                      size={16}
-                      color="#EAB308"
-                      className="mr-2"
-                    />
                     <Text className="text-blue-900 font-black text-2xl">
-                      ${auction.currentBid || 0}
+                      $
+                      {auction.currentBid ||
+                        auction.catalogs[0].items[0].basePrice}
                     </Text>
                   </View>
                 </View>
@@ -267,33 +321,65 @@ export default function AuctionDetailScreen() {
               </View>
             </ScrollView>
 
-            {/* Área de Input Fija al fondo */}
-            <View className="bg-white px-6 py-4 border-t border-gray-100 pb-8">
-              <View className="flex-row items-center bg-[#F8F9FA] rounded-full border border-gray-200 p-2">
-                <TextInput
-                  className="flex-1 px-4 text-base font-semibold text-gray-700 h-12 mr-2"
-                  placeholder="Ingresa tu oferta..."
-                  keyboardType="numeric"
-                  value={bidAmount}
-                  onChangeText={setBidAmount}
-                  editable={!isBidding}
-                />
+            {/* --- INPUT --- */}
+            {canBid ? (
+              <View className="bg-white px-6 py-4 border-t border-gray-100 pb-8">
+                <View className="flex-row items-center bg-[#F8F9FA] rounded-full border border-gray-200 p-2">
+                  <TextInput
+                    className="flex-1 px-4 text-base font-semibold text-gray-700 h-12 mr-2"
+                    placeholder="Ingresa tu oferta..."
+                    keyboardType="numeric"
+                    value={bidAmount}
+                    onChangeText={setBidAmount}
+                    editable={!isBidding}
+                  />
+                  <TouchableOpacity
+                    disabled={isBidding}
+                    onPress={handlePlaceBid}
+                    className={`${isBidding ? "bg-gray-400" : "bg-blue-800"} w-12 h-12 rounded-full justify-center items-center shadow-sm`}
+                  >
+                    {isBidding ? (
+                      <ActivityIndicator size="small" color="white" />
+                    ) : (
+                      <Ionicons name="add" size={28} color="white" />
+                    )}
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ) : (
+              <View className="bg-[#F8F9FA] px-6 py-6 pb-12 items-center">
                 <TouchableOpacity
-                  disabled={isBidding}
-                  onPress={handlePlaceBid}
-                  className={`${isBidding ? "bg-gray-400" : "bg-blue-800"} w-12 h-12 rounded-full justify-center items-center shadow-sm`}
+                  onPress={() => router.push("/login")}
+                  className="flex-row items-center justify-center bg-white rounded-full px-8 py-4 shadow-md border border-gray-200 w-[80%]"
                 >
-                  {isBidding ? (
-                    <ActivityIndicator size="small" color="white" />
-                  ) : (
-                    <Ionicons name="add" size={28} color="white" />
-                  )}
+                  <Ionicons name="lock-closed" size={22} color="#F59E0B" />
+                  <Text className="text-gray-600 font-bold text-lg underline ml-3">
+                    Inicia sesión
+                  </Text>
                 </TouchableOpacity>
               </View>
-            </View>
+            )}
           </>
         )}
       </View>
+
+      <Sidebar open={menuOpen} onClose={() => setMenuOpen(false)} />
+
+      <CatalogDialog
+        open={isCatalogOpen}
+        onOpenChange={setIsCatalogOpen}
+        products={catalogProducts}
+        onSelectProduct={product => {
+          setIsCatalogOpen(false);
+          setDetailProduct(product);
+        }}
+      />
+
+      <ProductDialog
+        product={detailProduct}
+        open={detailProduct !== null}
+        onOpenChange={open => !open && setDetailProduct(null)}
+      />
     </KeyboardAvoidingView>
   );
 }
