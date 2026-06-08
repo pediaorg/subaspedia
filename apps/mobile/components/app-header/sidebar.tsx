@@ -11,20 +11,18 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 
+import { isOnboarded } from "@subaspedia/types/user";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
 import { Separator } from "@/components/ui/separator";
 import { Text } from "@/components/ui/text";
+import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 
 import { Card } from "../ui/card";
 import { sidebarItems } from "./items";
 import { SidebarItem } from "./sidebar-item";
-
-// TODO: reemplazar por los datos reales del usuario cuando esté el backend.
-const userName = "Name user";
-const userAvatarUrl: string | undefined = undefined;
 
 type Props = {
   open: boolean;
@@ -34,6 +32,13 @@ type Props = {
 export function Sidebar({ open, onClose }: Props) {
   const router = useRouter();
   const { isAuthed } = useAuth();
+  const { data: user } = api.users.me.useQuery(undefined, {
+    enabled: isAuthed,
+  });
+  const displayName =
+    user && isOnboarded(user)
+      ? `${user.name} ${user.surname}`.trim()
+      : "Completá tu perfil";
   const { width } = useWindowDimensions();
   const panelWidth = width * 0.5;
   const progress = useSharedValue(0);
@@ -93,12 +98,12 @@ export function Sidebar({ open, onClose }: Props) {
                 alt="Avatar del usuario"
                 className="h-20 w-20 border-2 border-border"
               >
-                <AvatarImage source={{ uri: userAvatarUrl }} />
+                <AvatarImage source={{ uri: user?.avatarUrl ?? undefined }} />
                 <AvatarFallback>
                   <Icon as={User} size={32} className="text-muted-foreground" />
                 </AvatarFallback>
               </Avatar>
-              <Text className="mt-3 text-lg font-semibold">{userName}</Text>
+              <Text className="mt-3 text-lg font-semibold">{displayName}</Text>
             </Pressable>
           ) : (
             <View className="items-center px-5 pt-14 pb-4">
