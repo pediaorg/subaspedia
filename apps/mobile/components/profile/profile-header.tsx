@@ -10,10 +10,11 @@ export default function ProfileHeader() {
   const pathname = usePathname();
 
   // Desde el index del perfil "atrás" va a la landing (no hay pantalla previa
-  // del perfil donde volver); en el resto de pantallas vuelve a la anterior.
+  // del perfil donde volver); desde cualquier subpantalla del perfil siempre
+  // vuelve al menú principal del perfil, sin importar cómo se llegó.
   const handleBack = () => {
     if (pathname === "/profile") router.replace("/");
-    else router.back();
+    else router.replace("/profile");
   };
 
   return (
