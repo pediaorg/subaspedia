@@ -2,8 +2,38 @@ import { newProductSchema } from "@subaspedia/types/forms";
 import { type ProductStatus, productSchema } from "@subaspedia/types/product";
 import { z } from "zod";
 
-import { authed } from "../context";
-import { photos, products } from "../db/schema";
+import { type Context, authed } from "../context";
+import { employees, owners, people, photos, products } from "../db/schema";
+
+// owners.verifierId es NOT NULL (employees.id). En la demo no hay empleados
+// reales: garantizamos uno por defecto. Mismo patrón que backoffice.ts.
+async function ensureDefaultEmployee(db: Context["db"]): Promise<number> {
+  const existing = await db.query.employees.findFirst({
+    columns: { id: true },
+  });
+  if (existing) return existing.id;
+
+  const [person] = await db
+    .insert(people)
+    .values({ name: "Backoffice", status: "active" })
+    .returning({ id: people.id });
+  await db.insert(employees).values({ id: person.id, position: "Analista" });
+  return person.id;
+}
+
+// El user logueado es una `people`, no necesariamente un `owner`. Lo
+// materializamos en su primer upload para poder linkear el producto.
+async function ensureOwner(db: Context["db"], userId: number): Promise<number> {
+  const existing = await db.query.owners.findFirst({
+    where: { id: userId },
+    columns: { id: true },
+  });
+  if (existing) return existing.id;
+
+  const verifierId = await ensureDefaultEmployee(db);
+  await db.insert(owners).values({ id: userId, verifierId });
+  return userId;
+}
 
 // catalog_items.state guarda el estado en español (lo que escribe el back); el
 // front consume el enum ProductStatus en inglés. Un producto recién subido aún
@@ -88,6 +118,8 @@ export const productsRouter = {
   }),
 
   create: authed.input(newProductSchema).handler(async ({ context, input }) => {
+    const ownerId = await ensureOwner(context.db, context.userId);
+
     const [created] = await context.db
       .insert(products)
       .values({
@@ -95,9 +127,7 @@ export const productsRouter = {
         fullDescription: input.description ?? "",
         catalogDescription: input.interest || "None",
         available: false,
-        // ownerId: context.userId,
-        // reviewerId: 0,
-        // comenté estas 2 propiedades pq el user y reviewer no existen
+        ownerId,
       })
       .returning({ id: products.id });
 
