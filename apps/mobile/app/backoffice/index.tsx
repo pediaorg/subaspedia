@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ActivityIndicator, Image, ScrollView, View } from "react-native";
+import { ActivityIndicator, ScrollView, View } from "react-native";
 
 import { type AuctionCategory, PRODUCT_CATEGORIES } from "@subaspedia/types";
 import { Button } from "@/components/ui/button";
@@ -132,7 +132,6 @@ function PendingPaymentsSection() {
           id={pm.id}
           type={pm.type}
           details={pm.details}
-          photo={pm.photo}
           clientName={pm.clientName}
           onAccepted={() => pending.refetch()}
         />
@@ -151,14 +150,12 @@ function PaymentRow({
   id,
   type,
   details,
-  photo,
   clientName,
   onAccepted,
 }: {
   id: number;
   type: string;
   details: string | null;
-  photo: string | null;
   clientName: string | null;
   onAccepted: () => void;
 }) {
@@ -177,13 +174,6 @@ function PaymentRow({
         {PAYMENT_TYPE_LABELS[type] ?? type}
       </Text>
       {details && <Text className="text-sm">{details}</Text>}
-      {photo && (
-        <Image
-          source={{ uri: photo }}
-          className="h-40 w-full rounded-lg"
-          resizeMode="cover"
-        />
-      )}
       <View className="mt-1 flex-row items-center gap-2">
         <Input
           value={amount}

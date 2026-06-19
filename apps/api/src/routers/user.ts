@@ -20,7 +20,6 @@ export const userRouter = {
           type: true,
           verified: true,
           details: true,
-          photo: true,
         },
       });
       return methods.map(m => ({
@@ -28,7 +27,6 @@ export const userRouter = {
         type: m.type,
         verified: m.verified ?? false,
         details: m.details ?? "",
-        photo: m.photo ?? null,
       }));
     }),
 
@@ -51,7 +49,6 @@ export const userRouter = {
         clientId: context.userId,
         type: input.type,
         details: input.details,
-        photo: input.photo ?? null,
         verified: false,
       });
 
