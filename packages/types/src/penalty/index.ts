@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { currency } from "../index";
+
 export const penaltyStatus = z.enum(["pending", "paid", "overdue"]);
 
 export type PenaltyStatus = z.infer<typeof penaltyStatus>;
@@ -14,6 +16,7 @@ export const penaltySchema = z.object({
   id: z.number().int().positive(),
   reason: z.string(),
   amount: z.number().positive(),
+  currency,
   status: penaltyStatus,
   issuedAt: z.iso.datetime(),
   dueDate: z.iso.datetime(),

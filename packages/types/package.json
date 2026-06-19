@@ -12,6 +12,7 @@
     "./user": "./src/user/index.ts",
     "./product": "./src/product/index.ts",
     "./penalty": "./src/penalty/index.ts",
+    "./transaction": "./src/transaction/index.ts",
     "./payment-method": "./src/payment-method/index.ts"
   },
   "dependencies": {

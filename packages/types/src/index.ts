@@ -10,6 +10,13 @@ export const auctionCategory = z.enum([
 
 export type AuctionCategory = z.infer<typeof auctionCategory>;
 
+// Moneda de una subasta (y de lo que deriva de ella: multas, etc.). La consigna
+// define que cada subasta es en pesos O dólares, nunca bimonetaria. Enum
+// transversal: cuando se modele la moneda de `auctions`, debe reutilizar este.
+export const currency = z.enum(["ARS", "USD"]);
+
+export type Currency = z.infer<typeof currency>;
+
 export const PRODUCT_CATEGORIES = [
   { value: auctionCategory.enum.common, label: "Común" },
   { value: auctionCategory.enum.special, label: "Especial" },
