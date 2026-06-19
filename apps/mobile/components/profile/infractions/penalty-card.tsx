@@ -1,20 +1,17 @@
 import { TriangleAlertIcon } from "lucide-react-native";
-import { Alert, Pressable, Text, View } from "react-native";
+import { Text, View } from "react-native";
 
 import type { Penalty, PenaltyStatus } from "@subaspedia/types/penalty";
 import { Card } from "@/components/ui/card";
+import { formatMoney } from "@/lib/format";
 
+import PenaltyPaymentDialog from "./penalty-payment-dialog";
 import PenaltyStatusBadge from "./penalty-status-badge";
 
-type PenaltyProps = { penalty: Penalty };
-
-type Action = { label: string };
-
-const currencyFormatter = new Intl.NumberFormat("es-AR", {
-  style: "currency",
-  currency: "ARS",
-  maximumFractionDigits: 0,
-});
+type PenaltyProps = {
+  penalty: Penalty;
+  onPaid: (penaltyId: number) => void;
+};
 
 const dateFormatter = new Intl.DateTimeFormat("es-AR", {
   day: "2-digit",
@@ -30,38 +27,12 @@ const ICON_COLOR: Record<PenaltyStatus, string> = {
   paid: "color-gray-400",
 };
 
-// Solo las multas impagas ofrecen acción; una pagada no muestra botón.
-function getActionForStatus(penalty: Penalty): Action | null {
-  switch (penalty.status) {
-    case "pending":
-    case "overdue":
-      return { label: "Pagar" };
-    case "paid":
-      return null;
-  }
-}
-
-function ActionElement({ action }: { action: Action }) {
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={action.label}
-      className="active:opacity-60 pr-2"
-      onPress={() =>
-        // El flujo de pago de multas todavía no existe (va en otra rama).
-        Alert.alert("TODO", "Flujo de pago de multa no implementado")
-      }
-    >
-      <Text className="text-xs text-gray-700 underline">{action.label}</Text>
-    </Pressable>
-  );
-}
-
-export default function PenaltyCard({ penalty }: PenaltyProps) {
-  const action = getActionForStatus(penalty);
+export default function PenaltyCard({ penalty, onPaid }: PenaltyProps) {
+  // Solo las multas impagas se pueden pagar; una pagada no ofrece acción.
+  const canPay = penalty.status !== "paid";
 
   return (
-    <Card className="flex-row items-center border-0 h-24 gap-3 p-2 drop-shadow-2xl/2 z-20">
+    <Card className="flex-row items-center border-0 h-24 gap-3 p-2 drop-shadow-xl/2 z-20">
       <View className="items-center justify-center size-20 rounded-full bg-gray-100">
         <TriangleAlertIcon className={`size-8 ${ICON_COLOR[penalty.status]}`} />
       </View>
@@ -71,12 +42,12 @@ export default function PenaltyCard({ penalty }: PenaltyProps) {
         </Text>
         <PenaltyStatusBadge status={penalty.status} />
         <Text className="text-xs text-gray-600">
-          {currencyFormatter.format(penalty.amount)}
+          {formatMoney(penalty.amount, penalty.currency)}
           {penalty.status !== "paid" &&
             ` · Vence ${dateFormatter.format(new Date(penalty.dueDate))}`}
         </Text>
       </View>
-      {action && <ActionElement action={action} />}
+      {canPay && <PenaltyPaymentDialog penalty={penalty} onPaid={onPaid} />}
     </Card>
   );
 }
