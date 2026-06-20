@@ -38,6 +38,24 @@ export function isOnboarded(user: User): boolean {
   );
 }
 
+// Resumen para la pantalla de Rango: categoría actual, medios de pago
+// registrados (x/max) y actividad del client (subastas participadas, ganadas y
+// total ofertado). Lo arma el back en un solo endpoint (user.rankSummary).
+export const rankSummarySchema = z.object({
+  category: auctionCategory.nullable(),
+  paymentMethods: z.object({
+    count: z.number().int().nonnegative(),
+    max: z.number().int().positive(),
+  }),
+  activity: z.object({
+    participated: z.number().int().nonnegative(),
+    won: z.number().int().nonnegative(),
+    totalBid: z.number().nonnegative(),
+  }),
+});
+
+export type RankSummary = z.infer<typeof rankSummarySchema>;
+
 export const updateProfileInputSchema = userSchema
   .pick({
     name: true,
