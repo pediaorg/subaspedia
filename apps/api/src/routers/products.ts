@@ -60,7 +60,9 @@ export const productsRouter = {
         },
         auctionRecords: {
           columns: { amount: true },
-          with: { auction: { columns: { date: true } } },
+          with: {
+            auction: { columns: { date: true }, with: { currencyRow: true } },
+          },
         },
       },
     });
@@ -81,6 +83,11 @@ export const productsRouter = {
         proposedCommission: null,
         // Venta: poblado solo si el bien ya se remató (auction_records).
         salePrice: record?.amount ?? null,
+        // Moneda de la venta: la de la subasta donde se remató (default ARS si
+        // no tiene fila en monedasSubasta). Null si el bien no se vendió.
+        currency: record
+          ? (record.auction?.currencyRow?.currency ?? "ARS")
+          : null,
         saleDate: record?.auction?.date ? toIso(record.auction.date) : null,
         auctionId: item?.catalog?.auctionId ?? null,
       };

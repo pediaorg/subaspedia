@@ -86,6 +86,12 @@ export const relations = defineRelations(schema, r => ({
     catalogs: r.many.catalogs(),
     attendees: r.many.attendees(),
     auctionRecords: r.many.auctionRecords(),
+    // Moneda de la subasta (tabla satélite monedasSubasta). 0..1: si no hay
+    // fila, el handler cae al default 'ARS'.
+    currencyRow: r.one.auctionCurrencies({
+      from: r.auctions.id,
+      to: r.auctionCurrencies.auctionId,
+    }),
   },
   products: {
     reviewer: r.one.employees({
@@ -179,6 +185,12 @@ export const relations = defineRelations(schema, r => ({
     client: r.one.clients({
       from: r.auctionRecords.clientId,
       to: r.clients.id,
+    }),
+  },
+  auctionCurrencies: {
+    auction: r.one.auctions({
+      from: r.auctionCurrencies.auctionId,
+      to: r.auctions.id,
     }),
   },
 }));

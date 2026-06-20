@@ -139,7 +139,10 @@ INSERT INTO productos (identificador, fecha, disponible, descripcionCatalogo, de
   (5, '2026-05-20', 0, 'None',                 'Cuadro de paisaje al óleo, sin firma identificable.',      1,    3, NULL, 'Cuadro sin firma'),
   (6, '2026-04-10', 1, 'Vajilla de porcelana', 'Vajilla de porcelana Limoges, juego de 12 cubiertos.',     1,    3, NULL, 'Vajilla Limoges'),
   -- Producto de la subasta 2 (USD): le da contenido al catálogo en dólares.
-  (7, '2026-12-01', 1, 'Moneda de colección',  'Moneda de colección estadounidense de plata, edición limitada.', 1, 4, NULL, 'Moneda de colección');
+  (7, '2026-12-01', 1, 'Moneda de colección',  'Moneda de colección estadounidense de plata, edición limitada.', 1, 4, NULL, 'Moneda de colección'),
+  -- Producto de Juan (dueño 3) rematado en la subasta 2 (USD): le da una venta
+  -- en dólares a "Mis productos" para demostrar la moneda en esa pantalla.
+  (8, '2026-12-03', 1, 'Lingote de plata',     'Lingote de plata de inversión, 1 onza troy.',                    1, 3, NULL, 'Lingote de plata');
 
 -- ---- fotos (photos; FK -> productos; foto es BLOB NOT NULL, placeholder PNG header)
 INSERT INTO fotos (identificador, producto, foto) VALUES
@@ -149,7 +152,8 @@ INSERT INTO fotos (identificador, producto, foto) VALUES
   (4, 4, x'89504e470d0a1a0a'),
   (5, 5, x'89504e470d0a1a0a'),
   (6, 6, x'89504e470d0a1a0a'),
-  (7, 7, x'89504e470d0a1a0a');
+  (7, 7, x'89504e470d0a1a0a'),
+  (8, 8, x'89504e470d0a1a0a');
 
 -- ---- catalogos (catalogs; FK -> subastas, empleados(responsable)) ----------
 INSERT INTO catalogos (identificador, descripcion, subasta, responsable) VALUES
@@ -167,7 +171,9 @@ INSERT INTO itemsCatalogo (identificador, catalogo, producto, precioBase, comisi
   (4, 1, 5, 30000,  10, 'rechazado'),
   (5, 1, 6, 120000, 12, 'subastado'),
   -- Item del catálogo USD (subasta 2): precioBase y comisión en dólares.
-  (6, 2, 7, 1500, 5, 'aceptado');
+  (6, 2, 7, 1500, 5, 'aceptado'),
+  -- El lingote de Juan (producto 8) ya se remató en la subasta 2 -> 'subastado'.
+  (7, 2, 8, 2000, 8, 'subastado');
 
 -- ---- asistentes (attendees; FK -> clientes, subastas) ----------------------
 INSERT INTO asistentes (identificador, numeroPostor, cliente, subasta) VALUES
@@ -186,6 +192,9 @@ INSERT INTO registroDeSubasta (identificador, subasta, duenio, producto, cliente
   (1, 1, 4, 1, 3, 185000, 12),
   -- La vajilla (producto 6) de Juan (dueño 3) se la lleva Ana (cliente 5).
   -- Da salePrice/saleDate a su card "Subastado" (saleDate = subastas.fecha).
-  (2, 1, 3, 6, 5, 135000, 12);
+  (2, 1, 3, 6, 5, 135000, 12),
+  -- El lingote (producto 8) de Juan (dueño 3) se lo lleva Ana (cliente 5) en la
+  -- subasta 2 (USD): salePrice en dólares para "Mis productos" de Juan.
+  (3, 2, 3, 8, 5, 2200, 8);
 
 PRAGMA foreign_keys = ON;
