@@ -8,6 +8,10 @@
 --
 -- Re-ejecutable: borra todo y reinserta (idempotente).
 --
+-- NOTA (refactor nombres ES): las tablas y columnas físicas de la DB están en
+-- español (estructura original, ver EstructuraActual.sql). Los nombres lógicos
+-- del código TS siguen en inglés; el mapeo vive en src/db/schema.ts.
+--
 -- Escenario armado:
 --   * María Pérez (empleada / verificadora / revisora / jefa de sector)
 --   * Carlos Gómez (subastador)
@@ -15,53 +19,53 @@
 --   * Ana López (cliente común, segunda postora)
 --   * Lucía Fernández (dueña de los bienes)
 --   * 1 subasta GOLD futura con catálogo de productos
---   * 2 postores con pujas; Juan gana el reloj -> queda en auction_records
+--   * 2 postores con pujas; Juan gana el reloj -> queda en registroDeSubasta
 --   * 1 medio de pago verificado para Juan (habilita pujar / claim del JWT)
 --   * 1 usuario logueable: juancasablanca@jamon.com / password123
---   * Juan también es OWNER: 4 productos propios (products 3-6) que cubren los
+--   * Juan también es OWNER: 4 productos propios (productos 3-6) que cubren los
 --     estados de "Mis productos" sin propuesta (under_review/approved/rejected/
 --     auctioned). Sirven para GET /products del perfil.
 --
 -- NOTA (refactor 2026-06-01): ya no existe la tabla `users`. Las credenciales
--- (email + password_hash) viven en `people`. El usuario logueable ES la
--- persona Juan (people.id = 3). El check chk_credentials exige que email y
--- password_hash estén ambos seteados o ambos NULL.
+-- (email + hashContrasenia) viven en `personas`. El usuario logueable ES la
+-- persona Juan (personas.identificador = 3). El check chk_credentials exige que
+-- email y hashContrasenia estén ambos seteados o ambos NULL.
 -- ============================================================================
 
 PRAGMA foreign_keys = OFF;
 
 -- ---- Limpieza (orden inverso a las dependencias FK) ------------------------
-DELETE FROM auction_records;
-DELETE FROM bids;
-DELETE FROM attendees;
-DELETE FROM catalog_items;
-DELETE FROM catalogs;
-DELETE FROM photos;
-DELETE FROM products;
-DELETE FROM auctions;
-DELETE FROM auctioneers;
-DELETE FROM owners;
-DELETE FROM payment_methods;
-DELETE FROM clients;
-DELETE FROM insurances;
-DELETE FROM sectors;
-DELETE FROM employees;
-DELETE FROM people;
-DELETE FROM countries;
-DELETE FROM email_verifications;
+DELETE FROM registroDeSubasta;
+DELETE FROM pujos;
+DELETE FROM asistentes;
+DELETE FROM itemsCatalogo;
+DELETE FROM catalogos;
+DELETE FROM fotos;
+DELETE FROM productos;
+DELETE FROM subastas;
+DELETE FROM subastadores;
+DELETE FROM duenios;
+DELETE FROM mediosDePago;
+DELETE FROM clientes;
+DELETE FROM seguros;
+DELETE FROM sectores;
+DELETE FROM empleados;
+DELETE FROM personas;
+DELETE FROM paises;
+DELETE FROM verificacionesEmail;
 
--- ---- countries -------------------------------------------------------------
-INSERT INTO countries (id, name, short_name, capital, nationality, languages) VALUES
+-- ---- paises (countries) ----------------------------------------------------
+INSERT INTO paises (numero, nombre, nombreCorto, capital, nacionalidad, idiomas) VALUES
   (1, 'Argentina',      'AR', 'Buenos Aires',    'argentina',      'es'),
   (2, 'Brasil',         'BR', 'Brasilia',        'brasileña',      'pt'),
   (3, 'Estados Unidos', 'US', 'Washington D.C.', 'estadounidense', 'en');
 
--- ---- people (su id se reutiliza como PK en employees/clients/owners/auctioneers)
+-- ---- personas (people; su identificador se reutiliza como PK en empleados/clientes/duenios/subastadores)
 -- Solo Juan (id 3) tiene credenciales -> es el único logueable. El resto va
--- con email/password_hash en NULL (lo exige el check chk_credentials).
+-- con email/hashContrasenia en NULL (lo exige el check chk_credentials).
 -- Hash de 'password123': PBKDF2 (mismo esquema que src/lib/auth/index.ts).
--- name y last_name van separados (la columna last_name se agregó para el perfil).
-INSERT INTO people (id, document, name, last_name, address, status, email, password_hash) VALUES
+-- nombre y apellido van separados (la columna apellido se agregó para el perfil).
+INSERT INTO personas (identificador, documento, nombre, apellido, direccion, estado, email, hashContrasenia) VALUES
   (1, '20111222', 'María',  'Pérez',     'Av. Corrientes 1234', 'active', NULL, NULL),
   (2, '20333444', 'Carlos', 'Gómez',     'Calle Falsa 123',     'active', NULL, NULL),
   (3, '12345678', 'Juan',   'Casablanca','Lima 970',            'active',
@@ -70,64 +74,64 @@ INSERT INTO people (id, document, name, last_name, address, status, email, passw
   (4, '27888999', 'Lucía',  'Fernández', 'San Martín 456',      'active', NULL, NULL),
   (5, '30555666', 'Ana',    'López',     'Belgrano 789',        'active', NULL, NULL);
 
--- ---- employees (FK -> people) ----------------------------------------------
-INSERT INTO employees (id, position, sector_id) VALUES
+-- ---- empleados (employees; FK -> personas) ---------------------------------
+INSERT INTO empleados (identificador, cargo, sector) VALUES
   (1, 'verificador', 1);
 
--- ---- sectors (FK -> employees) ---------------------------------------------
-INSERT INTO sectors (id, sector_name, sector_code, sector_manager_id) VALUES
+-- ---- sectores (sectors; FK -> empleados) -----------------------------------
+INSERT INTO sectores (identificador, nombreSector, codigoSector, responsableSector) VALUES
   (1, 'Verificaciones', 'VER', 1);
 
--- ---- insurances (check: amount > 0) ----------------------------------------
-INSERT INTO insurances (policy_number, company, combined_policy, amount) VALUES
+-- ---- seguros (insurances; check: importe > 0) ------------------------------
+INSERT INTO seguros (nroPoliza, compania, polizaCombinada, importe) VALUES
   ('POL-001', 'La Seguridad Seguros', 0, 180000);
 
--- ---- clients (FK -> people, countries, employees; check: category enum) ----
-INSERT INTO clients (id, country_id, admitted, category, verifier_id) VALUES
+-- ---- clientes (clients; FK -> personas, paises, empleados; check: categoria enum)
+INSERT INTO clientes (identificador, numeroPais, admitido, categoria, verificador) VALUES
   (3, 1, 1, 'gold',   1),
   (5, 1, 1, 'common', 1);
 
--- ---- payment_methods (FK -> clients; checks: type/currency enum) -----------
--- Juan (client 3) tiene un medio de pago verificado -> puede pujar y el JWT
+-- ---- mediosDePago (payment_methods; FK -> clientes; checks: tipo enum) ------
+-- Juan (cliente 3) tiene un medio de pago verificado -> puede pujar y el JWT
 -- arranca con hasVerifiedPaymentMethod = true.
-INSERT INTO payment_methods (id, client_id, type, verified, details) VALUES
+INSERT INTO mediosDePago (identificador, cliente, tipo, verificado, detalles) VALUES
   (1, 3, 'credit_card', 1, 'Tarjeta de crédito local (Visa)');
 
--- ---- owners (FK -> people, countries, employees; check: risk_rating 1..6) --
--- Juan (people.id=3) es client GOLD y ADEMÁS owner: vende bienes por la app.
--- Por eso aparece tanto en `clients` como en `owners` (mismo people.id).
-INSERT INTO owners (id, country_id, financial_verification, judicial_verification, risk_rating, verifier_id) VALUES
+-- ---- duenios (owners; FK -> personas, paises, empleados; check: calificacionRiesgo 1..6)
+-- Juan (personas.identificador=3) es cliente GOLD y ADEMÁS dueño: vende bienes
+-- por la app. Por eso aparece tanto en `clientes` como en `duenios`.
+INSERT INTO duenios (identificador, numeroPais, verificacionFinanciera, verificacionJudicial, calificacionRiesgo, verificador) VALUES
   (3, 1, 1, 1, 2, 1),
   (4, 1, 1, 1, 2, 1);
 
--- ---- auctioneers (FK -> people) --------------------------------------------
-INSERT INTO auctioneers (id, license, region) VALUES
+-- ---- subastadores (auctioneers; FK -> personas) ----------------------------
+INSERT INTO subastadores (identificador, matricula, region) VALUES
   (2, 'LIC-001', 'CABA');
 
--- ---- auctions (FK -> auctioneers) ------------------------------------------
+-- ---- subastas (auctions; FK -> subastadores) -------------------------------
 -- La regla "fecha > hoy + 10 días" ya NO se valida en la DB (sin trigger).
 -- Cuando exista POST /auctions, validarla en el zod del input.
-INSERT INTO auctions (id, date, time, status, auctioneer_id, location, attendee_capacity, has_warehouse, own_security, category) VALUES
+INSERT INTO subastas (identificador, fecha, hora, estado, subastador, ubicacion, capacidadAsistentes, tieneDeposito, seguridadPropia, categoria) VALUES
   (1, '2027-03-01', '18:00', 'open', 2, 'Salón Central', 100, 1, 1, 'gold');
 
--- ---- products (FK -> employees(reviewer), owners, insurances) ---------------
--- `name` es NOT NULL en el schema (título corto del bien para el catálogo).
-INSERT INTO products (id, date, available, catalog_description, full_description, reviewer_id, owner_id, insurance_policy, name) VALUES
+-- ---- productos (products; FK -> empleados(revisor), duenios, seguros) -------
+-- `nombre` es NOT NULL en el schema (título corto del bien para el catálogo).
+INSERT INTO productos (identificador, fecha, disponible, descripcionCatalogo, descripcionCompleta, revisor, duenio, seguro, nombre) VALUES
   (1, '2026-11-01', 1, 'Reloj de bolsillo siglo XIX', 'Reloj de bolsillo de oro, siglo XIX, en excelente estado de conservación.', 1, 4, 'POL-001', 'Reloj de bolsillo de oro'),
   (2, '2026-11-05', 1, 'Óleo sobre tela',             'Paisaje al óleo sobre tela, autor anónimo, con marco original.',          1, 4, NULL,      'Óleo sobre tela'),
-  -- Productos subidos por Juan (owner 3). Cubren los estados que ve "Mis
+  -- Productos subidos por Juan (dueño 3). Cubren los estados que ve "Mis
   -- productos" sin pasar por la propuesta (no hay ninguno 'tasado'/appraised):
-  --   3 -> sin catalog_item       => under_review (recién subido, en tasación)
-  --   4 -> catalog_item 'aceptado'  => approved
-  --   5 -> catalog_item 'rechazado' => rejected
-  --   6 -> catalog_item 'subastado' => auctioned (+ auction_record con la venta)
+  --   3 -> sin itemCatalogo        => under_review (recién subido, en tasación)
+  --   4 -> itemCatalogo 'aceptado'  => approved
+  --   5 -> itemCatalogo 'rechazado' => rejected
+  --   6 -> itemCatalogo 'subastado' => auctioned (+ registroDeSubasta con la venta)
   (3, '2026-06-06', 0, 'None',                 'Cámara de fotos vintage en su estuche original de cuero.', NULL, 3, NULL, 'Cámara vintage'),
   (4, '2026-06-02', 1, 'Guitarra criolla',     'Guitarra criolla de luthier, caja de cedro macizo.',       1,    3, NULL, 'Guitarra criolla'),
   (5, '2026-05-20', 0, 'None',                 'Cuadro de paisaje al óleo, sin firma identificable.',      1,    3, NULL, 'Cuadro sin firma'),
   (6, '2026-04-10', 1, 'Vajilla de porcelana', 'Vajilla de porcelana Limoges, juego de 12 cubiertos.',     1,    3, NULL, 'Vajilla Limoges');
 
--- ---- photos (FK -> products; photo es BLOB NOT NULL, placeholder PNG header)
-INSERT INTO photos (id, product_id, photo) VALUES
+-- ---- fotos (photos; FK -> productos; foto es BLOB NOT NULL, placeholder PNG header)
+INSERT INTO fotos (identificador, producto, foto) VALUES
   (1, 1, x'89504e470d0a1a0a'),
   (2, 2, x'89504e470d0a1a0a'),
   (3, 3, x'89504e470d0a1a0a'),
@@ -135,38 +139,38 @@ INSERT INTO photos (id, product_id, photo) VALUES
   (5, 5, x'89504e470d0a1a0a'),
   (6, 6, x'89504e470d0a1a0a');
 
--- ---- catalogs (FK -> auctions, employees(manager)) -------------------------
-INSERT INTO catalogs (id, description, auction_id, manager_id) VALUES
+-- ---- catalogos (catalogs; FK -> subastas, empleados(responsable)) ----------
+INSERT INTO catalogos (identificador, descripcion, subasta, responsable) VALUES
   (1, 'Catálogo Subasta Marzo 2027', 1, 1);
 
--- ---- catalog_items (FK -> catalogs, products; checks: base_price/commission > 0.01)
--- `state` (enum) reemplazó a la vieja columna `auctioned`. El reloj (item 1) ya
+-- ---- itemsCatalogo (catalog_items; FK -> catalogos, productos; checks: precioBase/comision > 0.01)
+-- `estado` (enum) reemplazó a la vieja columna `subastado`. El reloj (item 1) ya
 -- se remató -> 'subastado'; el óleo (item 2) está aceptado y a la espera -> 'aceptado'.
-INSERT INTO catalog_items (id, catalog_id, product_id, base_price, commission, state) VALUES
+INSERT INTO itemsCatalogo (identificador, catalogo, producto, precioBase, comision, estado) VALUES
   (1, 1, 1, 180000, 12, 'subastado'),
   (2, 1, 2, 90000,  10, 'aceptado'),
-  -- catalog_items de los productos de Juan (le dan su `status` a "Mis productos").
+  -- itemsCatalogo de los productos de Juan (le dan su `status` a "Mis productos").
   (3, 1, 4, 50000,  10, 'aceptado'),
   (4, 1, 5, 30000,  10, 'rechazado'),
   (5, 1, 6, 120000, 12, 'subastado');
 
--- ---- attendees (FK -> clients, auctions) -----------------------------------
-INSERT INTO attendees (id, bidder_number, client_id, auction_id) VALUES
+-- ---- asistentes (attendees; FK -> clientes, subastas) ----------------------
+INSERT INTO asistentes (identificador, numeroPostor, cliente, subasta) VALUES
   (1, 101, 3, 1),
   (2, 102, 5, 1);
 
--- ---- bids (FK -> attendees, catalog_items; check: amount > 0.01) -----------
--- Juan (attendee 1) gana el reloj (item 1) con la oferta más alta.
-INSERT INTO bids (id, attendee_id, item_id, amount, winner) VALUES
+-- ---- pujos (bids; FK -> asistentes, itemsCatalogo; check: importe > 0.01) ---
+-- Juan (asistente 1) gana el reloj (item 1) con la oferta más alta.
+INSERT INTO pujos (identificador, asistente, item, importe, ganador) VALUES
   (1, 1, 1, 185000, 1),
   (2, 2, 1, 182000, 0);
 
--- ---- auction_records (FK -> auctions, owners, products, clients; checks > 0.01)
--- Venta registrada: el reloj (product 1) de Lucía (owner 4) se lo lleva Juan (client 3).
-INSERT INTO auction_records (id, auction_id, owner_id, product_id, client_id, amount, commission) VALUES
+-- ---- registroDeSubasta (auction_records; FK -> subastas, duenios, productos, clientes; checks > 0.01)
+-- Venta registrada: el reloj (producto 1) de Lucía (dueño 4) se lo lleva Juan (cliente 3).
+INSERT INTO registroDeSubasta (identificador, subasta, duenio, producto, cliente, importe, comision) VALUES
   (1, 1, 4, 1, 3, 185000, 12),
-  -- La vajilla (product 6) de Juan (owner 3) se la lleva Ana (client 5).
-  -- Da salePrice/saleDate a su card "Subastado" (saleDate = auctions.date).
+  -- La vajilla (producto 6) de Juan (dueño 3) se la lleva Ana (cliente 5).
+  -- Da salePrice/saleDate a su card "Subastado" (saleDate = subastas.fecha).
   (2, 1, 3, 6, 5, 135000, 12);
 
 PRAGMA foreign_keys = ON;
