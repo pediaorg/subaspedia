@@ -48,6 +48,7 @@ export const relations = defineRelations(schema, r => ({
     attendees: r.many.attendees(),
     auctionRecords: r.many.auctionRecords(),
     paymentMethods: r.many.paymentMethods(),
+    penalties: r.many.penalties(),
   },
   paymentMethods: {
     client: r.one.clients({
@@ -86,6 +87,7 @@ export const relations = defineRelations(schema, r => ({
     catalogs: r.many.catalogs(),
     attendees: r.many.attendees(),
     auctionRecords: r.many.auctionRecords(),
+    penalties: r.many.penalties(),
     // Moneda de la subasta (tabla satélite monedasSubasta). 0..1: si no hay
     // fila, el handler cae al default 'ARS'.
     currencyRow: r.one.auctionCurrencies({
@@ -190,6 +192,17 @@ export const relations = defineRelations(schema, r => ({
   auctionCurrencies: {
     auction: r.one.auctions({
       from: r.auctionCurrencies.auctionId,
+      to: r.auctions.id,
+    }),
+  },
+  penalties: {
+    client: r.one.clients({
+      from: r.penalties.clientId,
+      to: r.clients.id,
+    }),
+    // La subasta que originó la multa. Nullable: puede no estar atada a una.
+    auction: r.one.auctions({
+      from: r.penalties.auctionId,
       to: r.auctions.id,
     }),
   },

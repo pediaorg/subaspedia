@@ -35,6 +35,7 @@
 PRAGMA foreign_keys = OFF;
 
 -- ---- Limpieza (orden inverso a las dependencias FK) ------------------------
+DELETE FROM multas;
 DELETE FROM registroDeSubasta;
 DELETE FROM pujos;
 DELETE FROM asistentes;
@@ -196,5 +197,18 @@ INSERT INTO registroDeSubasta (identificador, subasta, duenio, producto, cliente
   -- El lingote (producto 8) de Juan (dueño 3) se lo lleva Ana (cliente 5) en la
   -- subasta 2 (USD): salePrice en dólares para "Mis productos" de Juan.
   (3, 2, 3, 8, 5, 2200, 8);
+
+-- ---- multas (penalties; FK -> clientes, subastas) --------------------------
+-- Multas de Juan (cliente 3), una por estado para la pantalla "Multas y pagos".
+-- Causal única = falta de pago (10% de lo ofertado). `estado` solo guarda
+-- pending/paid; 'overdue' (vencida) lo deriva el back si venceEl < hoy.
+-- `emitidaEl`/`venceEl` van como 'YYYY-MM-DD' (el back las normaliza a ISO).
+INSERT INTO multas (identificador, cliente, motivo, importe, moneda, estado, emitidaEl, venceEl, subasta) VALUES
+  -- Pendiente y vigente (vence en el futuro): se ve como "Pendiente" + botón Pagar.
+  (1, 3, 'Falta de pago', 18500, 'ARS', 'pending', '2026-06-15', '2026-06-30', 1),
+  -- Pendiente pero ya vencida (venceEl < hoy): el back la deriva a "Vencida".
+  (2, 3, 'Falta de pago', 13500, 'ARS', 'pending', '2026-04-10', '2026-04-13', 1),
+  -- Pagada en dólares (subasta 2 USD): prueba la moneda y el estado "Pagada".
+  (3, 3, 'Falta de pago', 220,   'USD', 'paid',    '2026-03-01', '2026-03-04', 2);
 
 PRAGMA foreign_keys = ON;

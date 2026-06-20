@@ -328,3 +328,33 @@ export const auctionRecords = sqliteTable(
     check("chk_record_commission", sql`${t.commission} > 0.01`),
   ],
 );
+
+// Multas del client (penalties). Tabla NUEVA (no estaba en la estructura
+// legacy). Causal única de dominio = falta de pago (10% de lo ofertado, 72hs
+// para presentar fondos). La moneda se denormaliza acá (columna propia) porque
+// la multa puede no estar atada a una subasta (`subasta` nullable) -> se lee sin
+// JOIN; su fuente lógica es el enum `currency` de @subaspedia/types.
+// `estado` SOLO persiste 'pending'/'paid': el estado 'overdue' (vencida) es
+// DERIVADO al leer (pending && venceEl < hoy), porque depende del tiempo y no
+// debe quedar fijo en la fila (regla del proyecto: tiempo en la capa de app).
+export const penalties = sqliteTable(
+  "multas",
+  {
+    id: integer("identificador").primaryKey({ autoIncrement: true }),
+    clientId: integer("cliente")
+      .notNull()
+      .references(() => clients.id),
+    reason: text("motivo").notNull(),
+    amount: real("importe").notNull(),
+    currency: text("moneda", { enum: ["ARS", "USD"] }).notNull(),
+    status: text("estado", { enum: ["pending", "paid"] }).notNull(),
+    issuedAt: text("emitidaEl").notNull(),
+    dueDate: text("venceEl").notNull(),
+    auctionId: integer("subasta").references(() => auctions.id),
+  },
+  t => [
+    check("chk_penalty_amount", sql`${t.amount} > 0.01`),
+    check("chk_penalty_currency", sql`${t.currency} IN ('ARS', 'USD')`),
+    check("chk_penalty_status", sql`${t.status} IN ('pending', 'paid')`),
+  ],
+);
