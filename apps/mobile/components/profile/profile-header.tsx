@@ -1,11 +1,25 @@
-import { router } from "expo-router";
+import { router, usePathname } from "expo-router";
 import { ArrowLeft, ArrowLeftCircle, Menu } from "lucide-react-native";
+import { useState } from "react";
 import { Pressable, View } from "react-native";
 
+import { Sidebar } from "@/components/app-header/sidebar";
+
 export default function ProfileHeader() {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const pathname = usePathname();
+
+  // Desde el index del perfil "atrás" va a la landing (no hay pantalla previa
+  // del perfil donde volver); desde cualquier subpantalla del perfil siempre
+  // vuelve al menú principal del perfil, sin importar cómo se llegó.
+  const handleBack = () => {
+    if (pathname === "/profile") router.replace("/");
+    else router.replace("/profile");
+  };
+
   return (
     <View className="flex-row justify-between items-center py-14 px-6">
-      <Pressable onPress={() => router.back()}>
+      <Pressable onPress={handleBack}>
         <View
           className="items-center justify-center size-10 rounded-full bg-white"
           style={{
@@ -19,10 +33,14 @@ export default function ProfileHeader() {
           <ArrowLeft className="" />
         </View>
       </Pressable>
-      <Pressable onPress={() => {}}>
-        {/* TODO: Remplazar por componente real */}
+      <Pressable
+        onPress={() => setMenuOpen(true)}
+        accessibilityLabel="Abrir menú"
+      >
         <Menu />
       </Pressable>
+
+      <Sidebar open={menuOpen} onClose={() => setMenuOpen(false)} />
     </View>
   );
 }

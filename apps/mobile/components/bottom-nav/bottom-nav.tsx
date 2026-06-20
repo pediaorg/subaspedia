@@ -5,7 +5,19 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { NAV_ITEMS } from "./items";
 import { NavItem } from "./nav-item";
 
-const SHOWN: string[] = ["/", "/auctions", "/new-product", "/rank-up", "/faq"];
+const SHOWN: string[] = [
+  "/",
+  "/auctions",
+  "/new-product",
+  "/rank-up",
+  "/faq",
+  "/profile",
+];
+
+// Subpantallas (que caerían bajo SHOWN por prefijo) donde la barra NO debe
+// aparecer: flujos full-screen con su propio chrome, como el alta de medio de
+// pago (mismo criterio que el hideHeader de profile/_layout.tsx).
+const HIDDEN: string[] = ["/profile/payment-methods/new"];
 
 function matches(pathname: string, href: string) {
   if (href === "/" || href === "/auctions") return pathname === href;
@@ -17,6 +29,7 @@ export function BottomNav() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
+  if (HIDDEN.includes(pathname)) return null;
   if (!SHOWN.some(h => matches(pathname, h))) return null;
 
   return (
