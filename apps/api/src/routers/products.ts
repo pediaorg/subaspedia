@@ -4,6 +4,8 @@ import { z } from "zod";
 
 import { type Context, authed } from "../context";
 import { employees, owners, people, photos, products } from "../db/schema";
+import { toIso } from "../lib/date";
+import { firstPhotoToImg } from "../lib/photo";
 
 // owners.verifierId es NOT NULL (employees.id). En la demo no hay empleados
 // reales: garantizamos uno por defecto. Mismo patrón que backoffice.ts.
@@ -45,35 +47,6 @@ const STATE_TO_STATUS = {
   rechazado: "rejected",
   subastado: "auctioned",
 } as const satisfies Record<string, ProductStatus>;
-
-// Primera foto del producto como data URI base64 (mismo criterio que el avatar
-// en users.ts: la columna es BLOB, el MIME se infiere de los magic bytes). Si
-// el producto no tiene fotos, caemos a un placeholder (img es no-nullable en el
-// schema del front). A futuro: thumbnail en R2 y devolver URL en vez de base64.
-function firstPhotoToImg(
-  photo: Buffer | null | undefined,
-  productId: number,
-): string {
-  if (!photo || photo.length === 0)
-    return `https://picsum.photos/seed/product-${productId}/200`;
-  const mime =
-    photo[0] === 0x89
-      ? "image/png"
-      : photo[0] === 0x47
-        ? "image/gif"
-        : "image/jpeg"; // JPEG (0xFF) y fallback
-  return `data:${mime};base64,${Buffer.from(photo).toString("base64")}`;
-}
-
-// SQLite guarda fechas como "YYYY-MM-DD" o "YYYY-MM-DD HH:MM:SS" (sin T ni Z);
-// z.iso.datetime() del productSchema las rechaza -> normalizamos a ISO.
-function toIso(value: string): string {
-  if (value.includes("T")) return new Date(value).toISOString();
-  const withT = value.includes(" ")
-    ? value.replace(" ", "T")
-    : `${value}T00:00:00`;
-  return new Date(`${withT}Z`).toISOString();
-}
 
 export const productsRouter = {
   // GET /products — Mis productos (solo los del owner logueado) con su estado.
