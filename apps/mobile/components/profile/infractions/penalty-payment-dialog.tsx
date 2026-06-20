@@ -1,6 +1,7 @@
+import { useQueryClient } from "@tanstack/react-query";
 import { BadgeCheck, ChevronRight } from "lucide-react-native";
 import { useState } from "react";
-import { Pressable, Text, View } from "react-native";
+import { Alert, Pressable, Text, View } from "react-native";
 
 import {
   PAYMENT_METHOD_TYPE_LABELS,
@@ -13,7 +14,6 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import { Icon } from "@/components/ui/icon";
 import { Separator } from "@/components/ui/separator";
@@ -22,7 +22,6 @@ import { formatMoney } from "@/lib/format";
 
 type PenaltyPaymentDialogProps = {
   penalty: Penalty;
-  onPaid: (penaltyId: number) => void;
 };
 
 // Único criterio de elegibilidad de un medio para pagar una multa. Hoy solo
@@ -44,10 +43,10 @@ function typeLabel(type: PaymentMethod["type"]): string {
 
 export default function PenaltyPaymentDialog({
   penalty,
-  onPaid,
 }: PenaltyPaymentDialogProps) {
   const [open, setOpen] = useState(false);
   const [selectedId, setSelectedId] = useState<number | null>(null);
+  const queryClient = useQueryClient();
 
   // GET real de los medios de pago (mismo que la pantalla de medios); el
   // selector solo ofrece los elegibles para pagar esta multa.
@@ -55,119 +54,154 @@ export default function PenaltyPaymentDialog({
   const eligible = methods?.filter(m => canPayPenaltyWith(m, penalty)) ?? [];
   const selected = eligible.find(m => m.id === selectedId) ?? null;
 
+  const { mutate: payPenalty, isPending } = api.user.payPenalty.useMutation({
+    onSuccess: () => {
+      // Refresca la lista de multas: la pagada vuelve como "paid" y desaparece
+      // su botón Pagar (el back es la fuente de verdad, no tocamos la cache).
+      queryClient.invalidateQueries({
+        queryKey: api.user.penalties.queryKey(),
+      });
+      handleOpenChange(false);
+    },
+    onError: error => {
+      Alert.alert(
+        "No se pudo pagar",
+        error.message || "Intentá de nuevo más tarde.",
+      );
+    },
+  });
+
   function handleOpenChange(next: boolean) {
     setOpen(next);
     if (!next) setSelectedId(null); // reset al cerrar
   }
 
   function handlePay() {
-    // Mock: el cambio a "paid" lo aplica la pantalla sobre la cache (operación
-    // síncrona, no puede fallar -> sin manejo de error acá). Cuando exista el
-    // back, esto pasa a una mutation (PUT /penalties/{id}/status) que mandará el
-    // medio seleccionado (selectedId) y manejará el fallo en su onError (Alert).
-    onPaid(penalty.id);
-    handleOpenChange(false);
+    if (isPending) return; // evita el doble-submit (reintentos -> 409)
+    if (selectedId === null) return; // el botón Pagar solo aparece con medio elegido
+    payPenalty({
+      id: penalty.id,
+      status: "paid",
+      paymentMethodId: selectedId,
+    });
   }
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger asChild>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Pagar"
-          className="active:opacity-60 pr-2"
-        >
-          <Text className="text-xs text-gray-700 underline">Pagar</Text>
-        </Pressable>
-      </DialogTrigger>
+    <>
+      {/* Disparador controlado: setea `open` directo en vez de DialogTrigger.
+          Con el trigger, rn-primitives desincroniza el `open` controlado y el
+          DialogContent (portaleado) deja de reflejar el estado -> no cerraba ni
+          mostraba "Pagando…". Manteniéndolo 100% controlado, sí. */}
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Pagar"
+        onPress={() => setOpen(true)}
+        className="active:opacity-60 pr-2"
+      >
+        <Text className="text-xs text-gray-700 underline">Pagar</Text>
+      </Pressable>
 
-      <DialogContent className="bg-primary-foreground gap-4">
-        {selected === null ? (
-          <>
-            <DialogHeader>
-              <DialogTitle className="w-90">Pagar con</DialogTitle>
-            </DialogHeader>
+      <Dialog open={open} onOpenChange={handleOpenChange}>
+        <DialogContent className="bg-primary-foreground gap-4">
+          {selected === null ? (
+            <>
+              <DialogHeader>
+                <DialogTitle className="w-90">Pagar con</DialogTitle>
+              </DialogHeader>
 
-            {isLoading && (
-              <Text className="text-gray-500 text-center ">Cargando…</Text>
-            )}
+              {isLoading && (
+                <Text className="text-gray-500 text-center ">Cargando…</Text>
+              )}
 
-            {!isLoading && eligible.length === 0 && (
-              <Text className="text-gray-500 text-center">
-                No tenés medios de pago verificados. Verificá uno para poder
-                pagar la multa.
-              </Text>
-            )}
-
-            <View className="gap-3">
-              {eligible.map(method => (
-                <Pressable
-                  key={method.id}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Pagar con ${typeLabel(method.type)}`}
-                  onPress={() => setSelectedId(method.id)}
-                  className="flex-row items-center gap-3 rounded-2xl bg-white px-4 py-3 active:opacity-70 drop-shadow-md/20"
-                >
-                  <Icon as={BadgeCheck} size={28} className="text-green-700" />
-                  <View className="flex-1 flex-col gap-0.5">
-                    <Text
-                      className="font-bold text-sm text-gray-800"
-                      numberOfLines={1}
-                    >
-                      {typeLabel(method.type)}
-                    </Text>
-                    <Text className="text-xs text-gray-600" numberOfLines={1}>
-                      {method.details}
-                    </Text>
-                  </View>
-                  <Icon as={ChevronRight} size={20} className="text-gray-400" />
-                </Pressable>
-              ))}
-            </View>
-          </>
-        ) : (
-          <>
-            <DialogHeader>
-              <DialogTitle>Resumen de pago</DialogTitle>
-            </DialogHeader>
-
-            <View className="gap-1">
-              <Text className="text-sm text-gray-600" numberOfLines={2}>
-                {penalty.reason}
-              </Text>
-              <Text className="font-bold text-2xl text-gray-900">
-                {formatMoney(penalty.amount, penalty.currency)}
-              </Text>
-            </View>
-
-            <Separator className="bg-gray-300" />
-
-            <View className="flex-row items-center gap-3">
-              <Icon as={BadgeCheck} size={24} className="text-green-700" />
-              <View className="flex-1 flex-col">
-                <Text className="text-sm text-gray-800" numberOfLines={1}>
-                  {typeLabel(selected.type)}
+              {!isLoading && eligible.length === 0 && (
+                <Text className="text-gray-500 text-center">
+                  No tenés medios de pago verificados. Verificá uno para poder
+                  pagar la multa.
                 </Text>
-                <Text className="text-xs text-gray-600" numberOfLines={1}>
-                  {selected.details}
+              )}
+
+              <View className="gap-3 w-auto">
+                {eligible.map(method => (
+                  <Pressable
+                    key={method.id}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Pagar con ${typeLabel(method.type)}`}
+                    onPress={() => setSelectedId(method.id)}
+                    className="flex-row items-center gap-3 rounded-2xl bg-white px-4 py-3 active:opacity-70 drop-shadow-md/20"
+                  >
+                    <Icon
+                      as={BadgeCheck}
+                      size={28}
+                      className="text-green-700"
+                    />
+                    <View className="flex-1 flex-col gap-0.5">
+                      <Text
+                        className="font-bold text-sm text-gray-800"
+                        numberOfLines={1}
+                      >
+                        {typeLabel(method.type)}
+                      </Text>
+                      <Text className="text-xs text-gray-600" numberOfLines={1}>
+                        {method.details}
+                      </Text>
+                    </View>
+                    <Icon
+                      as={ChevronRight}
+                      size={20}
+                      className="text-gray-400"
+                    />
+                  </Pressable>
+                ))}
+              </View>
+            </>
+          ) : (
+            <>
+              <DialogHeader>
+                <DialogTitle>Resumen de pago</DialogTitle>
+              </DialogHeader>
+
+              <View className="gap-1 w-90">
+                <Text className="text-sm text-gray-600" numberOfLines={2}>
+                  {penalty.reason}
+                </Text>
+                <Text className="font-bold text-2xl text-gray-900">
+                  {formatMoney(penalty.amount, penalty.currency)}
                 </Text>
               </View>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Cambiar medio de pago"
-                onPress={() => setSelectedId(null)}
-                className="active:opacity-60"
-              >
-                <Text className="text-xs text-gray-700 underline">Cambiar</Text>
-              </Pressable>
-            </View>
 
-            <Button onPress={handlePay} className="mt-2">
-              <Text className="font-bold text-white">Pagar</Text>
-            </Button>
-          </>
-        )}
-      </DialogContent>
-    </Dialog>
+              <Separator className="bg-gray-300" />
+
+              <View className="flex-row items-center gap-3">
+                <Icon as={BadgeCheck} size={24} className="text-green-700" />
+                <View className="flex-1 flex-col">
+                  <Text className="text-sm text-gray-800" numberOfLines={1}>
+                    {typeLabel(selected.type)}
+                  </Text>
+                  <Text className="text-xs text-gray-600" numberOfLines={1}>
+                    {selected.details}
+                  </Text>
+                </View>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Cambiar medio de pago"
+                  onPress={() => setSelectedId(null)}
+                  className="active:opacity-60"
+                >
+                  <Text className="text-xs text-gray-700 underline">
+                    Cambiar
+                  </Text>
+                </Pressable>
+              </View>
+
+              <Button onPress={handlePay} disabled={isPending} className="mt-2">
+                <Text className="font-bold text-white">
+                  {isPending ? "Pagando…" : "Pagar"}
+                </Text>
+              </Button>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
