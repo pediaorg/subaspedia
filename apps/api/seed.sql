@@ -113,13 +113,15 @@ INSERT INTO subastadores (identificador, matricula, region) VALUES
 -- La regla "fecha > hoy + 10 días" ya NO se valida en la DB (sin trigger).
 -- Cuando exista POST /auctions, validarla en el zod del input.
 INSERT INTO subastas (identificador, fecha, hora, estado, subastador, ubicacion, capacidadAsistentes, tieneDeposito, seguridadPropia, categoria) VALUES
-  (1, '2027-03-01', '18:00', 'open', 2, 'Salón Central', 100, 1, 1, 'gold');
+  (1, '2027-03-01', '18:00', 'open', 2, 'Salón Central', 100, 1, 1, 'gold'),
+  (2, '2027-04-15', '17:00', 'open', 2, 'Salón Norte',   80,  1, 1, 'common');
 
 -- ---- monedasSubasta (auction_currencies) — tabla satélite de moneda ---------
 -- Cada subasta es en ARS o USD (nunca bimonetaria). La lectura usa LEFT JOIN +
 -- COALESCE(moneda, 'ARS'), así que una subasta SIN fila acá cae al default ARS.
 INSERT INTO monedasSubasta (subasta, moneda) VALUES
-  (1, 'ARS');
+  (1, 'ARS'),
+  (2, 'USD');
 
 -- ---- productos (products; FK -> empleados(revisor), duenios, seguros) -------
 -- `nombre` es NOT NULL en el schema (título corto del bien para el catálogo).
@@ -135,7 +137,9 @@ INSERT INTO productos (identificador, fecha, disponible, descripcionCatalogo, de
   (3, '2026-06-06', 0, 'None',                 'Cámara de fotos vintage en su estuche original de cuero.', NULL, 3, NULL, 'Cámara vintage'),
   (4, '2026-06-02', 1, 'Guitarra criolla',     'Guitarra criolla de luthier, caja de cedro macizo.',       1,    3, NULL, 'Guitarra criolla'),
   (5, '2026-05-20', 0, 'None',                 'Cuadro de paisaje al óleo, sin firma identificable.',      1,    3, NULL, 'Cuadro sin firma'),
-  (6, '2026-04-10', 1, 'Vajilla de porcelana', 'Vajilla de porcelana Limoges, juego de 12 cubiertos.',     1,    3, NULL, 'Vajilla Limoges');
+  (6, '2026-04-10', 1, 'Vajilla de porcelana', 'Vajilla de porcelana Limoges, juego de 12 cubiertos.',     1,    3, NULL, 'Vajilla Limoges'),
+  -- Producto de la subasta 2 (USD): le da contenido al catálogo en dólares.
+  (7, '2026-12-01', 1, 'Moneda de colección',  'Moneda de colección estadounidense de plata, edición limitada.', 1, 4, NULL, 'Moneda de colección');
 
 -- ---- fotos (photos; FK -> productos; foto es BLOB NOT NULL, placeholder PNG header)
 INSERT INTO fotos (identificador, producto, foto) VALUES
@@ -144,11 +148,13 @@ INSERT INTO fotos (identificador, producto, foto) VALUES
   (3, 3, x'89504e470d0a1a0a'),
   (4, 4, x'89504e470d0a1a0a'),
   (5, 5, x'89504e470d0a1a0a'),
-  (6, 6, x'89504e470d0a1a0a');
+  (6, 6, x'89504e470d0a1a0a'),
+  (7, 7, x'89504e470d0a1a0a');
 
 -- ---- catalogos (catalogs; FK -> subastas, empleados(responsable)) ----------
 INSERT INTO catalogos (identificador, descripcion, subasta, responsable) VALUES
-  (1, 'Catálogo Subasta Marzo 2027', 1, 1);
+  (1, 'Catálogo Subasta Marzo 2027', 1, 1),
+  (2, 'Catálogo Subasta Abril 2027 (USD)', 2, 1);
 
 -- ---- itemsCatalogo (catalog_items; FK -> catalogos, productos; checks: precioBase/comision > 0.01)
 -- `estado` (enum) reemplazó a la vieja columna `subastado`. El reloj (item 1) ya
@@ -159,7 +165,9 @@ INSERT INTO itemsCatalogo (identificador, catalogo, producto, precioBase, comisi
   -- itemsCatalogo de los productos de Juan (le dan su `status` a "Mis productos").
   (3, 1, 4, 50000,  10, 'aceptado'),
   (4, 1, 5, 30000,  10, 'rechazado'),
-  (5, 1, 6, 120000, 12, 'subastado');
+  (5, 1, 6, 120000, 12, 'subastado'),
+  -- Item del catálogo USD (subasta 2): precioBase y comisión en dólares.
+  (6, 2, 7, 1500, 5, 'aceptado');
 
 -- ---- asistentes (attendees; FK -> clientes, subastas) ----------------------
 INSERT INTO asistentes (identificador, numeroPostor, cliente, subasta) VALUES
