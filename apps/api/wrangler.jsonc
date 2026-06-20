@@ -7,6 +7,9 @@
   "observability": {
     "enabled": true
   },
+  "vars": {
+    "RESEND_FROM": "Subaspedia <no-reply@subaspedia.casareski.com>"
+  },
   "upload_source_maps": true,
   "d1_databases": [
     {

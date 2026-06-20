@@ -32,7 +32,10 @@ jobs:
       - name: Push secrets
         env:
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
-        run: pnpm sst secret set JwtSecret "$JWT_SECRET" --stage production --print-logs
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+        run: |
+          pnpm sst secret set JwtSecret "$JWT_SECRET" --stage production --print-logs
+          pnpm sst secret set ResendApiKey "$RESEND_API_KEY" --stage production --print-logs
       - name: Dump SST logs
         if: always()
         run: |

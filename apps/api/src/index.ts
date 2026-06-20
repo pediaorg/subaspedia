@@ -1,10 +1,13 @@
 import { ORPCError, onError } from "@orpc/server";
 import { RPCHandler } from "@orpc/server/fetch";
+import { eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { secureHeaders } from "hono/secure-headers";
 
 import { createDb } from "@/api/db";
+import { dbExplorer } from "@/api/db-explorer";
+import { photos } from "@/api/db/schema";
 import { AuctionRoom } from "@/api/durable-objects/auction";
 import type { CookieDirective } from "@/api/lib/auth";
 import { parseRefreshCookie, serializeCookie } from "@/api/lib/auth";
@@ -41,9 +44,32 @@ app.use("*", (c, next) =>
     credentials: true,
   })(c, next),
 );
-app.use(secureHeaders());
+app.use(secureHeaders({ crossOriginResourcePolicy: "cross-origin" }));
 
 app.get("/", c => c.text("Subaspedia API"));
+
+app.route("/db", dbExplorer());
+
+app.get("/photo/:id", async c => {
+  const id = Number(c.req.param("id"));
+  if (!Number.isInteger(id) || id <= 0) {
+    return c.text("Invalid id", 400);
+  }
+
+  const row = await createDb(c.env.DB).query.photos.findFirst({
+    where: { id },
+    columns: { photo: true },
+  });
+
+  if (!row) return c.text("Not found", 404);
+
+  return new Response(row.photo, {
+    headers: {
+      "Content-Type": "image/jpeg",
+      "Cache-Control": "public, max-age=31536000, immutable",
+    },
+  });
+});
 
 app.use("/rpc/*", async (c, next) => {
   const cookieJar: CookieDirective[] = [];

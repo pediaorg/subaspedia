@@ -67,9 +67,11 @@ jobs:
         env:
           STAGE: ${{ steps.stage.outputs.stage }}
           JWT_SEED: ${{ secrets.JWT_SECRET }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
         run: |
           JWT_SECRET=$(printf '%s' "$STAGE" | openssl dgst -sha256 -hmac "$JWT_SEED" -hex | awk '{print $NF}')
           pnpm sst secret set JwtSecret "$JWT_SECRET" --stage "$STAGE" --print-logs
+          pnpm sst secret set ResendApiKey "$RESEND_API_KEY" --stage "$STAGE" --print-logs
       - name: Dump SST logs
         if: always()
         run: |
@@ -91,7 +93,7 @@ jobs:
       - name: SST deploy preview
         env:
           STAGE: ${{ steps.stage.outputs.stage }}
-          SST_DO_BOOTSTRAP: ${{ steps.bootstrap.outputs.cache-hit == 'true' && '' || '1' }}
+          SST_DO_BOOTSTRAP: ${{ steps.bootstrap.outputs.cache-hit == 'true' && '0' || '1' }}
         run: |
           pnpm sst deploy --stage "$STAGE" --print-logs
           touch .stage-bootstrapped

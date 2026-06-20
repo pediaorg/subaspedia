@@ -1,6 +1,8 @@
 import { sign } from "hono/jwt";
 import { z } from "zod";
 
+import type { AccessClaims } from "./types";
+
 export * from "./types";
 
 export const ACCESS_TTL = 60 * 15; // 15 min
@@ -124,20 +126,32 @@ export async function verifyPassword(
   return diff === 0;
 }
 
-export async function issueAccessToken(userId: number, secret: string) {
+export async function issueAccessToken(
+  userId: number,
+  claims: AccessClaims,
+  secret: string,
+) {
   const now = Math.floor(Date.now() / 1000);
   return sign(
-    { sub: userId, type: "access", iat: now, exp: now + ACCESS_TTL },
+    {
+      sub: userId,
+      type: "access",
+      iat: now,
+      exp: now + ACCESS_TTL,
+      category: claims.category,
+      hasVerifiedPaymentMethod: claims.hasVerifiedPaymentMethod,
+    },
     secret,
   );
 }
 
-export async function issueTokens(userId: number, secret: string) {
+export async function issueTokens(
+  userId: number,
+  claims: AccessClaims,
+  secret: string,
+) {
+  const accessToken = await issueAccessToken(userId, claims, secret);
   const now = Math.floor(Date.now() / 1000);
-  const accessToken = await sign(
-    { sub: userId, type: "access", iat: now, exp: now + ACCESS_TTL },
-    secret,
-  );
   const refreshToken = await sign(
     { sub: userId, type: "refresh", iat: now, exp: now + REFRESH_TTL },
     secret,

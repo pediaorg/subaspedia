@@ -1,9 +1,6 @@
+import * as ImagePicker from "expo-image-picker";
 import * as React from "react";
-import type {
-  FieldErrors,
-  UseFormSetValue,
-  UseFormWatch,
-} from "react-hook-form";
+import { type Control, useController } from "react-hook-form";
 import { View } from "react-native";
 
 import {
@@ -16,15 +13,13 @@ import { Text } from "@/components/ui/text";
 import { ImageSlot } from "./image-slot";
 
 export function ImagesSection({
-  watch,
-  setValue,
-  errors,
+  control,
 }: {
-  watch: UseFormWatch<NewProductFormInput>;
-  setValue: UseFormSetValue<NewProductFormInput>;
-  errors: FieldErrors<NewProductFormInput>;
+  control: Control<NewProductFormInput>;
 }) {
-  const images = watch("images") ?? [];
+  const { field, fieldState } = useController({ control, name: "images" });
+  const images = field.value ?? [];
+
   const slots = React.useMemo(
     () =>
       Array.from({ length: MIN_PRODUCT_IMAGES }, (_, i) => ({
@@ -34,14 +29,47 @@ export function ImagesSection({
     [images],
   );
 
-  const toggleSlot = (index: number) => {
-    const next = [...images];
-    if (next[index]) {
-      next.splice(index, 1);
-    } else {
-      next[index] = "placeholder";
+  const assetToBase64 = async (asset: ImagePicker.ImagePickerAsset) => {
+    if (asset.base64) return asset.base64;
+    const res = await fetch(asset.uri);
+    const blob = await res.blob();
+    const dataUrl = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+    return dataUrl.split(",")[1];
+  };
+
+  const pickImage = async (index: number) => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ["images"],
+        quality: 0.5,
+        base64: true,
+      });
+      if (result.canceled) return;
+
+      const base64 = await assetToBase64(result.assets[0]);
+      if (!base64) return;
+
+      const next = [...images];
+      next[index] = base64;
+      field.onChange(next.filter(Boolean));
+    } catch (e) {
+      console.error("PICK ERROR", e);
     }
-    setValue("images", next.filter(Boolean), { shouldValidate: true });
+  };
+
+  const handleSlot = (index: number) => {
+    if (images[index]) {
+      const next = [...images];
+      next.splice(index, 1);
+      field.onChange(next.filter(Boolean));
+    } else {
+      pickImage(index);
+    }
   };
 
   return (
@@ -58,7 +86,7 @@ export function ImagesSection({
             <ImageSlot
               key={slot.id}
               uri={slot.uri}
-              onPress={() => toggleSlot(i)}
+              onPress={() => handleSlot(i)}
             />
           ))}
         </View>
@@ -66,8 +94,8 @@ export function ImagesSection({
           Seleccioná hasta {MIN_PRODUCT_IMAGES} imágenes del producto. (
           {images.length}/{MIN_PRODUCT_IMAGES})
         </Text>
-        {errors.images && (
-          <Text className="text-white text-xs">{errors.images.message}</Text>
+        {fieldState.error && (
+          <Text className="text-white text-xs">{fieldState.error.message}</Text>
         )}
       </CardContent>
     </Card>

@@ -1,6 +1,6 @@
 import { auctionDurableObject } from "./auction";
 import { db } from "./database";
-import { jwtSecret, secrets } from "./secrets";
+import { jwtSecret, resendApiKey, secrets } from "./secrets";
 import { apiDomain, stage, webDomain } from "./stage";
 
 export const api = new sst.cloudflare.Worker("Api", {
@@ -10,6 +10,7 @@ export const api = new sst.cloudflare.Worker("Api", {
   link: [db, ...secrets],
   environment: {
     WEB_ORIGIN: `https://${webDomain}`,
+    RESEND_FROM: "Subaspedia <no-reply@subaspedia.casareski.com>",
   },
   transform: {
     worker: workerArgs => {
@@ -31,6 +32,11 @@ export const api = new sst.cloudflare.Worker("Api", {
       workerArgs.bindings = $output(workerArgs.bindings).apply(existing => [
         ...(existing ?? []),
         { type: "secret_text", name: "JWT_SECRET", text: jwtSecret.value },
+        {
+          type: "secret_text",
+          name: "RESEND_API_KEY",
+          text: resendApiKey.value,
+        },
       ]);
       auctionDurableObject(workerArgs);
     },

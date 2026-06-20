@@ -3,7 +3,6 @@ import { defineRelations } from "drizzle-orm";
 import * as schema from "./schema";
 
 export const relations = defineRelations(schema, r => ({
-  users: {},
   countries: {
     clients: r.many.clients(),
     owners: r.many.owners(),
@@ -48,6 +47,13 @@ export const relations = defineRelations(schema, r => ({
     }),
     attendees: r.many.attendees(),
     auctionRecords: r.many.auctionRecords(),
+    paymentMethods: r.many.paymentMethods(),
+  },
+  paymentMethods: {
+    client: r.one.clients({
+      from: r.paymentMethods.clientId,
+      to: r.clients.id,
+    }),
   },
   owners: {
     person: r.one.people({
@@ -97,6 +103,16 @@ export const relations = defineRelations(schema, r => ({
     photos: r.many.photos(),
     catalogItems: r.many.catalogItems(),
     auctionRecords: r.many.auctionRecords(),
+    artworkDetails: r.one.artworkDetails({
+      from: r.products.id,
+      to: r.artworkDetails.productId,
+    }),
+  },
+  artworkDetails: {
+    product: r.one.products({
+      from: r.artworkDetails.productId,
+      to: r.products.id,
+    }),
   },
   photos: {
     product: r.one.products({
