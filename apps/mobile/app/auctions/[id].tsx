@@ -87,7 +87,7 @@ export default function AuctionDetailScreen() {
         image: mainImage ?? "https://placehold.co/600x400",
         images: images,
         description: item.product?.fullDescription || "",
-        currentOwner: "—",
+        currentOwner: item.product?.ownerName ?? "—",
         basePrice: item.basePrice,
       };
 

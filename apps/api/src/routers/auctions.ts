@@ -279,7 +279,13 @@ export const auctionsRouter = {
                 with: {
                   product: {
                     columns: { id: true, name: true, fullDescription: true },
-                    with: { photos: { columns: { id: true } } },
+                    with: {
+                      photos: { columns: { id: true } },
+                      owner: {
+                        columns: {},
+                        with: { person: { columns: { name: true } } },
+                      },
+                    },
                   },
                 },
               },
@@ -319,7 +325,12 @@ export const auctionsRouter = {
           ...c,
           items: c.items.map(it => ({
             ...it,
-            product: it.product || undefined,
+            product: it.product
+              ? {
+                  ...it.product,
+                  ownerName: it.product.owner?.person?.name ?? null,
+                }
+              : undefined,
           })),
         })),
       };
