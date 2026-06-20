@@ -200,6 +200,23 @@ export const auctions = sqliteTable(
   ],
 );
 
+// Moneda de cada subasta (ARS/USD). Tabla satélite: extiende `subastas` sin
+// modificar la estructura original (intocable). 1:1 con la subasta (PK = subasta).
+// La lectura SIEMPRE debe ser LEFT JOIN + COALESCE(moneda, 'ARS'): las subastas
+// sin fila (legacy) caen al default y no rompen ningún flujo. El enum va inline
+// (igual que el resto del schema, p. ej. `categoria`); su fuente lógica es el
+// enum `currency` de @subaspedia/types — mantenerlos alineados.
+export const auctionCurrencies = sqliteTable(
+  "monedasSubasta",
+  {
+    auctionId: integer("subasta")
+      .primaryKey()
+      .references(() => auctions.id),
+    currency: text("moneda", { enum: ["ARS", "USD"] }).notNull(),
+  },
+  t => [check("chk_currency", sql`${t.currency} IN ('ARS', 'USD')`)],
+);
+
 export const products = sqliteTable("productos", {
   id: integer("identificador").primaryKey({ autoIncrement: true }),
   date: text("fecha"),

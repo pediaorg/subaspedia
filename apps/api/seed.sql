@@ -42,6 +42,7 @@ DELETE FROM itemsCatalogo;
 DELETE FROM catalogos;
 DELETE FROM fotos;
 DELETE FROM productos;
+DELETE FROM monedasSubasta;
 DELETE FROM subastas;
 DELETE FROM subastadores;
 DELETE FROM duenios;
@@ -113,6 +114,12 @@ INSERT INTO subastadores (identificador, matricula, region) VALUES
 -- Cuando exista POST /auctions, validarla en el zod del input.
 INSERT INTO subastas (identificador, fecha, hora, estado, subastador, ubicacion, capacidadAsistentes, tieneDeposito, seguridadPropia, categoria) VALUES
   (1, '2027-03-01', '18:00', 'open', 2, 'Salón Central', 100, 1, 1, 'gold');
+
+-- ---- monedasSubasta (auction_currencies) — tabla satélite de moneda ---------
+-- Cada subasta es en ARS o USD (nunca bimonetaria). La lectura usa LEFT JOIN +
+-- COALESCE(moneda, 'ARS'), así que una subasta SIN fila acá cae al default ARS.
+INSERT INTO monedasSubasta (subasta, moneda) VALUES
+  (1, 'ARS');
 
 -- ---- productos (products; FK -> empleados(revisor), duenios, seguros) -------
 -- `nombre` es NOT NULL en el schema (título corto del bien para el catálogo).
