@@ -112,7 +112,6 @@ export const backofficeRouter = {
         type: true,
         amount: true,
         details: true,
-        photo: true,
       },
       with: {
         client: { with: { person: { columns: { name: true } } } },

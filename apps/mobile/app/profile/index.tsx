@@ -1,6 +1,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, router } from "expo-router";
 import {
+  Clock,
   LogOut,
   LucideHammer,
   Package,
@@ -8,9 +9,8 @@ import {
   TriangleAlertIcon,
   Wallet,
 } from "lucide-react-native";
-import { Pressable, Text, View } from "react-native";
+import { Pressable, ScrollView, Text, View } from "react-native";
 
-import { isOnboarded } from "@subaspedia/types/user";
 import { MenuItem } from "@/components/profile/menu-item";
 import RankBadge from "@/components/profile/rank-badge";
 import { StatCard } from "@/components/profile/stat-card";
@@ -40,8 +40,19 @@ export default function Profile() {
   const queryClient = useQueryClient();
   const { data: user } = api.users.me.useQuery();
   if (!user) return <Text>Cargando usuario...</Text>;
+
+  // Dos estados distintos cuando el perfil no está "onboarded":
+  //   - faltan datos que carga el usuario (nombre / documento)
+  //   - datos completos pero sin categoría -> la empresa todavía no verificó
+  const profileIncomplete = user.name === null || user.documentId === null;
+  const awaitingVerification = !profileIncomplete && user.category === null;
+
   return (
-    <View className="flex-1 gap-6">
+    <ScrollView
+      className="flex-1"
+      contentContainerClassName="gap-6 pb-32"
+      showsVerticalScrollIndicator={false}
+    >
       <View>
         {/* card de profile */}
         <View className="relative">
@@ -70,10 +81,9 @@ export default function Profile() {
             <View className="mt-16 flex-row gap-2 justify-between">
               <View>
                 <Text className="text-white text-xl font-bold">
-                  {user &&
-                    (isOnboarded(user)
-                      ? `${user?.name} ${user?.surname}`.trim()
-                      : "Completá tu perfil")}
+                  {user.name
+                    ? `${user.name} ${user.surname ?? ""}`.trim()
+                    : "Completá tu perfil"}
                 </Text>
                 <Text className="text-gray-300">{user?.email}</Text>
               </View>
@@ -101,6 +111,28 @@ export default function Profile() {
             }}
           ></View>
         </View>
+        {/* Aviso de estado del perfil: faltan datos vs esperando verificación */}
+        {(profileIncomplete || awaitingVerification) && (
+          <Card className="mx-5 flex-row items-center gap-3 border-0 bg-amber-50 p-4 drop-shadow-lg/10">
+            {profileIncomplete ? (
+              <TriangleAlertIcon className="size-7 color-amber-600" />
+            ) : (
+              <Clock className="size-7 color-amber-600" />
+            )}
+            <View className="flex-1">
+              <Text className="font-bold text-amber-900">
+                {profileIncomplete
+                  ? "Perfil incompleto"
+                  : "Esperando verificación de perfil"}
+              </Text>
+              <Text className="text-sm text-amber-800">
+                {profileIncomplete
+                  ? "Completá tus datos para que la empresa pueda verificarte."
+                  : "La empresa está verificando tu perfil y asignando tu categoría. Vas a poder operar cuando termine."}
+              </Text>
+            </View>
+          </Card>
+        )}
         {/* Menu options */}
         <View className="gap-3 mb-9 px-5 py-6">
           <MenuItem icon={Pencil} label="Editar Perfil" href="/profile/edit" />
@@ -157,6 +189,6 @@ export default function Profile() {
           </View>
         </View>
       </View>
-    </View>
+    </ScrollView>
   );
 }
