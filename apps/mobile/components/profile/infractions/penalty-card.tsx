@@ -10,7 +10,6 @@ import PenaltyStatusBadge from "./penalty-status-badge";
 
 type PenaltyProps = {
   penalty: Penalty;
-  onPaid: (penaltyId: number) => void;
 };
 
 const dateFormatter = new Intl.DateTimeFormat("es-AR", {
@@ -27,7 +26,7 @@ const ICON_COLOR: Record<PenaltyStatus, string> = {
   paid: "color-gray-400",
 };
 
-export default function PenaltyCard({ penalty, onPaid }: PenaltyProps) {
+export default function PenaltyCard({ penalty }: PenaltyProps) {
   // Solo las multas impagas se pueden pagar; una pagada no ofrece acción.
   const canPay = penalty.status !== "paid";
 
@@ -47,7 +46,7 @@ export default function PenaltyCard({ penalty, onPaid }: PenaltyProps) {
             ` · Vence ${dateFormatter.format(new Date(penalty.dueDate))}`}
         </Text>
       </View>
-      {canPay && <PenaltyPaymentDialog penalty={penalty} onPaid={onPaid} />}
+      {canPay && <PenaltyPaymentDialog penalty={penalty} />}
     </Card>
   );
 }
