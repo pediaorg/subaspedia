@@ -191,7 +191,9 @@ export const auctionsRouter = {
                 with: {
                   owner: {
                     columns: {},
-                    with: { person: { columns: { name: true } } },
+                    with: {
+                      person: { columns: { name: true, lastName: true } },
+                    },
                   },
                   artworkDetails: {
                     columns: {
@@ -217,7 +219,13 @@ export const auctionsRouter = {
                   description: it.product.fullDescription,
                   catalogDescription: it.product.catalogDescription,
                   basePrice: it.basePrice,
-                  ownerName: it.product.owner?.person?.name ?? null,
+                  ownerName:
+                    [
+                      it.product.owner?.person?.name,
+                      it.product.owner?.person?.lastName,
+                    ]
+                      .filter(Boolean)
+                      .join(" ") || null,
                   artist: it.product.artworkDetails?.artist ?? null,
                   creationDate: it.product.artworkDetails?.creationDate ?? null,
                   history: it.product.artworkDetails?.history ?? null,
@@ -283,7 +291,9 @@ export const auctionsRouter = {
                       photos: { columns: { id: true } },
                       owner: {
                         columns: {},
-                        with: { person: { columns: { name: true } } },
+                        with: {
+                          person: { columns: { name: true, lastName: true } },
+                        },
                       },
                     },
                   },
@@ -328,7 +338,13 @@ export const auctionsRouter = {
             product: it.product
               ? {
                   ...it.product,
-                  ownerName: it.product.owner?.person?.name ?? null,
+                  ownerName:
+                    [
+                      it.product.owner?.person?.name,
+                      it.product.owner?.person?.lastName,
+                    ]
+                      .filter(Boolean)
+                      .join(" ") || null,
                 }
               : undefined,
           })),
