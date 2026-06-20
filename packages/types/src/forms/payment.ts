@@ -23,7 +23,6 @@ export const PAYMENT_METHOD_TYPES = [
 export const createPaymentMethodSchema = z.object({
   type: paymentMethodType,
   details: z.string().trim().min(1, "Completá los datos del medio"),
-  photo: z.string().optional(),
 });
 
 export type CreatePaymentMethodInput = z.infer<

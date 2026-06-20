@@ -1,16 +1,14 @@
 import { useQueryClient } from "@tanstack/react-query";
 import * as Burnt from "burnt";
-import * as ImagePicker from "expo-image-picker";
 import { router, Stack } from "expo-router";
 import {
   ArrowLeft,
   CreditCard,
-  ImagePlus,
   Landmark,
   ScrollText,
 } from "lucide-react-native";
 import { useState } from "react";
-import { Image, Pressable, ScrollView, View } from "react-native";
+import { Pressable, ScrollView, View } from "react-native";
 
 import { FormField } from "@/components/form-field";
 import { Button } from "@/components/ui/button";
@@ -51,32 +49,6 @@ export default function PaymentMethodScreen() {
   const [checkBank, setCheckBank] = useState("");
   const [checkNumber, setCheckNumber] = useState("");
   const [checkAmount, setCheckAmount] = useState("");
-
-  const [photo, setPhoto] = useState<string | null>(null);
-
-  const pickPhoto = async () => {
-    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!perm.granted) {
-      Burnt.toast({
-        title: "Permiso denegado",
-        message: "Necesitamos acceso a tus fotos para subir el comprobante.",
-        preset: "error",
-      });
-      return;
-    }
-    const res = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ["images"],
-      quality: 0.4,
-      base64: true,
-    });
-    if (res.canceled || res.assets.length === 0) return;
-    const asset = res.assets[0];
-    setPhoto(
-      asset.base64
-        ? `data:${asset.mimeType ?? "image/jpeg"};base64,${asset.base64}`
-        : asset.uri,
-    );
-  };
 
   const queryClient = useQueryClient();
   const addPaymentMethod = api.user.addPaymentMethod.useMutation({
@@ -124,7 +96,6 @@ export default function PaymentMethodScreen() {
     addPaymentMethod.mutate({
       type,
       details: buildDetails(),
-      photo: photo ?? undefined,
     });
 
   return (
@@ -318,32 +289,6 @@ export default function PaymentMethodScreen() {
               </FormField>
             </>
           )}
-
-          <FormField label="Comprobante (opcional)">
-            <Pressable
-              onPress={pickPhoto}
-              className="border-border bg-secondary active:bg-muted h-44 items-center justify-center overflow-hidden rounded-xl border border-dashed"
-            >
-              {photo ? (
-                <Image
-                  source={{ uri: photo }}
-                  className="h-full w-full"
-                  resizeMode="cover"
-                />
-              ) : (
-                <View className="items-center gap-2">
-                  <Icon
-                    as={ImagePlus}
-                    size={28}
-                    className="text-muted-foreground"
-                  />
-                  <Text className="text-muted-foreground text-sm">
-                    Subir foto del medio de pago
-                  </Text>
-                </View>
-              )}
-            </Pressable>
-          </FormField>
 
           {addPaymentMethod.error ? (
             <Text className="text-destructive text-center text-sm">

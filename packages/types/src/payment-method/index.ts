@@ -8,6 +8,10 @@ export const paymentMethodType = z.enum([
 
 export type PaymentMethodType = z.infer<typeof paymentMethodType>;
 
+// Tope de medios de pago que un client puede tener registrados. Fuente única
+// de verdad: el back lo devuelve en rankSummary y el front lo muestra (x/max).
+export const MAX_PAYMENT_METHODS = 5;
+
 export const PAYMENT_METHOD_TYPE_LABELS = [
   { value: paymentMethodType.enum.bank_account, label: "Cuenta bancaria" },
   { value: paymentMethodType.enum.credit_card, label: "Tarjeta de crédito" },
@@ -28,8 +32,6 @@ export const paymentMethodSchema = z.object({
   verified: z.boolean(),
   // Detalle enmascarado que arma la app al cargar el medio (ej. "Visa ****4242").
   details: z.string(),
-  // Comprobante/foto del medio (data URI base64), opcional.
-  photo: z.string().nullable(),
 });
 
 export type PaymentMethod = z.infer<typeof paymentMethodSchema>;

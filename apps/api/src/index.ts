@@ -1,10 +1,13 @@
 import { ORPCError, onError } from "@orpc/server";
 import { RPCHandler } from "@orpc/server/fetch";
+import { eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { secureHeaders } from "hono/secure-headers";
 
 import { createDb } from "@/api/db";
+import { dbExplorer } from "@/api/db-explorer";
+import { photos } from "@/api/db/schema";
 import { AuctionRoom } from "@/api/durable-objects/auction";
 import type { CookieDirective } from "@/api/lib/auth";
 import { parseRefreshCookie, serializeCookie } from "@/api/lib/auth";
@@ -44,6 +47,8 @@ app.use("*", (c, next) =>
 app.use(secureHeaders({ crossOriginResourcePolicy: "cross-origin" }));
 
 app.get("/", c => c.text("Subaspedia API"));
+
+app.route("/db", dbExplorer());
 
 app.get("/photo/:id", async c => {
   const id = Number(c.req.param("id"));
