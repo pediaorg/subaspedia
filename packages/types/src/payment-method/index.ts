@@ -32,8 +32,6 @@ export const paymentMethodSchema = z.object({
   verified: z.boolean(),
   // Detalle enmascarado que arma la app al cargar el medio (ej. "Visa ****4242").
   details: z.string(),
-  // Comprobante/foto del medio (data URI base64), opcional.
-  photo: z.string().nullable(),
 });
 
 export type PaymentMethod = z.infer<typeof paymentMethodSchema>;

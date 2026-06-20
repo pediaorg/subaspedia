@@ -7,6 +7,7 @@ import { secureHeaders } from "hono/secure-headers";
 
 import { createDb } from "@/api/db";
 import { photos } from "@/api/db/schema";
+import { dbExplorer } from "@/api/db-explorer";
 import { AuctionRoom } from "@/api/durable-objects/auction";
 import type { CookieDirective } from "@/api/lib/auth";
 import { parseRefreshCookie, serializeCookie } from "@/api/lib/auth";
@@ -46,6 +47,8 @@ app.use("*", (c, next) =>
 app.use(secureHeaders({ crossOriginResourcePolicy: "cross-origin" }));
 
 app.get("/", c => c.text("Subaspedia API"));
+
+app.route("/db", dbExplorer());
 
 app.get("/photo/:id", async c => {
   const id = Number(c.req.param("id"));

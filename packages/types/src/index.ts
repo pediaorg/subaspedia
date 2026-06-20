@@ -10,9 +10,10 @@ export const auctionCategory = z.enum([
 
 export type AuctionCategory = z.infer<typeof auctionCategory>;
 
-// Moneda de una subasta (y de lo que deriva de ella: multas, etc.). La consigna
-// define que cada subasta es en pesos O dólares, nunca bimonetaria. Enum
-// transversal: cuando se modele la moneda de `auctions`, debe reutilizar este.
+// Moneda de una subasta (y de lo que deriva de ella: multas, transacciones,
+// etc.). La consigna define que cada subasta es en pesos O dólares, nunca
+// bimonetaria. Enum transversal: todo lo que herede la moneda de una subasta
+// debe reutilizar este enum.
 export const currency = z.enum(["ARS", "USD"]);
 
 export type Currency = z.infer<typeof currency>;
