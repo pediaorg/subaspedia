@@ -8,7 +8,7 @@ import { NavItem } from "./nav-item";
 const SHOWN: string[] = ["/", "/auctions", "/new-product", "/rank-up", "/faq"];
 
 function matches(pathname: string, href: string) {
-  if (href === "/") return pathname === "/";
+  if (href === "/" || href === "/auctions") return pathname === href;
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
