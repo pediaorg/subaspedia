@@ -176,3 +176,6 @@ dist
 .expo
 # turborepo
 .turbo
+
+# bash tool crash dumps (Windows)
+*.stackdump
