@@ -12,30 +12,35 @@ import {
 const boolean = (name?: string) =>
   name ? integer(name, { mode: "boolean" }) : integer({ mode: "boolean" });
 
-export const countries = sqliteTable("countries", {
-  id: integer().notNull().primaryKey(),
-  name: text().notNull(),
-  shortName: text("short_name"),
-  capital: text().notNull(),
-  nationality: text().notNull(),
-  languages: text().notNull(),
+// NOTA: los nombres lógicos (variables export y propiedades TS) se mantienen en
+// inglés para no tocar la lógica de la app. Lo que cambia es el NOMBRE FÍSICO
+// en la DB (primer argumento de sqliteTable y string de cada columna), que sigue
+// la estructura original en español (ver EstructuraActual.sql).
+
+export const countries = sqliteTable("paises", {
+  id: integer("numero").notNull().primaryKey(),
+  name: text("nombre").notNull(),
+  shortName: text("nombreCorto"),
+  capital: text("capital").notNull(),
+  nationality: text("nacionalidad").notNull(),
+  languages: text("idiomas").notNull(),
 });
 
 export const people = sqliteTable(
-  "people",
+  "personas",
   {
-    id: integer().primaryKey({ autoIncrement: true }),
-    document: text(),
-    name: text(),
-    lastName: text("last_name"),
-    address: text(),
-    status: text({ enum: ["active", "inactive"] }),
-    photo: blob({ mode: "buffer" }),
+    id: integer("identificador").primaryKey({ autoIncrement: true }),
+    document: text("documento"),
+    name: text("nombre"),
+    lastName: text("apellido"),
+    address: text("direccion"),
+    status: text("estado", { enum: ["active", "inactive"] }),
+    photo: blob("foto", { mode: "buffer" }),
     // Credenciales de acceso (antes en la tabla `users`). Nullable: no toda
     // persona necesariamente loguea (p. ej. clientes cargados por un empleado).
-    email: text().unique(),
-    passwordHash: text("password_hash"),
-    createdAt: text("created_at").notNull().default(sql`(current_timestamp)`),
+    email: text("email").unique(),
+    passwordHash: text("hashContrasenia"),
+    createdAt: text("creadoEn").notNull().default(sql`(current_timestamp)`),
   },
   t => [
     check("chk_status", sql`${t.status} IN ('active', 'inactive')`),
@@ -47,62 +52,62 @@ export const people = sqliteTable(
   ],
 );
 
-export const emailVerifications = sqliteTable("email_verifications", {
-  id: integer().primaryKey({ autoIncrement: true }),
-  email: text().notNull().unique(),
-  code: text().notNull(),
+export const emailVerifications = sqliteTable("verificacionesEmail", {
+  id: integer("identificador").primaryKey({ autoIncrement: true }),
+  email: text("email").notNull().unique(),
+  code: text("codigo").notNull(),
   // Snapshot de los datos cargados en la etapa 1.
-  name: text().notNull(),
-  lastName: text("last_name").notNull(),
-  address: text().notNull(),
-  country: text(),
-  dniFront: text("dni_front"),
-  dniBack: text("dni_back"),
-  verified: boolean("verified").default(false),
-  expiresAt: text("expires_at").notNull(),
-  createdAt: text("created_at").notNull().default(sql`(current_timestamp)`),
+  name: text("nombre").notNull(),
+  lastName: text("apellido").notNull(),
+  address: text("direccion").notNull(),
+  country: text("pais"),
+  dniFront: text("dniFrente"),
+  dniBack: text("dniDorso"),
+  verified: boolean("verificado").default(false),
+  expiresAt: text("expiraEn").notNull(),
+  createdAt: text("creadoEn").notNull().default(sql`(current_timestamp)`),
 });
 
-export const employees = sqliteTable("employees", {
-  id: integer()
+export const employees = sqliteTable("empleados", {
+  id: integer("identificador")
     .notNull()
     .primaryKey()
     .references(() => people.id),
-  position: text(),
-  sectorId: integer("sector_id"),
+  position: text("cargo"),
+  sectorId: integer("sector"),
 });
 
-export const sectors = sqliteTable("sectors", {
-  id: integer().primaryKey({ autoIncrement: true }),
-  sectorName: text("sector_name").notNull(),
-  sectorCode: text("sector_code"),
-  sectorManagerId: integer("sector_manager_id").references(() => employees.id),
+export const sectors = sqliteTable("sectores", {
+  id: integer("identificador").primaryKey({ autoIncrement: true }),
+  sectorName: text("nombreSector").notNull(),
+  sectorCode: text("codigoSector"),
+  sectorManagerId: integer("responsableSector").references(() => employees.id),
 });
 
 export const insurances = sqliteTable(
-  "insurances",
+  "seguros",
   {
-    policyNumber: text("policy_number").notNull().primaryKey(),
-    company: text().notNull(),
-    combinedPolicy: boolean("combined_policy"),
-    amount: real().notNull(),
+    policyNumber: text("nroPoliza").notNull().primaryKey(),
+    company: text("compania").notNull(),
+    combinedPolicy: boolean("polizaCombinada"),
+    amount: real("importe").notNull(),
   },
   t => [check("chk_amount", sql`${t.amount} > 0`)],
 );
 
 export const clients = sqliteTable(
-  "clients",
+  "clientes",
   {
-    id: integer()
+    id: integer("identificador")
       .notNull()
       .primaryKey()
       .references(() => people.id),
-    countryId: integer("country_id").references(() => countries.id),
-    admitted: boolean("admitted"),
-    category: text({
+    countryId: integer("numeroPais").references(() => countries.id),
+    admitted: boolean("admitido"),
+    category: text("categoria", {
       enum: ["common", "special", "silver", "gold", "platinum"],
     }),
-    verifierId: integer("verifier_id")
+    verifierId: integer("verificador")
       .notNull()
       .references(() => employees.id),
   },
@@ -115,22 +120,22 @@ export const clients = sqliteTable(
 );
 
 export const paymentMethods = sqliteTable(
-  "payment_methods",
+  "mediosDePago",
   {
-    id: integer().primaryKey({ autoIncrement: true }),
-    clientId: integer("client_id")
+    id: integer("identificador").primaryKey({ autoIncrement: true }),
+    clientId: integer("cliente")
       .notNull()
       .references(() => clients.id),
-    type: text({
+    type: text("tipo", {
       enum: ["bank_account", "credit_card", "certified_check"],
     }).notNull(),
-    verified: boolean("verified").default(false),
-    amount: real(),
+    verified: boolean("verificado").default(false),
+    amount: real("importe"),
     // Datos identificatorios del medio que carga el cliente y revisa el
     // backoffice (p. ej. "Banco Galicia, CBU ...", "Visa ****1234").
-    details: text(),
+    details: text("detalles"),
     // Comprobante/foto del medio (data URI base64), opcional.
-    photo: text(),
+    photo: text("foto"),
   },
   t => [
     check(
@@ -141,45 +146,45 @@ export const paymentMethods = sqliteTable(
 );
 
 export const owners = sqliteTable(
-  "owners",
+  "duenios",
   {
-    id: integer()
+    id: integer("identificador")
       .notNull()
       .primaryKey()
       .references(() => people.id),
-    countryId: integer("country_id").references(() => countries.id),
-    financialVerification: boolean("financial_verification"),
-    judicialVerification: boolean("judicial_verification"),
-    riskRating: integer("risk_rating"),
-    verifierId: integer("verifier_id")
+    countryId: integer("numeroPais").references(() => countries.id),
+    financialVerification: boolean("verificacionFinanciera"),
+    judicialVerification: boolean("verificacionJudicial"),
+    riskRating: integer("calificacionRiesgo"),
+    verifierId: integer("verificador")
       .notNull()
       .references(() => employees.id),
   },
   t => [check("chk_risk_rating", sql`${t.riskRating} IN (1, 2, 3, 4, 5, 6)`)],
 );
 
-export const auctioneers = sqliteTable("auctioneers", {
-  id: integer()
+export const auctioneers = sqliteTable("subastadores", {
+  id: integer("identificador")
     .notNull()
     .primaryKey()
     .references(() => people.id),
-  license: text(),
-  region: text(),
+  license: text("matricula"),
+  region: text("region"),
 });
 
 export const auctions = sqliteTable(
-  "auctions",
+  "subastas",
   {
-    id: integer().primaryKey({ autoIncrement: true }),
-    date: text(),
-    time: text().notNull(),
-    status: text({ enum: ["open", "closed"] }),
-    auctioneerId: integer("auctioneer_id").references(() => auctioneers.id),
-    location: text(),
-    attendeeCapacity: integer("attendee_capacity"),
-    hasWarehouse: boolean("has_warehouse"),
-    ownSecurity: boolean("own_security"),
-    category: text({
+    id: integer("identificador").primaryKey({ autoIncrement: true }),
+    date: text("fecha"),
+    time: text("hora").notNull(),
+    status: text("estado", { enum: ["open", "closed"] }),
+    auctioneerId: integer("subastador").references(() => auctioneers.id),
+    location: text("ubicacion"),
+    attendeeCapacity: integer("capacidadAsistentes"),
+    hasWarehouse: boolean("tieneDeposito"),
+    ownSecurity: boolean("seguridadPropia"),
+    category: text("categoria", {
       enum: ["common", "special", "silver", "gold", "platinum"],
     }),
   },
@@ -195,59 +200,57 @@ export const auctions = sqliteTable(
   ],
 );
 
-export const products = sqliteTable("products", {
-  id: integer().primaryKey({ autoIncrement: true }),
-  date: text(),
-  available: boolean("available"),
-  catalogDescription: text("catalog_description").default("None"),
-  fullDescription: text("full_description").notNull(),
-  reviewerId: integer("reviewer_id").references(() => employees.id),
-  ownerId: integer("owner_id").references(() => owners.id),
-  insurancePolicy: text("insurance_policy").references(
-    () => insurances.policyNumber,
-  ),
-  name: text("name").notNull(),
+export const products = sqliteTable("productos", {
+  id: integer("identificador").primaryKey({ autoIncrement: true }),
+  date: text("fecha"),
+  available: boolean("disponible"),
+  catalogDescription: text("descripcionCatalogo").default("None"),
+  fullDescription: text("descripcionCompleta").notNull(),
+  reviewerId: integer("revisor").references(() => employees.id),
+  ownerId: integer("duenio").references(() => owners.id),
+  insurancePolicy: text("seguro").references(() => insurances.policyNumber),
+  name: text("nombre").notNull(),
 });
 
-export const artworkDetails = sqliteTable("artwork_details", {
-  productId: integer("product_id")
+export const artworkDetails = sqliteTable("detallesObra", {
+  productId: integer("producto")
     .primaryKey()
     .references(() => products.id),
-  artist: text().notNull(),
-  creationDate: text("creation_date"),
-  history: text(),
+  artist: text("artista").notNull(),
+  creationDate: text("fechaCreacion"),
+  history: text("historia"),
 });
 
-export const photos = sqliteTable("photos", {
-  id: integer().primaryKey({ autoIncrement: true }),
-  productId: integer("product_id")
+export const photos = sqliteTable("fotos", {
+  id: integer("identificador").primaryKey({ autoIncrement: true }),
+  productId: integer("producto")
     .notNull()
     .references(() => products.id),
-  photo: blob({ mode: "buffer" }).notNull(),
+  photo: blob("foto", { mode: "buffer" }).notNull(),
 });
 
-export const catalogs = sqliteTable("catalogs", {
-  id: integer().primaryKey({ autoIncrement: true }),
-  description: text().notNull(),
-  auctionId: integer("auction_id").references(() => auctions.id),
-  managerId: integer("manager_id")
+export const catalogs = sqliteTable("catalogos", {
+  id: integer("identificador").primaryKey({ autoIncrement: true }),
+  description: text("descripcion").notNull(),
+  auctionId: integer("subasta").references(() => auctions.id),
+  managerId: integer("responsable")
     .notNull()
     .references(() => employees.id),
 });
 
 export const catalogItems = sqliteTable(
-  "catalog_items",
+  "itemsCatalogo",
   {
-    id: integer().primaryKey({ autoIncrement: true }),
-    catalogId: integer("catalog_id")
+    id: integer("identificador").primaryKey({ autoIncrement: true }),
+    catalogId: integer("catalogo")
       .notNull()
       .references(() => catalogs.id),
-    productId: integer("product_id")
+    productId: integer("producto")
       .notNull()
       .references(() => products.id),
-    basePrice: real("base_price").notNull(),
-    commission: real().notNull(),
-    state: text({
+    basePrice: real("precioBase").notNull(),
+    commission: real("comision").notNull(),
+    state: text("estado", {
       enum: ["en revisión", "tasado", "aceptado", "rechazado", "subastado"],
     }),
   },
@@ -257,51 +260,51 @@ export const catalogItems = sqliteTable(
   ],
 );
 
-export const attendees = sqliteTable("attendees", {
-  id: integer().primaryKey({ autoIncrement: true }),
-  bidderNumber: integer("bidder_number").notNull(),
-  clientId: integer("client_id")
+export const attendees = sqliteTable("asistentes", {
+  id: integer("identificador").primaryKey({ autoIncrement: true }),
+  bidderNumber: integer("numeroPostor").notNull(),
+  clientId: integer("cliente")
     .notNull()
     .references(() => clients.id),
-  auctionId: integer("auction_id")
+  auctionId: integer("subasta")
     .notNull()
     .references(() => auctions.id),
 });
 
 export const bids = sqliteTable(
-  "bids",
+  "pujos",
   {
-    id: integer().primaryKey({ autoIncrement: true }),
-    attendeeId: integer("attendee_id")
+    id: integer("identificador").primaryKey({ autoIncrement: true }),
+    attendeeId: integer("asistente")
       .notNull()
       .references(() => attendees.id),
-    itemId: integer("item_id")
+    itemId: integer("item")
       .notNull()
       .references(() => catalogItems.id),
-    amount: real().notNull(),
-    winner: boolean("winner").default(false),
+    amount: real("importe").notNull(),
+    winner: boolean("ganador").default(false),
   },
   t => [check("chk_bid_amount", sql`${t.amount} > 0.01`)],
 );
 
 export const auctionRecords = sqliteTable(
-  "auction_records",
+  "registroDeSubasta",
   {
-    id: integer().primaryKey({ autoIncrement: true }),
-    auctionId: integer("auction_id")
+    id: integer("identificador").primaryKey({ autoIncrement: true }),
+    auctionId: integer("subasta")
       .notNull()
       .references(() => auctions.id),
-    ownerId: integer("owner_id")
+    ownerId: integer("duenio")
       .notNull()
       .references(() => owners.id),
-    productId: integer("product_id")
+    productId: integer("producto")
       .notNull()
       .references(() => products.id),
-    clientId: integer("client_id")
+    clientId: integer("cliente")
       .notNull()
       .references(() => clients.id),
-    amount: real().notNull(),
-    commission: real().notNull(),
+    amount: real("importe").notNull(),
+    commission: real("comision").notNull(),
   },
   t => [
     check("chk_record_amount", sql`${t.amount} > 0.01`),
