@@ -2,6 +2,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { router, useLocalSearchParams } from "expo-router";
 import { Controller, useForm } from "react-hook-form";
 import { View } from "react-native";
+import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 
 import {
   type NewPasswordInput,
@@ -57,7 +58,12 @@ export default function SetPasswordScreen() {
   }
 
   return (
-    <View className="flex-1 justify-center gap-5 bg-white p-6">
+    <KeyboardAwareScrollView
+      bottomOffset={20}
+      showsVerticalScrollIndicator={false}
+      className="flex-1 bg-white"
+      contentContainerClassName="flex-grow justify-center gap-5 p-6"
+    >
       <Text variant="h2" className="text-center font-bold">
         Crear contraseña
       </Text>
@@ -122,6 +128,6 @@ export default function SetPasswordScreen() {
           {setPassword.isPending ? "Activando..." : "Crear contraseña"}
         </Text>
       </Button>
-    </View>
+    </KeyboardAwareScrollView>
   );
 }

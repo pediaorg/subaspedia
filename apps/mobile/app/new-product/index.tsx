@@ -2,7 +2,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { router, Stack } from "expo-router";
 import { Info } from "lucide-react-native";
 import { useForm } from "react-hook-form";
-import { ScrollView, View } from "react-native";
+import { View } from "react-native";
+import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 
 import {
   type NewProductFormInput,
@@ -60,7 +61,7 @@ export default function PostProduct() {
   return (
     <>
       <Stack.Screen options={{ headerShown: false }} />
-      <ScrollView
+      <KeyboardAwareScrollView
         className="flex-1"
         contentContainerClassName="gap-4 p-4 pb-12"
         keyboardShouldPersistTaps="handled"
@@ -120,7 +121,7 @@ export default function PostProduct() {
             }
           />
         )}
-      </ScrollView>
+      </KeyboardAwareScrollView>
     </>
   );
 }
