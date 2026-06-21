@@ -5,65 +5,19 @@ import { Platform } from "react-native";
 
 import type { AppClient } from "@/api/rpc";
 import { authStore } from "@/lib/auth";
+import { accessTokenExpired, refreshAccessToken } from "@/lib/auth-refresh";
 
 const isWeb = Platform.OS === "web";
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:8787";
-
-// Cliente mínimo SOLO para refrescar el access token. Usa un link plano (sin el
-// interceptor de 401) para que un fallo del refresh no se reintente a sí mismo
-// en loop. El refresh token viaja por cookie httpOnly (web) o header (native).
-const refreshLink = new RPCLink({
-  url: `${API_URL}/rpc`,
-  headers: () => {
-    const h: Record<string, string> = {};
-    if (!isWeb) h["X-Client"] = "native";
-    const refresh = authStore.getRefreshToken();
-    if (!isWeb && refresh) h["X-Refresh-Token"] = refresh;
-    return h;
-  },
-  fetch: (req, init) => fetch(req, { ...init, credentials: "include" }),
-});
-const refreshClient = createORPCClient<AppClient>(refreshLink);
-
-// Refresco compartido: si varias requests dan 401 a la vez, se refresca una sola
-// vez y todas esperan el mismo resultado.
-let refreshing: Promise<boolean> | null = null;
-
-function refreshAccessToken(): Promise<boolean> {
-  if (!refreshing) {
-    refreshing = (async () => {
-      try {
-        const res = await (
-          refreshClient as {
-            auth: { refresh: () => Promise<{ accessToken?: string }> };
-          }
-        ).auth.refresh();
-        if (res?.accessToken) {
-          authStore.set({
-            accessToken: res.accessToken,
-            // En web el refresh sigue en la cookie; en native lo mantenemos.
-            refreshToken: authStore.getRefreshToken() ?? undefined,
-          });
-          return true;
-        }
-      } catch {
-        // cae al cierre de sesión de abajo
-      }
-      // El refresh falló (sin sesión o refresh vencido): cerramos sesión. El
-      // AccessGuard reacciona al store y redirige a /login en vez de dejar la
-      // pantalla cargando para siempre.
-      authStore.set(null);
-      return false;
-    })().finally(() => {
-      refreshing = null;
-    });
-  }
-  return refreshing;
+// Devuelve una copia del request con el Authorization actualizado al nuevo token.
+function withAuth(req: Request, token: string): Request {
+  const headers = new Headers(req.headers);
+  headers.set("Authorization", `Bearer ${token}`);
+  return new Request(req, { headers });
 }
 
 const link = new RPCLink({
-  url: `${API_URL}/rpc`,
+  url: `${process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:8787"}/rpc`,
   headers: () => {
     const h: Record<string, string> = {};
     if (!isWeb) h["X-Client"] = "native";
@@ -73,26 +27,42 @@ const link = new RPCLink({
     if (refresh) h["X-Refresh-Token"] = refresh;
     return h;
   },
-  // Interceptor de 401: el access token dura 15 min. Si una request autenticada
-  // expira, refrescamos el token de forma transparente y reintentamos una vez.
   fetch: async (req, init) => {
-    // Clon para reintentar: el body del original se consume en el primer fetch.
-    const retryReq = req.clone();
-    const res = await fetch(req, { ...init, credentials: "include" });
+    let request = req as Request;
+    const authed = !!authStore.getAccessToken();
 
-    // No tocamos respuestas OK ni el propio endpoint de refresh (evita loops).
-    if (res.status !== 401 || req.url.endsWith("/auth/refresh")) return res;
+    // Proactivo: si la "clave de auth" (access token) ya venció (su TTL llegó a
+    // ~0), la refrescamos antes de mandar y reemplazamos el header.
+    if (authed && accessTokenExpired()) {
+      try {
+        request = withAuth(request, await refreshAccessToken());
+      } catch {
+        // No se pudo refrescar (sesión vencida => logout ya ejecutado).
+        // Mandamos igual; el server responderá 401 y la query fallará.
+      }
+    }
 
-    const ok = await refreshAccessToken();
-    if (!ok) return res;
+    // El body se consume en el primer fetch: guardamos un clon por si hay que
+    // reintentar.
+    const retryRequest = request.clone();
+    let res = await fetch(request, { ...init, credentials: "include" });
 
-    const headers = new Headers(retryReq.headers);
-    const access = authStore.getAccessToken();
-    if (access) headers.set("Authorization", `Bearer ${access}`);
-    return fetch(new Request(retryReq, { headers }), {
-      ...init,
-      credentials: "include",
-    });
+    // Reactivo: el server rechazó por access inválido/vencido. Intentamos un
+    // único refresh + reintento de la request actual.
+    if (res.status === 401 && authed) {
+      try {
+        const token = await refreshAccessToken();
+        res = await fetch(withAuth(retryRequest, token), {
+          ...init,
+          credentials: "include",
+        });
+      } catch {
+        // Refresh falló => sesión terminada (logout ya ejecutado). Devolvemos
+        // el 401 original.
+      }
+    }
+
+    return res;
   },
 });
 
