@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Text } from "@/components/ui/text";
 import { api } from "@/lib/api";
+import { formatMoney } from "@/lib/format";
 
 import { Card, QueryState, SectionHeader } from "./shared";
 
@@ -25,6 +26,9 @@ export function CotizacionesSection() {
   };
 
   const propose = api.backoffice.proposeQuote.useMutation({
+    onSuccess: refetchAll,
+  });
+  const rejectAppraisal = api.backoffice.rejectAppraisal.useMutation({
     onSuccess: refetchAll,
   });
   const confirm = api.backoffice.confirmQuote.useMutation({
@@ -52,14 +56,24 @@ export function CotizacionesSection() {
             key={p.id}
             name={p.name}
             description={p.fullDescription}
-            disabled={propose.isPending}
-            onPropose={(basePrice, commission) =>
-              propose.mutate({ productId: p.id, basePrice, commission })
+            disabled={propose.isPending || rejectAppraisal.isPending}
+            onPropose={(basePrice, commission, message) =>
+              propose.mutate({
+                productId: p.id,
+                basePrice,
+                commission,
+                message,
+              })
+            }
+            onReject={message =>
+              rejectAppraisal.mutate({ productId: p.id, message })
             }
           />
         ))}
-        {propose.error && (
-          <Text className="text-red-500 text-sm">{propose.error.message}</Text>
+        {(propose.error || rejectAppraisal.error) && (
+          <Text className="text-red-500 text-sm">
+            {(propose.error ?? rejectAppraisal.error)?.message}
+          </Text>
         )}
       </View>
 
@@ -82,15 +96,23 @@ export function CotizacionesSection() {
                 {QUOTE_STATE_LABELS[q.state ?? ""] ?? q.state}
               </Text>
             </View>
-            <Text className="text-sm">
-              Base ${q.basePrice} · Comisión ${q.commission}
-            </Text>
+            {q.basePrice !== null && q.commission !== null && (
+              <Text className="text-sm">
+                Base {formatMoney(q.basePrice, "ARS")} · Comisión{" "}
+                {formatMoney(q.commission, "ARS")}
+              </Text>
+            )}
+            {q.message && (
+              <Text className="text-muted-foreground text-xs" numberOfLines={2}>
+                {q.message}
+              </Text>
+            )}
             {q.state === "tasado" && (
               <View className="mt-1 flex-row gap-2">
                 <Button
                   size="sm"
                   disabled={confirm.isPending}
-                  onPress={() => confirm.mutate({ itemId: q.id })}
+                  onPress={() => confirm.mutate({ quoteId: q.id })}
                 >
                   <Text className="text-sm font-semibold text-white">
                     Confirmar
@@ -100,7 +122,7 @@ export function CotizacionesSection() {
                   size="sm"
                   variant="outline"
                   disabled={reject.isPending}
-                  onPress={() => reject.mutate({ itemId: q.id })}
+                  onPress={() => reject.mutate({ quoteId: q.id })}
                 >
                   <Text className="text-sm font-medium">Rechazar</Text>
                 </Button>
@@ -118,24 +140,30 @@ function AppraisalRow({
   description,
   disabled,
   onPropose,
+  onReject,
 }: {
   name: string;
   description: string | null;
   disabled?: boolean;
-  onPropose: (basePrice: number, commission: number) => void;
+  onPropose: (basePrice: number, commission: number, message: string) => void;
+  onReject: (message: string) => void;
 }) {
   const [base, setBase] = useState("");
   const [commission, setCommission] = useState("");
+  const [message, setMessage] = useState("");
 
   const basePrice = Number(base);
   const comm = Number(commission);
   const valid =
     base.length > 0 &&
     commission.length > 0 &&
+    message.trim().length > 0 &&
     basePrice > 0 &&
     comm > 0 &&
     Number.isFinite(basePrice) &&
     Number.isFinite(comm);
+  // Rechazar solo exige el motivo (mensaje), no precio ni comisión.
+  const canReject = message.trim().length > 0;
 
   return (
     <Card>
@@ -161,13 +189,31 @@ function AppraisalRow({
           className="bg-secondary flex-1 border-none"
         />
       </View>
-      <Button
-        size="sm"
-        disabled={!valid || disabled}
-        onPress={() => onPropose(basePrice, comm)}
-      >
-        <Text className="text-sm font-semibold text-white">Cotizar</Text>
-      </Button>
+      <Input
+        value={message}
+        onChangeText={setMessage}
+        placeholder="Mensaje (propuesta o motivo del rechazo)"
+        className="bg-secondary border-none"
+      />
+      <View className="flex-row gap-2">
+        <Button
+          size="sm"
+          className="flex-1"
+          disabled={!valid || disabled}
+          onPress={() => onPropose(basePrice, comm, message.trim())}
+        >
+          <Text className="text-sm font-semibold text-white">Cotizar</Text>
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          className="flex-1"
+          disabled={!canReject || disabled}
+          onPress={() => onReject(message.trim())}
+        >
+          <Text className="text-sm font-medium">Rechazar</Text>
+        </Button>
+      </View>
     </Card>
   );
 }
