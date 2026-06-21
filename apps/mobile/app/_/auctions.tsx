@@ -93,7 +93,7 @@ export function AuctionsPreview() {
           key={auction.id}
           auction={auction}
           onOpenCatalog={() => setCatalogAuctionId(Number(auction.id))}
-          onEnter={() => router.push("/auctions")}
+          onEnter={() => router.push(`/auctions/${auction.id}`)}
         />
       ))}
 

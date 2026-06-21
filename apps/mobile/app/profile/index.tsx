@@ -1,6 +1,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, router } from "expo-router";
 import {
+  ChartLineIcon,
   Clock,
   LogOut,
   LucideHammer,
@@ -39,6 +40,10 @@ export default function Profile() {
   };
   const queryClient = useQueryClient();
   const { data: user } = api.users.me.useQuery();
+  // Actividad real para las StatCards: participaciones y subastas ganadas.
+  // rankSummary ya las calcula (attendees + bids.winner); se comparte con la
+  // pantalla de Rango.
+  const { data: rank } = api.user.rankSummary.useQuery();
   if (!user) return <Text>Cargando usuario...</Text>;
 
   // Dos estados distintos cuando el perfil no está "onboarded":
@@ -96,8 +101,14 @@ export default function Profile() {
               )}
             </View>
             <View className="flex-row gap-5 ">
-              <StatCard value={8} label="Cantidad de subastas" />
-              <StatCard value={8} label="Subastas ganadas" />
+              <StatCard
+                value={rank?.activity.participated ?? 0}
+                label="Cantidad de subastas"
+              />
+              <StatCard
+                value={rank?.activity.won ?? 0}
+                label="Subastas ganadas"
+              />
             </View>
           </Card>
           <View
@@ -142,9 +153,9 @@ export default function Profile() {
             href="/profile/products"
           />
           <MenuItem
-            icon={LucideHammer}
-            label="Subastas"
-            href="/profile/auctions"
+            icon={ChartLineIcon}
+            label="Estadísticas"
+            href="/profile/stats"
           />
           <MenuItem
             icon={TriangleAlertIcon}
