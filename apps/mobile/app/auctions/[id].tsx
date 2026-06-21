@@ -34,7 +34,7 @@ export default function AuctionDetailScreen() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
   const queryClient = useQueryClient();
-  const { canBid } = useAuth();
+  const { isAuthed, category, canBid } = useAuth();
 
   const CATEGORY_LABELS: Record<string, string> = {
     common: "Común",
@@ -433,7 +433,8 @@ export default function AuctionDetailScreen() {
                   </TouchableOpacity>
                 </View>
               </View>
-            ) : (
+            ) : !isAuthed ? (
+              // No logueado: invitar a iniciar sesión.
               <View className="bg-[#F8F9FA] px-6 py-6 pb-12 items-center">
                 <TouchableOpacity
                   onPress={() => router.push("/login")}
@@ -442,6 +443,32 @@ export default function AuctionDetailScreen() {
                   <Ionicons name="lock-closed" size={22} color="#F59E0B" />
                   <Text className="text-gray-600 font-bold text-lg underline ml-3">
                     Inicia sesión
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            ) : !category ? (
+              // Logueado pero la empresa todavía no lo verificó/categorizó.
+              <View className="bg-[#F8F9FA] px-6 py-5 pb-12 items-center">
+                <Ionicons name="time-outline" size={22} color="#F59E0B" />
+                <Text className="text-gray-600 font-semibold text-center mt-2">
+                  Tu perfil está en verificación. Vas a poder pujar cuando la
+                  empresa te asigne una categoría.
+                </Text>
+              </View>
+            ) : (
+              // Logueado y con categoría, pero sin medio de pago verificado:
+              // sólo puede mirar. Lo mandamos a cargar/verificar un medio.
+              <View className="bg-[#F8F9FA] px-6 py-5 pb-12 items-center">
+                <Text className="text-gray-600 font-semibold text-center mb-3">
+                  Para pujar necesitás un medio de pago verificado.
+                </Text>
+                <TouchableOpacity
+                  onPress={() => router.push("/profile/payment-methods")}
+                  className="flex-row items-center justify-center bg-blue-800 rounded-full px-8 py-4 shadow-md w-[80%]"
+                >
+                  <Ionicons name="wallet-outline" size={22} color="white" />
+                  <Text className="text-white font-bold text-base ml-3">
+                    Agregar medio de pago
                   </Text>
                 </TouchableOpacity>
               </View>
