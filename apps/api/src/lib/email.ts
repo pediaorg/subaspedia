@@ -109,13 +109,25 @@ function categoryLabel(category: AuctionCategory): string {
   return PRODUCT_CATEGORIES.find(c => c.value === category)?.label ?? category;
 }
 
+/** Botón que apunta al link de set-password (un solo uso) con el token. */
+function setPasswordButton(token: string, label: string): string {
+  const origin = env.WEB_ORIGIN ?? DEFAULT_WEB_ORIGIN;
+  const url = `${origin}/register/set-password?token=${encodeURIComponent(token)}`;
+  return `
+    <p style="margin: 24px 0;">
+      <a href="${url}" style="display: inline-block; background: #111; color: #fff; text-decoration: none; padding: 12px 20px; border-radius: 8px; font-weight: 600;">${label}</a>
+    </p>
+  `;
+}
+
 /**
  * Avisa al postor que la empresa terminó la investigación y le asignó una
- * categoría. Lo invita a ingresar a la app a completar el registro.
+ * categoría. Incluye el link para que fije su contraseña y habilite el login.
  */
 export async function sendCategoryAssignedEmail(
   to: string,
   category: AuctionCategory,
+  setPasswordToken: string,
 ): Promise<void> {
   await sendEmail({
     to,
@@ -123,8 +135,8 @@ export async function sendCategoryAssignedEmail(
     html: layout(`
       <h1 style="font-size: 20px;">¡Bienvenido a Subaspedia!</h1>
       <p>Terminamos de revisar tus datos y te asignamos la categoría <strong>${categoryLabel(category)}</strong>.</p>
-      <p>Ya podés ingresar a la app, completar tu registro y crear tu clave personal para ver los precios base y las subastas de tu categoría.</p>
-      ${logoutButton("Ingresar a Subaspedia")}
+      <p>Para activar tu cuenta, creá tu clave personal desde el siguiente botón. El link vence en 72 horas.</p>
+      ${setPasswordButton(setPasswordToken, "Crear mi contraseña")}
       <p style="color: #666; font-size: 13px;">Para poder pujar, recordá registrar al menos un medio de pago y esperar a que lo validemos.</p>
     `),
   });

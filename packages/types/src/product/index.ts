@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { currency } from "../index";
+
 export const productStatus = z.enum([
   "under_review",
   "appraised",
@@ -27,6 +29,9 @@ export const productSchema = z.object({
   proposedBasePrice: z.number().positive().nullable(),
   proposedCommission: z.number().positive().nullable(),
   salePrice: z.number().positive().nullable(),
+  // Moneda de la venta (hereda la de la subasta donde se remató). Null si el
+  // producto todavía no se vendió.
+  currency: currency.nullable(),
   saleDate: z.iso.datetime().nullable(),
   auctionId: z.number().int().positive().nullable(),
 });

@@ -5,8 +5,10 @@
   "scripts": {
     "prepare": "lefthook install",
     "dev": "turbo run dev",
-    "go": "pnpm --filter @subaspedia/mobile go",
-    "go:tunnel": "pnpm go --tunnel",
+    "go": "bash scripts/dev-mobile.sh wifi",
+    "go:cable": "bash scripts/dev-mobile.sh cable",
+    "go:mobile": "pnpm --filter @subaspedia/mobile go",
+    "go:tunnel": "pnpm go:mobile --tunnel",
     "start": "pnpm --filter @subaspedia/mobile start",
     "android": "pnpm --filter @subaspedia/mobile android",
     "ios": "pnpm --filter @subaspedia/mobile ios",

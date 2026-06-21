@@ -71,6 +71,14 @@ function hexToBuf(hex: string): Uint8Array {
   return out;
 }
 
+// El token de set-password vence a las 72 horas de emitido.
+export const SET_PASSWORD_TTL_MS = 72 * 60 * 60 * 1000;
+
+/** Genera un token opaco (hex de 32 bytes) para el link de set-password. */
+export function generateSetPasswordToken(): string {
+  return bufToHex(crypto.getRandomValues(new Uint8Array(32)).buffer);
+}
+
 export async function hashPassword(password: string): Promise<string> {
   const salt = crypto.getRandomValues(new Uint8Array(16));
   const key = await crypto.subtle.importKey(

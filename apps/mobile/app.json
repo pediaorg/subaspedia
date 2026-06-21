@@ -22,6 +22,11 @@
               "scheme": "https",
               "host": "subaspedia.casareski.com",
               "pathPrefix": "/logout"
+            },
+            {
+              "scheme": "https",
+              "host": "subaspedia.casareski.com",
+              "pathPrefix": "/register/set-password"
             }
           ],
           "category": ["BROWSABLE", "DEFAULT"]
