@@ -40,14 +40,20 @@ export const people = sqliteTable(
     // persona necesariamente loguea (p. ej. clientes cargados por un empleado).
     email: text("email").unique(),
     passwordHash: text("hashContrasenia"),
+    // Token de un solo uso para fijar la contraseña una vez que la empresa
+    // aprueba al postor (se manda por mail). Nulo cuando no hay set-password
+    // pendiente.
+    setPasswordToken: text("tokenContrasenia"),
+    setPasswordExpiresAt: text("tokenContraseniaExpira"),
     createdAt: text("creadoEn").notNull().default(sql`(current_timestamp)`),
   },
   t => [
     check("chk_status", sql`${t.status} IN ('active', 'inactive')`),
-    // Si hay email, debe haber password (y viceversa).
+    // Si hay contraseña, debe haber email. Permite el estado intermedio
+    // "email cargado, sin contraseña" mientras la empresa no aprobó la cuenta.
     check(
       "chk_credentials",
-      sql`(${t.email} IS NULL) = (${t.passwordHash} IS NULL)`,
+      sql`${t.passwordHash} IS NULL OR ${t.email} IS NOT NULL`,
     ),
   ],
 );
@@ -61,6 +67,7 @@ export const emailVerifications = sqliteTable("verificacionesEmail", {
   lastName: text("apellido").notNull(),
   address: text("direccion").notNull(),
   country: text("pais"),
+  document: text("documento"),
   dniFront: text("dniFrente"),
   dniBack: text("dniDorso"),
   verified: boolean("verificado").default(false),

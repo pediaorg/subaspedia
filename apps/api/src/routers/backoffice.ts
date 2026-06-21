@@ -17,6 +17,7 @@ import {
   products,
 } from "@/api/db/schema";
 import { toIso } from "@/api/lib/date";
+import { generateSetPasswordToken, SET_PASSWORD_TTL_MS } from "@/api/lib/auth";
 import {
   sendCategoryAssignedEmail,
   sendPaymentMethodVerifiedEmail,
@@ -137,9 +138,21 @@ export const backofficeRouter = {
         verifierId,
       });
 
-      // Le avisamos que ya puede ingresar a la app y completar el registro.
+      // Generamos el token de set-password y lo guardamos en la persona: el
+      // postor lo usa (vía el link del mail) para fijar su clave y habilitar el
+      // login. La cuenta sigue sin contraseña hasta ese momento.
+      const token = generateSetPasswordToken();
+      const setPasswordExpiresAt = new Date(
+        Date.now() + SET_PASSWORD_TTL_MS,
+      ).toISOString();
+      await context.db
+        .update(people)
+        .set({ setPasswordToken: token, setPasswordExpiresAt })
+        .where(eq(people.id, input.personId));
+
+      // Le avisamos que ya puede ingresar a la app y fijar su contraseña.
       if (person.email)
-        await sendCategoryAssignedEmail(person.email, input.category);
+        await sendCategoryAssignedEmail(person.email, input.category, token);
 
       return { success: true };
     }),
