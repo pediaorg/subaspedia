@@ -17,6 +17,9 @@ export type Context = {
   refreshHeader: string | null;
   clientType: "web" | "native";
   cookieJar: CookieDirective[];
+  // Origin del API (p. ej. http://localhost:8787), tomado de la request. Se usa
+  // para construir URLs absolutas a /photo/:id sin embeber blobs en las queries.
+  apiOrigin: string;
 };
 
 export const pub = os.$context<Context>();

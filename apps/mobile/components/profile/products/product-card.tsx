@@ -22,11 +22,14 @@ function getActionForStatus(product: Product): Action | null {
   switch (product.status) {
     case "approved":
     case "auctioned":
+      // Tanto un bien aprobado (en una subasta abierta) como uno ya rematado
+      // linkean al detalle real de su subasta (/auctions/{id}, que getDetail
+      // resuelve para subastas abiertas o cerradas).
       return product.auctionId
         ? {
             label: "Ver subasta",
             href: `/auctions/${product.auctionId}`,
-            ready: false,
+            ready: true,
           }
         : null;
     case "appraised":
@@ -35,8 +38,15 @@ function getActionForStatus(product: Product): Action | null {
         href: `/profile/products/${product.id}/proposal`,
         ready: true,
       };
-    case "under_review":
     case "rejected":
+      // Mismo detalle que la propuesta, pero en modo lectura: el dueño puede
+      // ver el motivo del rechazo (sin botones de aceptar/rechazar).
+      return {
+        label: "Ver motivo",
+        href: `/profile/products/${product.id}/proposal`,
+        ready: true,
+      };
+    case "under_review":
       return null;
   }
 }
