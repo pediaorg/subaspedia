@@ -26,6 +26,7 @@ import { ProductDialog } from "@/components/auctions/product-dialog";
 import { api } from "@/lib/api";
 import type { Product } from "@/lib/auctions";
 import { useAuth } from "@/lib/auth";
+import { formatMoney } from "@/lib/format";
 import { photoUri } from "@/lib/photo";
 
 export default function AuctionDetailScreen() {
@@ -89,6 +90,7 @@ export default function AuctionDetailScreen() {
         description: item.product?.fullDescription || "",
         currentOwner: item.product?.ownerName ?? "—",
         basePrice: item.basePrice,
+        currency: auction.currency,
       };
 
       return { ...base, kind: "object" as const };
@@ -275,9 +277,11 @@ export default function AuctionDetailScreen() {
                   {/* Card: Precio Actual */}
                   <View className="w-[48%] bg-white rounded-2xl p-4 shadow-sm border border-gray-100 justify-center items-center flex-row">
                     <Text className="text-blue-900 font-black text-2xl">
-                      $
-                      {auction.currentBid ||
-                        auction.catalogs[0].items[0].basePrice}
+                      {formatMoney(
+                        auction.currentBid ||
+                          auction.catalogs[0].items[0].basePrice,
+                        auction.currency,
+                      )}
                     </Text>
                   </View>
                 </View>
@@ -312,7 +316,7 @@ export default function AuctionDetailScreen() {
                         <Text
                           className={`text-base ${index === 0 ? "text-blue-900 font-black text-lg" : "text-gray-500 font-medium"}`}
                         >
-                          ${bid.amount}
+                          {formatMoney(bid.amount, auction.currency)}
                         </Text>
                       </View>
                     ))

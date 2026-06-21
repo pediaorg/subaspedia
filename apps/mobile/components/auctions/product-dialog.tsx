@@ -6,16 +6,7 @@ import { Separator } from "@/components/ui/separator";
 import { Text } from "@/components/ui/text";
 import type { Product } from "@/lib/auctions";
 import { useAuth } from "@/lib/auth";
-
-const priceFormatter = new Intl.NumberFormat("es-AR", {
-  style: "currency",
-  currency: "ARS",
-  maximumFractionDigits: 0,
-});
-
-function formatPrice(amount: number): string {
-  return priceFormatter.format(amount);
-}
+import { formatMoney } from "@/lib/format";
 
 type ProductDialogProps = {
   product: Product | null;
@@ -136,7 +127,7 @@ export function ProductDialog({
                           }
                     }
                   >
-                    {formatPrice(product.basePrice)}
+                    {formatMoney(product.basePrice, product.currency)}
                   </Text>
                 </View>
               </View>
