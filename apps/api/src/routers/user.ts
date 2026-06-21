@@ -217,7 +217,7 @@ export const userRouter = {
         with: {
           product: {
             columns: { id: true, name: true },
-            with: { photos: { columns: { photo: true } } },
+            with: { photos: { columns: { id: true } } },
           },
           auction: {
             columns: { date: true },
@@ -235,7 +235,11 @@ export const userRouter = {
           {
             id: r.id,
             productName: r.product.name,
-            img: firstPhotoToImg(r.product.photos[0]?.photo, r.product.id),
+            img: firstPhotoToImg(
+              r.product.photos[0]?.id,
+              context.apiOrigin,
+              r.product.id,
+            ),
             // Total pagado = puja + comisión. `comision` es un PORCENTAJE de la
             // puja (no un monto), p. ej. 12 = 12%. TODO(envío): sumar el costo
             // de envío cuando se modele.

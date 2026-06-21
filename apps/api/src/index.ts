@@ -3,14 +3,19 @@ import { RPCHandler } from "@orpc/server/fetch";
 import { eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
+import { verify } from "hono/jwt";
 import { secureHeaders } from "hono/secure-headers";
 
 import { createDb } from "@/api/db";
-import { dbExplorer } from "@/api/db-explorer";
 import { photos } from "@/api/db/schema";
+import { dbExplorer } from "@/api/db-explorer";
 import { AuctionRoom } from "@/api/durable-objects/auction";
 import type { CookieDirective } from "@/api/lib/auth";
-import { parseRefreshCookie, serializeCookie } from "@/api/lib/auth";
+import {
+  JWT_PAYLOAD,
+  parseRefreshCookie,
+  serializeCookie,
+} from "@/api/lib/auth";
 import { router } from "@/api/rpc";
 
 export { AuctionRoom };
@@ -94,6 +99,7 @@ app.use("/rpc/*", async (c, next) => {
         refreshHeader: c.req.header("X-Refresh-Token") ?? null,
         clientType: c.req.header("X-Client") === "native" ? "native" : "web",
         cookieJar,
+        apiOrigin: new URL(c.req.url).origin,
       },
     });
 
@@ -126,6 +132,36 @@ app.onError((err, c) => {
   return c.json({ error: "Internal", message: err.message }, { status: 500 });
 });
 
-app.get("/auctions/:id/ws", c => c.text("TODO", 501));
+// WebSocket de subasta en vivo: canal único de pujas y de difusión en tiempo
+// real (puja actual, quién la tiene, tiempo restante). El postor se autentica
+// con `?token=<accessToken>` (los WebSockets del navegador no pueden mandar
+// headers): si el token es válido, inyectamos su id como header interno hacia el
+// DO; sin token la conexión es de solo lectura (espectador). Reenvía el upgrade
+// a la instancia del Durable Object de la subasta.
+app.get("/auctions/:id/ws", async c => {
+  const id = Number(c.req.param("id"));
+  if (!Number.isInteger(id) || id <= 0) return c.text("Invalid id", 400);
+
+  if (c.req.header("Upgrade") !== "websocket")
+    return c.text("Expected websocket", 426);
+
+  const headers = new Headers(c.req.raw.headers);
+  headers.set("X-Auction-Id", String(id));
+
+  const token = new URL(c.req.url).searchParams.get("token");
+  if (token) {
+    const payload = await verify(token, c.env.JWT_SECRET, "HS256")
+      .catch(() => null)
+      .then(JWT_PAYLOAD.safeParse);
+    if (payload.success && payload.data.type === "access")
+      headers.set("X-User-Id", String(payload.data.sub));
+  }
+
+  const stub = c.env.AUCTION_ROOM.get(
+    c.env.AUCTION_ROOM.idFromName(`auction:${id}`),
+  );
+
+  return stub.fetch(new Request(c.req.url, { method: "GET", headers }));
+});
 
 export default app;
