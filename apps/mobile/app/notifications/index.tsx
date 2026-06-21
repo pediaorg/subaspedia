@@ -1,34 +1,56 @@
-import { Stack } from "expo-router";
-import { Check, Info, Star, X } from "lucide-react-native";
-import type * as React from "react";
-import { ScrollView, View } from "react-native";
+import { router, Stack } from "expo-router";
+import { Pressable, ScrollView, View } from "react-native";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import type { Notification } from "@subaspedia/types/notification";
+import { NotificationIcon } from "@/components/notifications/notification-icon";
+import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Text } from "@/components/ui/text";
+import { api } from "@/lib/api";
 
-const CATEGORIES = [
-  { name: "Común", enabled: true },
-  { name: "Especial", enabled: true },
-  { name: "Plata", enabled: true },
-  { name: "Oro", enabled: true },
-  { name: "Platino", enabled: false },
-];
+function formatDate(iso: string) {
+  const d = new Date(iso);
+  return d.toLocaleDateString("es-AR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
+}
 
-function CategoryItem({ name, enabled }: { name: string; enabled: boolean }) {
+function NotificationRow({ notification }: { notification: Notification }) {
   return (
-    <View className="flex flex-row items-center gap-1">
-      {enabled ? (
-        <Check size={18} className="text-green-600" />
-      ) : (
-        <X size={18} className="text-red-500" />
-      )}
-      <Text className="text-base">{name}</Text>
-    </View>
+    <Pressable
+      onPress={() => router.push(`/notifications/${notification.id}` as never)}
+    >
+      <Card className="bg-white drop-shadow-md/40 border-none flex-row items-center gap-4 p-4">
+        <NotificationIcon route={notification.route} />
+        <View className="flex-1">
+          <Text
+            className="text-base font-bold"
+            numberOfLines={1}
+            ellipsizeMode="tail"
+          >
+            {notification.title}
+          </Text>
+          <Text
+            className="text-sm text-gray-600"
+            numberOfLines={1}
+            ellipsizeMode="tail"
+          >
+            {notification.body}
+          </Text>
+        </View>
+        <Text className="text-xs text-gray-500">
+          {formatDate(notification.createdAt)}
+        </Text>
+      </Card>
+    </Pressable>
   );
 }
 
 export default function Notifications() {
+  const { data, isLoading, error } = api.notifications.list.useQuery();
+
   return (
     <>
       <Stack.Screen options={{ headerShown: false }} />
@@ -41,31 +63,22 @@ export default function Notifications() {
           Notificaciones
         </Text>
         <Separator className="bg-[#D9D9D9]" />
-        <Card className="bg-white drop-shadow-md/40 border-none flex-col">
-          <CardHeader className="flex-row place-items-center gap-5">
-            {" "}
-            <img
-              src="https://cdn-icons-png.flaticon.com/512/190/190411.png"
-              alt="Notificación"
-              className="w-10 h-10 rounded-full"
-            />
-            <CardTitle className="text-xl text-left font-bold">
-              <Text className="text-xl text-left font-bold">
-                Método de pago...
-              </Text>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="gap-4">
-            <View>
-              <View className="flex flex-col gap-4">
-                <Text className="text-sm text-left">
-                  Le comunicamos que su método de pago ha sido actualizado.
-                </Text>
-                <Text className="text-sm text-right">16/04/2026</Text>
-              </View>
-            </View>
-          </CardContent>
-        </Card>
+
+        {isLoading && <Text className="text-gray-500">Cargando…</Text>}
+        {error && (
+          <Text className="text-red-500">
+            No pudimos cargar tus notificaciones: {error.message}
+          </Text>
+        )}
+        {!isLoading && !error && (data?.length ?? 0) === 0 && (
+          <Text className="text-gray-500 text-center">
+            No tenés notificaciones todavía.
+          </Text>
+        )}
+
+        {data?.map(n => (
+          <NotificationRow key={n.id} notification={n} />
+        ))}
       </ScrollView>
     </>
   );
