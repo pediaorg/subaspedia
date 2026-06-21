@@ -172,9 +172,10 @@ export const userRouter = {
               context.apiOrigin,
               r.product.id,
             ),
-            // Total pagado = puja + comisión. TODO(envío): sumar el costo de
-            // envío cuando se modele.
-            amount: r.amount + r.commission,
+            // Total pagado = puja + comisión. `comision` es un PORCENTAJE de la
+            // puja (no un monto), p. ej. 12 = 12%. TODO(envío): sumar el costo
+            // de envío cuando se modele.
+            amount: r.amount + (r.amount * r.commission) / 100,
             currency: r.auction.currencyRow?.currency ?? "ARS",
             date: toIso(r.auction.date),
             auctionId: r.auctionId,

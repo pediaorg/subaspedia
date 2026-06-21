@@ -135,7 +135,7 @@ export default function ProposalScreen() {
               <View className="flex-row justify-between items-center">
                 <Text className="font-bold text-gray-700">Comisión</Text>
                 <Text className="font-bold text-primary text-base">
-                  {formatMoney(product.proposedCommission, "ARS")}
+                  {product.proposedCommission}%
                 </Text>
               </View>
             )}

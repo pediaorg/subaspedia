@@ -259,7 +259,8 @@ export const backofficeRouter = {
       z.object({
         productId: z.number().int().positive(),
         basePrice: z.number().positive(),
-        commission: z.number().positive(),
+        // La comisión es un PORCENTAJE del precio base (no un monto): 0 < x <= 100.
+        commission: z.number().gt(0).max(100),
         message: z.string().trim().min(1),
       }),
     )

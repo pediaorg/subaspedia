@@ -98,8 +98,8 @@ export function CotizacionesSection() {
             </View>
             {q.basePrice !== null && q.commission !== null && (
               <Text className="text-sm">
-                Base {formatMoney(q.basePrice, "ARS")} · Comisión{" "}
-                {formatMoney(q.commission, "ARS")}
+                Base {formatMoney(q.basePrice, "ARS")} · Comisión {q.commission}
+                %
               </Text>
             )}
             {q.message && (
@@ -159,7 +159,9 @@ function AppraisalRow({
     commission.length > 0 &&
     message.trim().length > 0 &&
     basePrice > 0 &&
+    // La comisión es un porcentaje del precio base: 0 < x <= 100.
     comm > 0 &&
+    comm <= 100 &&
     Number.isFinite(basePrice) &&
     Number.isFinite(comm);
   // Rechazar solo exige el motivo (mensaje), no precio ni comisión.
@@ -185,7 +187,7 @@ function AppraisalRow({
           value={commission}
           onChangeText={setCommission}
           keyboardType="numeric"
-          placeholder="Comisión"
+          placeholder="Comisión (%)"
           className="bg-secondary flex-1 border-none"
         />
       </View>
