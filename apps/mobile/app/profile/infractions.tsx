@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { ScrollView, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import PenaltyCard from "@/components/profile/infractions/penalty-card";
 import TransactionCard from "@/components/profile/transactions/transaction-card";
@@ -9,6 +10,7 @@ import { api } from "@/lib/api";
 
 export default function UserPenalties() {
   const [tab, setTab] = useState("penalties");
+  const insets = useSafeAreaInsets();
 
   const {
     data: penalties,
@@ -54,7 +56,11 @@ export default function UserPenalties() {
             </Text>
           )}
 
-          <ScrollView contentContainerClassName="gap-6 py-4">
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            contentContainerClassName="gap-6 pt-4"
+            contentContainerStyle={{ paddingBottom: insets.bottom + 96 }}
+          >
             {penalties?.map(penalty => (
               <PenaltyCard key={penalty.id} penalty={penalty} />
             ))}
@@ -80,7 +86,11 @@ export default function UserPenalties() {
               </Text>
             )}
 
-          <ScrollView contentContainerClassName="gap-6 py-4">
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            contentContainerClassName="gap-6 pt-4"
+            contentContainerStyle={{ paddingBottom: insets.bottom + 96 }}
+          >
             {transactions?.map(transaction => (
               <TransactionCard key={transaction.id} transaction={transaction} />
             ))}
