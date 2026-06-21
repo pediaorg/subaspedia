@@ -1,3 +1,5 @@
+import type { Currency } from "@subaspedia/types";
+
 import { photoUri } from "@/lib/photo";
 
 export const RANKS = ["Común", "Especial", "Plata", "Oro", "Platino"] as const;
@@ -19,6 +21,7 @@ type ProductBase = {
   description: string;
   currentOwner: string;
   basePrice: number;
+  currency: Currency;
 };
 
 export type ObjectProduct = ProductBase & { kind: "object" };

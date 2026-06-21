@@ -200,6 +200,23 @@ export const auctions = sqliteTable(
   ],
 );
 
+// Moneda de cada subasta (ARS/USD). Tabla satélite: extiende `subastas` sin
+// modificar la estructura original (intocable). 1:1 con la subasta (PK = subasta).
+// La lectura SIEMPRE debe ser LEFT JOIN + COALESCE(moneda, 'ARS'): las subastas
+// sin fila (legacy) caen al default y no rompen ningún flujo. El enum va inline
+// (igual que el resto del schema, p. ej. `categoria`); su fuente lógica es el
+// enum `currency` de @subaspedia/types — mantenerlos alineados.
+export const auctionCurrencies = sqliteTable(
+  "monedasSubasta",
+  {
+    auctionId: integer("subasta")
+      .primaryKey()
+      .references(() => auctions.id),
+    currency: text("moneda", { enum: ["ARS", "USD"] }).notNull(),
+  },
+  t => [check("chk_currency", sql`${t.currency} IN ('ARS', 'USD')`)],
+);
+
 export const products = sqliteTable("productos", {
   id: integer("identificador").primaryKey({ autoIncrement: true }),
   date: text("fecha"),
@@ -309,5 +326,35 @@ export const auctionRecords = sqliteTable(
   t => [
     check("chk_record_amount", sql`${t.amount} > 0.01`),
     check("chk_record_commission", sql`${t.commission} > 0.01`),
+  ],
+);
+
+// Multas del client (penalties). Tabla NUEVA (no estaba en la estructura
+// legacy). Causal única de dominio = falta de pago (10% de lo ofertado, 72hs
+// para presentar fondos). La moneda se denormaliza acá (columna propia) porque
+// la multa puede no estar atada a una subasta (`subasta` nullable) -> se lee sin
+// JOIN; su fuente lógica es el enum `currency` de @subaspedia/types.
+// `estado` SOLO persiste 'pending'/'paid': el estado 'overdue' (vencida) es
+// DERIVADO al leer (pending && venceEl < hoy), porque depende del tiempo y no
+// debe quedar fijo en la fila (regla del proyecto: tiempo en la capa de app).
+export const penalties = sqliteTable(
+  "multas",
+  {
+    id: integer("identificador").primaryKey({ autoIncrement: true }),
+    clientId: integer("cliente")
+      .notNull()
+      .references(() => clients.id),
+    reason: text("motivo").notNull(),
+    amount: real("importe").notNull(),
+    currency: text("moneda", { enum: ["ARS", "USD"] }).notNull(),
+    status: text("estado", { enum: ["pending", "paid"] }).notNull(),
+    issuedAt: text("emitidaEl").notNull(),
+    dueDate: text("venceEl").notNull(),
+    auctionId: integer("subasta").references(() => auctions.id),
+  },
+  t => [
+    check("chk_penalty_amount", sql`${t.amount} > 0.01`),
+    check("chk_penalty_currency", sql`${t.currency} IN ('ARS', 'USD')`),
+    check("chk_penalty_status", sql`${t.status} IN ('pending', 'paid')`),
   ],
 );

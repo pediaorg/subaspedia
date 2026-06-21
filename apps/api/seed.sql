@@ -35,6 +35,7 @@
 PRAGMA foreign_keys = OFF;
 
 -- ---- Limpieza (orden inverso a las dependencias FK) ------------------------
+DELETE FROM multas;
 DELETE FROM registroDeSubasta;
 DELETE FROM pujos;
 DELETE FROM asistentes;
@@ -42,6 +43,7 @@ DELETE FROM itemsCatalogo;
 DELETE FROM catalogos;
 DELETE FROM fotos;
 DELETE FROM productos;
+DELETE FROM monedasSubasta;
 DELETE FROM subastas;
 DELETE FROM subastadores;
 DELETE FROM duenios;
@@ -112,7 +114,15 @@ INSERT INTO subastadores (identificador, matricula, region) VALUES
 -- La regla "fecha > hoy + 10 días" ya NO se valida en la DB (sin trigger).
 -- Cuando exista POST /auctions, validarla en el zod del input.
 INSERT INTO subastas (identificador, fecha, hora, estado, subastador, ubicacion, capacidadAsistentes, tieneDeposito, seguridadPropia, categoria) VALUES
-  (1, '2027-03-01', '18:00', 'open', 2, 'Salón Central', 100, 1, 1, 'gold');
+  (1, '2027-03-01', '18:00', 'open', 2, 'Salón Central', 100, 1, 1, 'gold'),
+  (2, '2027-04-15', '17:00', 'open', 2, 'Salón Norte',   80,  1, 1, 'common');
+
+-- ---- monedasSubasta (auction_currencies) — tabla satélite de moneda ---------
+-- Cada subasta es en ARS o USD (nunca bimonetaria). La lectura usa LEFT JOIN +
+-- COALESCE(moneda, 'ARS'), así que una subasta SIN fila acá cae al default ARS.
+INSERT INTO monedasSubasta (subasta, moneda) VALUES
+  (1, 'ARS'),
+  (2, 'USD');
 
 -- ---- productos (products; FK -> empleados(revisor), duenios, seguros) -------
 -- `nombre` es NOT NULL en el schema (título corto del bien para el catálogo).
@@ -128,7 +138,12 @@ INSERT INTO productos (identificador, fecha, disponible, descripcionCatalogo, de
   (3, '2026-06-06', 0, 'None',                 'Cámara de fotos vintage en su estuche original de cuero.', NULL, 3, NULL, 'Cámara vintage'),
   (4, '2026-06-02', 1, 'Guitarra criolla',     'Guitarra criolla de luthier, caja de cedro macizo.',       1,    3, NULL, 'Guitarra criolla'),
   (5, '2026-05-20', 0, 'None',                 'Cuadro de paisaje al óleo, sin firma identificable.',      1,    3, NULL, 'Cuadro sin firma'),
-  (6, '2026-04-10', 1, 'Vajilla de porcelana', 'Vajilla de porcelana Limoges, juego de 12 cubiertos.',     1,    3, NULL, 'Vajilla Limoges');
+  (6, '2026-04-10', 1, 'Vajilla de porcelana', 'Vajilla de porcelana Limoges, juego de 12 cubiertos.',     1,    3, NULL, 'Vajilla Limoges'),
+  -- Producto de la subasta 2 (USD): le da contenido al catálogo en dólares.
+  (7, '2026-12-01', 1, 'Moneda de colección',  'Moneda de colección estadounidense de plata, edición limitada.', 1, 4, NULL, 'Moneda de colección'),
+  -- Producto de Juan (dueño 3) rematado en la subasta 2 (USD): le da una venta
+  -- en dólares a "Mis productos" para demostrar la moneda en esa pantalla.
+  (8, '2026-12-03', 1, 'Lingote de plata',     'Lingote de plata de inversión, 1 onza troy.',                    1, 3, NULL, 'Lingote de plata');
 
 -- ---- fotos (photos; FK -> productos; foto es BLOB NOT NULL, placeholder PNG header)
 INSERT INTO fotos (identificador, producto, foto) VALUES
@@ -137,11 +152,14 @@ INSERT INTO fotos (identificador, producto, foto) VALUES
   (3, 3, x'89504e470d0a1a0a'),
   (4, 4, x'89504e470d0a1a0a'),
   (5, 5, x'89504e470d0a1a0a'),
-  (6, 6, x'89504e470d0a1a0a');
+  (6, 6, x'89504e470d0a1a0a'),
+  (7, 7, x'89504e470d0a1a0a'),
+  (8, 8, x'89504e470d0a1a0a');
 
 -- ---- catalogos (catalogs; FK -> subastas, empleados(responsable)) ----------
 INSERT INTO catalogos (identificador, descripcion, subasta, responsable) VALUES
-  (1, 'Catálogo Subasta Marzo 2027', 1, 1);
+  (1, 'Catálogo Subasta Marzo 2027', 1, 1),
+  (2, 'Catálogo Subasta Abril 2027 (USD)', 2, 1);
 
 -- ---- itemsCatalogo (catalog_items; FK -> catalogos, productos; checks: precioBase/comision > 0.01)
 -- `estado` (enum) reemplazó a la vieja columna `subastado`. El reloj (item 1) ya
@@ -152,7 +170,11 @@ INSERT INTO itemsCatalogo (identificador, catalogo, producto, precioBase, comisi
   -- itemsCatalogo de los productos de Juan (le dan su `status` a "Mis productos").
   (3, 1, 4, 50000,  10, 'aceptado'),
   (4, 1, 5, 30000,  10, 'rechazado'),
-  (5, 1, 6, 120000, 12, 'subastado');
+  (5, 1, 6, 120000, 12, 'subastado'),
+  -- Item del catálogo USD (subasta 2): precioBase y comisión en dólares.
+  (6, 2, 7, 1500, 5, 'aceptado'),
+  -- El lingote de Juan (producto 8) ya se remató en la subasta 2 -> 'subastado'.
+  (7, 2, 8, 2000, 8, 'subastado');
 
 -- ---- asistentes (attendees; FK -> clientes, subastas) ----------------------
 INSERT INTO asistentes (identificador, numeroPostor, cliente, subasta) VALUES
@@ -171,6 +193,22 @@ INSERT INTO registroDeSubasta (identificador, subasta, duenio, producto, cliente
   (1, 1, 4, 1, 3, 185000, 12),
   -- La vajilla (producto 6) de Juan (dueño 3) se la lleva Ana (cliente 5).
   -- Da salePrice/saleDate a su card "Subastado" (saleDate = subastas.fecha).
-  (2, 1, 3, 6, 5, 135000, 12);
+  (2, 1, 3, 6, 5, 135000, 12),
+  -- El lingote (producto 8) de Juan (dueño 3) se lo lleva Ana (cliente 5) en la
+  -- subasta 2 (USD): salePrice en dólares para "Mis productos" de Juan.
+  (3, 2, 3, 8, 5, 2200, 8);
+
+-- ---- multas (penalties; FK -> clientes, subastas) --------------------------
+-- Multas de Juan (cliente 3), una por estado para la pantalla "Multas y pagos".
+-- Causal única = falta de pago (10% de lo ofertado). `estado` solo guarda
+-- pending/paid; 'overdue' (vencida) lo deriva el back si venceEl < hoy.
+-- `emitidaEl`/`venceEl` van como 'YYYY-MM-DD' (el back las normaliza a ISO).
+INSERT INTO multas (identificador, cliente, motivo, importe, moneda, estado, emitidaEl, venceEl, subasta) VALUES
+  -- Pendiente y vigente (vence en el futuro): se ve como "Pendiente" + botón Pagar.
+  (1, 3, 'Falta de pago', 18500, 'ARS', 'pending', '2026-06-15', '2026-06-30', 1),
+  -- Pendiente pero ya vencida (venceEl < hoy): el back la deriva a "Vencida".
+  (2, 3, 'Falta de pago', 13500, 'ARS', 'pending', '2026-04-10', '2026-04-13', 1),
+  -- Pagada en dólares (subasta 2 USD): prueba la moneda y el estado "Pagada".
+  (3, 3, 'Falta de pago', 220,   'USD', 'paid',    '2026-03-01', '2026-03-04', 2);
 
 PRAGMA foreign_keys = ON;

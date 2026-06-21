@@ -174,6 +174,14 @@ export const auctionsRouter = {
   listCatalog: pub
     .input(z.object({ auctionId: z.number().int().positive() }))
     .handler(async ({ context, input }) => {
+      // Moneda de la subasta (satélite) para formatear los precios; sin fila
+      // cae al default 'ARS'. Es la misma para todos los items del catálogo.
+      const currencyRow = await context.db.query.auctionCurrencies.findFirst({
+        where: { auctionId: input.auctionId },
+        columns: { currency: true },
+      });
+      const currency = currencyRow?.currency ?? "ARS";
+
       const catalogRows = await context.db.query.catalogs.findMany({
         where: { auctionId: input.auctionId },
         columns: {},
@@ -253,6 +261,7 @@ export const auctionsRouter = {
           description: i.description,
           catalogDescription: i.catalogDescription,
           basePrice: i.basePrice,
+          currency,
           ownerName: i.ownerName,
           photoId: photoIds[0] ?? null,
           photoIds,
@@ -269,8 +278,9 @@ export const auctionsRouter = {
     .input(z.object({ auctionId: z.number().int().positive() }))
     .handler(async ({ context, input }) => {
       const auction = await context.db.query.auctions.findFirst({
-        where: { id: input.auctionId }, // <-- Sintaxis de objeto restaurada
+        where: { id: input.auctionId },
         with: {
+          currencyRow: true,
           catalogs: {
             columns: {},
             with: {
@@ -311,8 +321,13 @@ export const auctionsRouter = {
         }
       }
 
+      // La moneda sale de la tabla satélite; si la subasta no tiene fila, cae al
+      // default 'ARS'. `currencyRow` no se expone crudo en el output.
+      const { currencyRow, ...auctionData } = auction;
+
       return {
-        ...auction,
+        ...auctionData,
+        currency: currencyRow?.currency ?? "ARS",
         currentBid: highestBidAmount,
         photoId: firstPhotoId,
         catalogs: auction.catalogs.map(c => ({

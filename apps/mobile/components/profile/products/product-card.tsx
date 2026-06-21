@@ -4,18 +4,13 @@ import { Alert, Pressable, Text, View } from "react-native";
 import type { Product } from "@subaspedia/types/product";
 import { Avatar, AvatarImage } from "@/components/ui/avatar";
 import { Card } from "@/components/ui/card";
+import { formatMoney } from "@/lib/format";
 
 import StatusBadge from "./status-badge";
 
 type ProductProps = { product: Product };
 
 type Action = { label: string; href: string; ready: boolean };
-
-const currencyFormatter = new Intl.NumberFormat("es-AR", {
-  style: "currency",
-  currency: "ARS",
-  maximumFractionDigits: 0,
-});
 
 const dateFormatter = new Intl.DateTimeFormat("es-AR", {
   day: "2-digit",
@@ -90,7 +85,7 @@ export default function ProductCard({ product }: ProductProps) {
             product.salePrice !== null &&
             product.saleDate !== null && (
               <Text className="text-xs text-gray-600">
-                {currencyFormatter.format(product.salePrice)} ·{" "}
+                {formatMoney(product.salePrice, product.currency ?? "ARS")} ·{" "}
                 {dateFormatter.format(new Date(product.saleDate))}
               </Text>
             )}

@@ -4,15 +4,7 @@ import { eq } from "drizzle-orm";
 import { updateProfileInputSchema, userSchema } from "@subaspedia/types/user";
 import { type Context, authed } from "@/api/context";
 import { clients, people } from "@/api/db/schema";
-
-// SQLite `current_timestamp` devuelve "YYYY-MM-DD HH:MM:SS" (UTC, sin T ni Z),
-// formato que z.iso.datetime() del userSchema rechaza. Lo normalizamos a ISO.
-function toIso(value: string): string {
-  const normalized = value.includes("T")
-    ? value
-    : `${value.replace(" ", "T")}Z`;
-  return new Date(normalized).toISOString();
-}
+import { toIso } from "@/api/lib/date";
 
 // La foto de perfil vive como BLOB en `people.photo`. Para la entrega la
 // servimos inline como data URI (base64) en avatarUrl; el `<Image>` del front
