@@ -20,6 +20,7 @@ import { QueryState, SectionHeader, SelectableRow } from "./shared";
 export function SubastasSection() {
   const catalogs = api.backoffice.listDraftCatalogs.useQuery();
   const auctioneers = api.backoffice.listAuctioneers.useQuery();
+  const clients = api.backoffice.listClients.useQuery();
 
   const [date, setDate] = useState("");
   const [time, setTime] = useState("");
@@ -28,8 +29,25 @@ export function SubastasSection() {
   const [auctioneerId, setAuctioneerId] = useState<number | null>(null);
   const [selected, setSelected] = useState<number[]>([]);
 
+  const notify = api.notifications.create.useMutation();
+
   const create = api.backoffice.createAuction.useMutation({
-    onSuccess: () => {
+    onSuccess: async (_, variables) => {
+      const categoryLabel =
+        PRODUCT_CATEGORIES.find(c => c.value === variables.category)?.label ??
+        variables.category;
+
+      await Promise.all(
+        (clients.data ?? []).map(client =>
+          notify.mutateAsync({
+            clientId: client.id,
+            title: "Nueva subasta",
+            body: `Se programó una nueva subasta con tu producto para el día ${variables.date}.`,
+            route: "auction",
+          }),
+        ),
+      );
+
       setDate("");
       setTime("");
       setLocation("");
@@ -149,7 +167,7 @@ export function SubastasSection() {
       ))}
 
       <Button
-        disabled={!valid || create.isPending}
+        disabled={!valid || create.isPending || notify.isPending}
         onPress={() =>
           category &&
           create.mutate({
@@ -163,7 +181,7 @@ export function SubastasSection() {
         }
       >
         <Text className="font-semibold text-white">
-          {create.isPending
+          {create.isPending || notify.isPending
             ? "Creando..."
             : `Crear subasta (${selected.length})`}
         </Text>
