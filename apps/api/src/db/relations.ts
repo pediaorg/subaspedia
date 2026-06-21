@@ -115,6 +115,11 @@ export const relations = defineRelations(schema, r => ({
       from: r.products.id,
       to: r.artworkDetails.productId,
     }),
+    // Cotización de la empresa para este bien (1:1).
+    quote: r.one.quotes({
+      from: r.products.id,
+      to: r.quotes.productId,
+    }),
   },
   artworkDetails: {
     product: r.one.products({
@@ -149,6 +154,12 @@ export const relations = defineRelations(schema, r => ({
       to: r.products.id,
     }),
     bids: r.many.bids(),
+  },
+  quotes: {
+    product: r.one.products({
+      from: r.quotes.productId,
+      to: r.products.id,
+    }),
   },
   attendees: {
     client: r.one.clients({

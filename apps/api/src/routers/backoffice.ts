@@ -15,6 +15,7 @@ import {
   penalties,
   people,
   products,
+  quotes,
 } from "@/api/db/schema";
 import { toIso } from "@/api/lib/date";
 import { generateSetPasswordToken, SET_PASSWORD_TTL_MS } from "@/api/lib/auth";
@@ -55,12 +56,12 @@ async function ensureDefaultEmployee(db: Context["db"]): Promise<number> {
   return person.id;
 }
 
-// Una cotización (precio base + comisión + estado) solo puede vivir en
-// `catalogItems`, pero esa tabla exige un `catalogId`. Como en el flujo del
-// enunciado se cotiza ANTES de armar el catálogo definitivo, usamos un catálogo
-// "holding" sin subasta que junta todas las cotizaciones todavía no agrupadas.
-// Se identifica por esta descripción centinela y se excluye de los catálogos
-// reales (ver listDraftCatalogs).
+// Al cotizar se crea un `catalogItem` (para poder asignarlo luego a un catálogo
+// de subasta), pero esa tabla exige un `catalogId` y el catálogo definitivo aún
+// no existe. Usamos un catálogo "holding" sin subasta que junta los items recién
+// cotizados todavía no agrupados. Se identifica por esta descripción centinela y
+// se excluye de los catálogos reales (ver listDraftCatalogs). El ESTADO de la
+// cotización ya no vive en el catalogItem: está en la tabla `cotizaciones`.
 const HOLDING_CATALOG_DESC = "__cotizaciones_sin_catalogo__";
 
 async function ensureHoldingCatalog(db: Context["db"]): Promise<number> {
@@ -222,51 +223,67 @@ export const backofficeRouter = {
 
   // --- Cotización / tasación de bienes (feature 1) ---
 
-  // Bienes subidos por los usuarios que todavía no tienen cotización: existen
-  // en `products` pero no tienen ninguna fila en `catalogItems`.
+  // Bienes subidos por los usuarios pendientes de cotizar: su cotización está
+  // en 'en revisión' (nace así cuando el usuario sube el bien).
   pendingAppraisals: pub.handler(async ({ context }) => {
-    // Anti-join (bienes sin fila en `catalogItems`): se mantiene el query
-    // builder de SQL, RQB no expresa la ausencia de relación.
-    const rows = await context.db
-      .select({
-        id: products.id,
-        name: products.name,
-        fullDescription: products.fullDescription,
-        date: products.date,
-      })
-      .from(products)
-      .leftJoin(catalogItems, eq(catalogItems.productId, products.id))
-      .where(isNull(catalogItems.id));
+    const rows = await context.db.query.quotes.findMany({
+      where: { state: "en revisión" },
+      columns: { id: true },
+      with: {
+        product: {
+          columns: { id: true, name: true, fullDescription: true, date: true },
+        },
+      },
+    });
 
-    return rows;
+    return rows.flatMap(q =>
+      q.product
+        ? [
+            {
+              id: q.product.id,
+              name: q.product.name,
+              fullDescription: q.product.fullDescription,
+              date: q.product.date,
+            },
+          ]
+        : [],
+    );
   }),
 
-  // Propone una cotización (precio base + comisión) para un bien. Crea el
-  // catalogItem en el catálogo "holding" con estado "tasado".
+  // Cotiza un bien: la cotización pasa de 'en revisión' a 'tasado' con el precio
+  // base, la comisión y un mensaje para el usuario. Además crea el catalogItem
+  // (en el holding) copiando base + comisión, para poder asignarlo a un catálogo
+  // de subasta más adelante.
   proposeQuote: pub
     .input(
       z.object({
         productId: z.number().int().positive(),
         basePrice: z.number().positive(),
         commission: z.number().positive(),
+        message: z.string().trim().min(1),
       }),
     )
     .handler(async ({ context, input }) => {
-      const product = await context.db.query.products.findFirst({
-        where: { id: input.productId },
-        columns: { id: true },
-      });
-      if (!product)
-        throw new ORPCError("NOT_FOUND", { message: "Bien no encontrado" });
-
-      const already = await context.db.query.catalogItems.findFirst({
+      const quote = await context.db.query.quotes.findFirst({
         where: { productId: input.productId },
-        columns: { id: true },
+        columns: { id: true, state: true },
       });
-      if (already)
+      if (!quote)
+        throw new ORPCError("NOT_FOUND", { message: "Bien no encontrado" });
+      if (quote.state !== "en revisión")
         throw new ORPCError("CONFLICT", {
           message: "El bien ya tiene una cotización",
         });
+
+      await context.db
+        .update(quotes)
+        .set({
+          basePrice: input.basePrice,
+          commission: input.commission,
+          message: input.message,
+          state: "tasado",
+        })
+        .where(eq(quotes.id, quote.id));
 
       const catalogId = await ensureHoldingCatalog(context.db);
       await context.db.insert(catalogItems).values({
@@ -274,71 +291,115 @@ export const backofficeRouter = {
         productId: input.productId,
         basePrice: input.basePrice,
         commission: input.commission,
-        state: "tasado",
       });
 
       return { success: true };
     }),
 
-  // Cotizaciones en curso: items del catálogo holding (todavía sin agrupar en
-  // un catálogo definitivo) con el nombre del bien.
-  listQuotes: pub.handler(async ({ context }) => {
-    const holding = await context.db.query.catalogs.findFirst({
-      where: { description: HOLDING_CATALOG_DESC },
-      columns: { id: true },
-    });
-    if (!holding) return [];
+  // Rechaza un bien directamente (la empresa no lo acepta): 'en revisión' ->
+  // 'rechazado', con el motivo en el mensaje (la consigna exige que el dueño
+  // pueda ver las causas del rechazo). No se crea catalogItem.
+  rejectAppraisal: pub
+    .input(
+      z.object({
+        productId: z.number().int().positive(),
+        message: z.string().trim().min(1),
+      }),
+    )
+    .handler(async ({ context, input }) => {
+      const quote = await context.db.query.quotes.findFirst({
+        where: { productId: input.productId },
+        columns: { id: true, state: true },
+      });
+      if (!quote)
+        throw new ORPCError("NOT_FOUND", { message: "Bien no encontrado" });
+      if (quote.state !== "en revisión")
+        throw new ORPCError("CONFLICT", {
+          message: "El bien ya fue cotizado o rechazado",
+        });
 
-    const rows = await context.db.query.catalogItems.findMany({
-      where: { catalogId: holding.id },
+      await context.db
+        .update(quotes)
+        .set({ message: input.message, state: "rechazado" })
+        .where(eq(quotes.id, quote.id));
+      return { success: true };
+    }),
+
+  // Cotizaciones ya emitidas (no 'en revisión') con el nombre del bien.
+  listQuotes: pub.handler(async ({ context }) => {
+    const rows = await context.db.query.quotes.findMany({
       columns: {
         id: true,
         basePrice: true,
         commission: true,
+        message: true,
         state: true,
       },
       with: { product: { columns: { name: true } } },
     });
 
-    return rows.map(({ product, ...it }) => ({
-      ...it,
-      productName: product?.name ?? "Bien",
-    }));
+    return rows
+      .filter(q => q.state !== "en revisión")
+      .map(({ product, ...q }) => ({
+        ...q,
+        productName: product?.name ?? "Bien",
+      }));
   }),
 
   // El dueño acepta el precio base y la comisión: tasado -> aceptado. (En la
-  // demo lo dispara el backoffice; en la app real lo confirmaría el usuario.)
+  // demo lo dispara el backoffice; en la app real lo hace el usuario desde
+  // products.updateStatus.)
   confirmQuote: pub
-    .input(z.object({ itemId: z.number().int().positive() }))
+    .input(z.object({ quoteId: z.number().int().positive() }))
     .handler(async ({ context, input }) => {
-      const item = await context.db.query.catalogItems.findFirst({
-        where: { id: input.itemId },
+      const quote = await context.db.query.quotes.findFirst({
+        where: { id: input.quoteId },
         columns: { id: true, state: true },
       });
-      if (!item)
+      if (!quote)
         throw new ORPCError("NOT_FOUND", {
           message: "Cotización no encontrada",
         });
-      if (item.state !== "tasado")
+      if (quote.state !== "tasado")
         throw new ORPCError("CONFLICT", {
           message: "La cotización no está en estado tasado",
         });
 
       await context.db
-        .update(catalogItems)
+        .update(quotes)
         .set({ state: "aceptado" })
-        .where(eq(catalogItems.id, input.itemId));
+        .where(eq(quotes.id, input.quoteId));
       return { success: true };
     }),
 
   // El dueño rechaza el precio base / comisión: tasado -> rechazado.
   rejectQuote: pub
-    .input(z.object({ itemId: z.number().int().positive() }))
+    .input(z.object({ quoteId: z.number().int().positive() }))
     .handler(async ({ context, input }) => {
+      const quote = await context.db.query.quotes.findFirst({
+        where: { id: input.quoteId },
+        columns: { id: true, state: true, productId: true },
+      });
+      if (!quote)
+        throw new ORPCError("NOT_FOUND", {
+          message: "Cotización no encontrada",
+        });
+      if (quote.state !== "tasado")
+        throw new ORPCError("CONFLICT", {
+          message: "La cotización no está en estado tasado",
+        });
+
       await context.db
-        .update(catalogItems)
+        .update(quotes)
         .set({ state: "rechazado" })
-        .where(eq(catalogItems.id, input.itemId));
+        .where(eq(quotes.id, input.quoteId));
+
+      // El catalogItem creado al tasar (en el holding) queda huérfano al
+      // rechazar: lo borramos para no dejar basura.
+      await context.db
+        .delete(catalogItems)
+        .where(eq(catalogItems.productId, quote.productId));
+
       return { success: true };
     }),
 
@@ -354,15 +415,22 @@ export const backofficeRouter = {
     if (!holding) return [];
 
     const rows = await context.db.query.catalogItems.findMany({
-      where: { catalogId: holding.id, state: "aceptado" },
+      where: { catalogId: holding.id },
       columns: { id: true, basePrice: true, commission: true },
-      with: { product: { columns: { name: true } } },
+      with: {
+        product: {
+          columns: { name: true },
+          with: { quote: { columns: { state: true } } },
+        },
+      },
     });
 
-    return rows.map(({ product, ...it }) => ({
-      ...it,
-      productName: product?.name ?? "Bien",
-    }));
+    // Solo los items cuyo dueño ya aceptó la cotización.
+    return rows.flatMap(({ product, ...it }) =>
+      product?.quote?.state === "aceptado"
+        ? [{ ...it, productName: product.name }]
+        : [],
+    );
   }),
 
   // Crea un catálogo definitivo (sin subasta todavía) y le mueve los items
@@ -381,15 +449,12 @@ export const backofficeRouter = {
         .values({ description: input.description, managerId })
         .returning({ id: catalogs.id });
 
+      // Los itemIds vienen de confirmedItems (ya filtrados por cotización
+      // aceptada), así que solo los movemos al catálogo definitivo.
       await context.db
         .update(catalogItems)
         .set({ catalogId: catalog.id })
-        .where(
-          and(
-            inArray(catalogItems.id, input.itemIds),
-            eq(catalogItems.state, "aceptado"),
-          ),
-        );
+        .where(inArray(catalogItems.id, input.itemIds));
 
       return { success: true, catalogId: catalog.id };
     }),

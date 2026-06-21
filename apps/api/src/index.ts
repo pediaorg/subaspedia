@@ -38,12 +38,21 @@ const rpcHandler = new RPCHandler(router, {
   ],
 });
 
-app.use("*", (c, next) =>
-  cors({
-    origin: c.env.WEB_ORIGIN ?? "http://localhost:8081",
+app.use("*", (c, next) => {
+  // Orígenes permitidos: el configurado (WEB_ORIGIN) + los de desarrollo de
+  // Expo (web en :8081, Metro/Expo Go en :8082). Con credentials:true no se
+  // puede usar "*", así que reflejamos el origin solo si está en la lista. En
+  // native (device) fetch no aplica CORS, por eso solo importa para la web.
+  const allowed = [
+    c.env.WEB_ORIGIN,
+    "http://localhost:8081",
+    "http://localhost:8082",
+  ].filter(Boolean) as string[];
+  return cors({
+    origin: origin => (allowed.includes(origin) ? origin : null),
     credentials: true,
-  })(c, next),
-);
+  })(c, next);
+});
 app.use(secureHeaders({ crossOriginResourcePolicy: "cross-origin" }));
 
 app.get("/", c => c.text("Subaspedia API"));
@@ -85,6 +94,7 @@ app.use("/rpc/*", async (c, next) => {
         refreshHeader: c.req.header("X-Refresh-Token") ?? null,
         clientType: c.req.header("X-Client") === "native" ? "native" : "web",
         cookieJar,
+        apiOrigin: new URL(c.req.url).origin,
       },
     });
 
