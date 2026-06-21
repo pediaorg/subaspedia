@@ -114,7 +114,16 @@ function wrap(target: UnknownRecord): UnknownRecord {
       const next = (t as UnknownRecord)[key];
       if (typeof next === "object" && next !== null)
         return wrap(next as UnknownRecord);
-      if (typeof next === "function") return next.bind(t);
+      if (typeof next === "function") {
+        // Las utils de orpc-tanstack exponen sus métodos (queryKey,
+        // queryOptions, mutationOptions, call, …) como un Proxy sobre la función
+        // cuyo `.bind` NO es una función (devuelve otro proxy de utils). Hacer
+        // `next.bind(t)` sobre eso revienta con "next.bind is not a function".
+        // Sólo bindeamos funciones reales; las utils-proxy se devuelven tal cual
+        // (ya son callables y no dependen de `this`).
+        const maybeBind = (next as { bind?: unknown }).bind;
+        return typeof maybeBind === "function" ? next.bind(t) : next;
+      }
       return next;
     },
   });

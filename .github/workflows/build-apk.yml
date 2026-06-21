@@ -1,0 +1,49 @@
+name: Build APK
+
+# Build manual del APK + GitHub release. Antes corría atado al deploy en cada
+# push a main; ahora solo se dispara a mano desde la pestaña Actions.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build APK & GitHub release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: android-actions/setup-android@v3
+      - run: pnpm install --frozen-lockfile
+      - name: Install EAS CLI
+        run: npm i -g eas-cli
+      - name: Build APK (unsigned)
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          pnpm eas build \
+            --platform android \
+            --local \
+            --profile production \
+            --non-interactive \
+            --output "$GITHUB_WORKSPACE/subaspedia.apk"
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ github.sha }}
+        run: |
+          TAG="v$(date +%Y.%m.%d)-${SHA:0:7}"
+          gh release create "$TAG" \
+            "$GITHUB_WORKSPACE/subaspedia.apk" \
+            --generate-notes \
+            --target "$SHA"

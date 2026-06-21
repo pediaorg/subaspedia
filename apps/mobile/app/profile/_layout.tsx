@@ -16,7 +16,7 @@ export default function ProfileLayout() {
         <Stack.Screen name="index" />
         <Stack.Screen name="edit" />
         <Stack.Screen name="products" />
-        <Stack.Screen name="auctions" />
+        <Stack.Screen name="stats" />
         <Stack.Screen name="infractions" />
         <Stack.Screen name="payment-methods/index" />
         <Stack.Screen

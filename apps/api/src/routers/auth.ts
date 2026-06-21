@@ -2,8 +2,8 @@ import { ORPCError } from "@orpc/server";
 import { eq } from "drizzle-orm";
 
 import {
-  completeRegistrationSchema,
   registerStep1Schema,
+  setPasswordSchema,
   verifyCodeSchema,
 } from "@subaspedia/types/forms/auth";
 import { authed, type Context, pub, refreshed } from "@/api/context";
@@ -113,6 +113,7 @@ export const authRouter = {
         lastName: input.lastName,
         address: input.legalAddress,
         country: input.country,
+        document: input.document,
         dniFront: input.dniFront,
         dniBack: input.dniBack,
         verified: false,
@@ -124,7 +125,10 @@ export const authRouter = {
       return { email: input.email };
     }),
 
-  // Registro etapa 2a: valida el código recibido por email.
+  // Registro etapa 2a: valida el código y materializa la cuenta SIN contraseña.
+  // La persona queda "pendiente": existe en `people` con sus datos y documento,
+  // pero no puede loguear hasta que la empresa la apruebe (asigne categoría) y
+  // fije su clave vía el link de set-password.
   verifyCode: pub
     .input(verifyCodeSchema)
     .handler(async ({ context, input }) => {
@@ -142,59 +146,61 @@ export const authRouter = {
         .set({ verified: true })
         .where(eq(emailVerifications.email, input.email));
 
-      return { success: true };
-    }),
-
-  // Registro etapa 2b: crea la clave personal y materializa la cuenta. La
-  // categoría queda sin asignar (la define la empresa luego de investigar).
-  completeRegistration: pub
-    .input(completeRegistrationSchema)
-    .handler(async ({ context, input }) => {
-      const pending = await context.db.query.emailVerifications.findFirst({
-        where: { email: input.email },
-      });
-
-      if (!pending || pending.code !== input.code)
-        throw new ORPCError("UNAUTHORIZED", { message: "Código inválido" });
-      if (!pending.verified)
-        throw new ORPCError("FORBIDDEN", {
-          message: "Verificá el código primero",
-        });
-      if (new Date(pending.expiresAt).getTime() < Date.now())
-        throw new ORPCError("UNAUTHORIZED", { message: "Código vencido" });
-
-      // Evita completar dos veces el registro del mismo email.
+      // Si ya se materializó la cuenta (reintento de verificación), no duplicar.
       const already = await context.db.query.people.findFirst({
         where: { email: input.email },
         columns: { id: true },
       });
-      if (already)
-        throw new ORPCError("CONFLICT", { message: "Email ya registrado" });
-
-      const passwordHash = await hashPassword(input.password);
-      const [created] = await context.db
-        .insert(people)
-        .values({
-          name: `${pending.name} ${pending.lastName}`.trim(),
+      if (!already) {
+        await context.db.insert(people).values({
+          name: pending.name,
+          lastName: pending.lastName,
           address: pending.address,
+          document: pending.document,
           status: "active",
           email: pending.email,
           // Guardamos el frente del documento (base64) como foto de la persona.
           photo: decodeDataUri(pending.dniFront),
-          passwordHash,
-        })
-        .returning({ id: people.id });
+        });
+      }
 
       // No borramos el pre-registro: queda como dossier de KYC (datos + fotos
       // frente/dorso del documento) que la empresa revisa para asignar la
-      // categoría. Invalidamos el código para que no se reutilice.
-      await context.db
-        .update(emailVerifications)
-        .set({ code: "" })
-        .where(eq(emailVerifications.email, input.email));
+      // categoría.
+      return { success: true };
+    }),
 
-      const claims = await resolveClaims(context.db, created.id);
-      const tokens = await issueTokens(created.id, claims, context.jwtSecret);
+  // Set-password: el postor aprobado por la empresa fija su clave usando el
+  // token de un solo uso que recibió por mail. Recién acá la cuenta queda
+  // habilitada para loguear.
+  setPassword: pub
+    .input(setPasswordSchema)
+    .handler(async ({ context, input }) => {
+      const person = await context.db.query.people.findFirst({
+        where: { setPasswordToken: input.token },
+        columns: { id: true, setPasswordExpiresAt: true },
+      });
+
+      if (!person)
+        throw new ORPCError("UNAUTHORIZED", { message: "Token inválido" });
+      if (
+        !person.setPasswordExpiresAt ||
+        new Date(person.setPasswordExpiresAt).getTime() < Date.now()
+      )
+        throw new ORPCError("UNAUTHORIZED", { message: "Token vencido" });
+
+      const passwordHash = await hashPassword(input.password);
+      await context.db
+        .update(people)
+        .set({
+          passwordHash,
+          setPasswordToken: null,
+          setPasswordExpiresAt: null,
+        })
+        .where(eq(people.id, person.id));
+
+      const claims = await resolveClaims(context.db, person.id);
+      const tokens = await issueTokens(person.id, claims, context.jwtSecret);
       return deliverTokens(context, tokens);
     }),
 

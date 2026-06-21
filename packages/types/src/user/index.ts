@@ -38,9 +38,11 @@ export function isOnboarded(user: User): boolean {
   );
 }
 
-// Resumen para la pantalla de Rango: categoría actual, medios de pago
-// registrados (x/max) y actividad del client (subastas participadas, ganadas y
-// total ofertado). Lo arma el back en un solo endpoint (user.rankSummary).
+// Resumen para las pantallas de Rango y Estadísticas: categoría actual, medios
+// de pago registrados (x/max) y actividad del client (subastas participadas,
+// ganadas, total ofertado y total pagado). Lo arma el back en un solo endpoint
+// (user.rankSummary). `totalBid` = suma de todas sus pujas; `totalPaid` = lo
+// efectivamente pagado por las ventas que ganó (importe + comisión).
 export const rankSummarySchema = z.object({
   category: auctionCategory.nullable(),
   paymentMethods: z.object({
@@ -51,10 +53,34 @@ export const rankSummarySchema = z.object({
     participated: z.number().int().nonnegative(),
     won: z.number().int().nonnegative(),
     totalBid: z.number().nonnegative(),
+    totalPaid: z.number().nonnegative(),
+    // Desglose de participaciones por categoría de subasta. Solo incluye las
+    // categorías en las que participó al menos una vez; la UI completa el resto
+    // con 0 recorriendo USER_CATEGORIES.
+    byCategory: z.array(
+      z.object({
+        category: auctionCategory,
+        participated: z.number().int().nonnegative(),
+      }),
+    ),
   }),
 });
 
 export type RankSummary = z.infer<typeof rankSummarySchema>;
+
+// Historial de pujas del usuario (todas sus pujas, más recientes primero). El
+// orden sale del id (autoincrement = orden de inserción; la tabla no tiene
+// timestamp). `winner` marca la puja con la que ganó el bien.
+export const bidHistoryItemSchema = z.object({
+  id: z.number().int().positive(),
+  productName: z.string(),
+  amount: z.number().positive(),
+  winner: z.boolean(),
+  auctionId: z.number().int().positive(),
+});
+
+export const bidHistorySchema = z.array(bidHistoryItemSchema);
+export type BidHistoryItem = z.infer<typeof bidHistoryItemSchema>;
 
 export const updateProfileInputSchema = userSchema
   .pick({

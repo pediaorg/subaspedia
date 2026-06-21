@@ -1,17 +1,7 @@
 import { ORPCError } from "@orpc/server";
-import { and, eq, ne } from "drizzle-orm";
 import { z } from "zod";
 
-import { authed, pub } from "@/api/context";
-
-import {
-  attendees,
-  auctions,
-  bids,
-  catalogItems,
-  catalogs,
-  clients,
-} from "../db/schema";
+import { pub } from "@/api/context";
 
 const CATEGORIES = ["common", "special", "silver", "gold", "platinum"] as const;
 
@@ -174,6 +164,14 @@ export const auctionsRouter = {
   listCatalog: pub
     .input(z.object({ auctionId: z.number().int().positive() }))
     .handler(async ({ context, input }) => {
+      // Moneda de la subasta (satélite) para formatear los precios; sin fila
+      // cae al default 'ARS'. Es la misma para todos los items del catálogo.
+      const currencyRow = await context.db.query.auctionCurrencies.findFirst({
+        where: { auctionId: input.auctionId },
+        columns: { currency: true },
+      });
+      const currency = currencyRow?.currency ?? "ARS";
+
       const catalogRows = await context.db.query.catalogs.findMany({
         where: { auctionId: input.auctionId },
         columns: {},
@@ -191,7 +189,9 @@ export const auctionsRouter = {
                 with: {
                   owner: {
                     columns: {},
-                    with: { person: { columns: { name: true } } },
+                    with: {
+                      person: { columns: { name: true, lastName: true } },
+                    },
                   },
                   artworkDetails: {
                     columns: {
@@ -217,7 +217,13 @@ export const auctionsRouter = {
                   description: it.product.fullDescription,
                   catalogDescription: it.product.catalogDescription,
                   basePrice: it.basePrice,
-                  ownerName: it.product.owner?.person?.name ?? null,
+                  ownerName:
+                    [
+                      it.product.owner?.person?.name,
+                      it.product.owner?.person?.lastName,
+                    ]
+                      .filter(Boolean)
+                      .join(" ") || null,
                   artist: it.product.artworkDetails?.artist ?? null,
                   creationDate: it.product.artworkDetails?.creationDate ?? null,
                   history: it.product.artworkDetails?.history ?? null,
@@ -253,6 +259,7 @@ export const auctionsRouter = {
           description: i.description,
           catalogDescription: i.catalogDescription,
           basePrice: i.basePrice,
+          currency,
           ownerName: i.ownerName,
           photoId: photoIds[0] ?? null,
           photoIds,
@@ -269,8 +276,9 @@ export const auctionsRouter = {
     .input(z.object({ auctionId: z.number().int().positive() }))
     .handler(async ({ context, input }) => {
       const auction = await context.db.query.auctions.findFirst({
-        where: { id: input.auctionId }, // <-- Sintaxis de objeto restaurada
+        where: { id: input.auctionId },
         with: {
+          currencyRow: true,
           catalogs: {
             columns: {},
             with: {
@@ -279,7 +287,15 @@ export const auctionsRouter = {
                 with: {
                   product: {
                     columns: { id: true, name: true, fullDescription: true },
-                    with: { photos: { columns: { id: true } } },
+                    with: {
+                      photos: { columns: { id: true } },
+                      owner: {
+                        columns: {},
+                        with: {
+                          person: { columns: { name: true, lastName: true } },
+                        },
+                      },
+                    },
                   },
                 },
               },
@@ -311,15 +327,31 @@ export const auctionsRouter = {
         }
       }
 
+      // La moneda sale de la tabla satélite; si la subasta no tiene fila, cae al
+      // default 'ARS'. `currencyRow` no se expone crudo en el output.
+      const { currencyRow, ...auctionData } = auction;
+
       return {
-        ...auction,
+        ...auctionData,
+        currency: currencyRow?.currency ?? "ARS",
         currentBid: highestBidAmount,
         photoId: firstPhotoId,
         catalogs: auction.catalogs.map(c => ({
           ...c,
           items: c.items.map(it => ({
             ...it,
-            product: it.product || undefined,
+            product: it.product
+              ? {
+                  ...it.product,
+                  ownerName:
+                    [
+                      it.product.owner?.person?.name,
+                      it.product.owner?.person?.lastName,
+                    ]
+                      .filter(Boolean)
+                      .join(" ") || null,
+                }
+              : undefined,
           })),
         })),
       };
@@ -373,118 +405,5 @@ export const auctionsRouter = {
         itemName: bid.item?.product?.name ?? "Producto",
         bidderNumber: bid.attendee?.bidderNumber,
       }));
-    }),
-
-  // Realizar una puja (requiere autenticación)
-  placeBid: authed
-    .input(
-      z.object({
-        auctionId: z.number().int().positive(),
-        amount: z.number().positive("El monto debe ser mayor a 0"),
-      }),
-    )
-    .handler(async ({ context, input }) => {
-      const auction = await context.db.query.auctions.findFirst({
-        where: { id: input.auctionId, status: "open" },
-      });
-
-      if (!auction)
-        throw new ORPCError("NOT_FOUND", {
-          message: "Subasta no encontrada o cerrada",
-        });
-
-      const client = await context.db.query.clients.findFirst({
-        where: { id: context.userId },
-      });
-
-      if (!client)
-        throw new ORPCError("FORBIDDEN", {
-          message: "No tienes permiso para pujar",
-        });
-
-      let attendee = await context.db.query.attendees.findFirst({
-        where: { clientId: client.id, auctionId: input.auctionId },
-      });
-
-      if (!attendee) {
-        const maxBidder = await context.db.query.attendees.findFirst({
-          where: { auctionId: input.auctionId },
-          orderBy: (t, { desc }) => desc(t.bidderNumber),
-        });
-
-        const newBidderNumber = (maxBidder?.bidderNumber ?? 0) + 1;
-
-        const result = await context.db
-          .insert(attendees)
-          .values({
-            clientId: client.id,
-            auctionId: input.auctionId,
-            bidderNumber: newBidderNumber,
-          })
-          .returning();
-
-        attendee = result[0];
-      }
-
-      if (!attendee)
-        throw new ORPCError("INTERNAL_SERVER_ERROR", {
-          message: "Error al registrar asistente",
-        });
-
-      const catalog = await context.db.query.catalogs.findFirst({
-        where: { auctionId: input.auctionId },
-      });
-
-      if (!catalog)
-        throw new ORPCError("NOT_FOUND", {
-          message: "No hay catálogo en esta subasta",
-        });
-
-      const item = await context.db.query.catalogItems.findFirst({
-        where: { catalogId: catalog.id },
-      });
-
-      if (!item)
-        throw new ORPCError("NOT_FOUND", {
-          message: "No hay items en este catálogo",
-        });
-
-      const highestBid = await context.db.query.bids.findFirst({
-        columns: { amount: true },
-        where: { itemId: item.id },
-        orderBy: (t, { desc }) => desc(t.amount),
-      });
-
-      if (highestBid && input.amount <= highestBid.amount) {
-        throw new ORPCError("BAD_REQUEST", {
-          message: `El monto debe ser mayor a $${highestBid.amount}`,
-        });
-      }
-
-      const bidResult = await context.db
-        .insert(bids)
-        .values({
-          attendeeId: attendee.id,
-          itemId: item.id,
-          amount: input.amount,
-          winner: true,
-        })
-        .returning();
-
-      const newBid = bidResult[0];
-
-      // El UPDATE usa el Query Builder estándar, por eso aquí SÍ mantenemos eq, and y ne
-      if (highestBid) {
-        await context.db
-          .update(bids)
-          .set({ winner: false })
-          .where(and(eq(bids.itemId, item.id), ne(bids.id, newBid.id)));
-      }
-
-      return {
-        success: true,
-        bidId: newBid.id,
-        message: "Puja realizada exitosamente",
-      };
     }),
 };

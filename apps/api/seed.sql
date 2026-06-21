@@ -22,9 +22,9 @@
 --   * 2 postores con pujas; Juan gana el reloj -> queda en registroDeSubasta
 --   * 1 medio de pago verificado para Juan (habilita pujar / claim del JWT)
 --   * 1 usuario logueable: juancasablanca@jamon.com / password123
---   * Juan también es OWNER: 4 productos propios (productos 3-6) que cubren los
---     estados de "Mis productos" sin propuesta (under_review/approved/rejected/
---     auctioned). Sirven para GET /products del perfil.
+--   * Juan también es OWNER: 4 productos propios (productos 3-6) cuyo estado en
+--     "Mis productos" sale de su cotización (en revisión/tasado/rechazado/
+--     aceptado). El producto 4 ('tasado') abre la pantalla de propuesta.
 --
 -- NOTA (refactor 2026-06-01): ya no existe la tabla `users`. Las credenciales
 -- (email + hashContrasenia) viven en `personas`. El usuario logueable ES la
@@ -35,13 +35,16 @@
 PRAGMA foreign_keys = OFF;
 
 -- ---- Limpieza (orden inverso a las dependencias FK) ------------------------
+DELETE FROM multas;
 DELETE FROM registroDeSubasta;
 DELETE FROM pujos;
 DELETE FROM asistentes;
+DELETE FROM cotizaciones;
 DELETE FROM itemsCatalogo;
 DELETE FROM catalogos;
 DELETE FROM fotos;
 DELETE FROM productos;
+DELETE FROM monedasSubasta;
 DELETE FROM subastas;
 DELETE FROM subastadores;
 DELETE FROM duenios;
@@ -112,23 +115,36 @@ INSERT INTO subastadores (identificador, matricula, region) VALUES
 -- La regla "fecha > hoy + 10 días" ya NO se valida en la DB (sin trigger).
 -- Cuando exista POST /auctions, validarla en el zod del input.
 INSERT INTO subastas (identificador, fecha, hora, estado, subastador, ubicacion, capacidadAsistentes, tieneDeposito, seguridadPropia, categoria) VALUES
-  (1, '2027-03-01', '18:00', 'open', 2, 'Salón Central', 100, 1, 1, 'gold');
+  (1, '2027-03-01', '18:00', 'open', 2, 'Salón Central', 100, 1, 1, 'gold'),
+  (2, '2027-04-15', '17:00', 'open', 2, 'Salón Norte',   80,  1, 1, 'common');
+
+-- ---- monedasSubasta (auction_currencies) — tabla satélite de moneda ---------
+-- Cada subasta es en ARS o USD (nunca bimonetaria). La lectura usa LEFT JOIN +
+-- COALESCE(moneda, 'ARS'), así que una subasta SIN fila acá cae al default ARS.
+INSERT INTO monedasSubasta (subasta, moneda) VALUES
+  (1, 'ARS'),
+  (2, 'USD');
 
 -- ---- productos (products; FK -> empleados(revisor), duenios, seguros) -------
 -- `nombre` es NOT NULL en el schema (título corto del bien para el catálogo).
 INSERT INTO productos (identificador, fecha, disponible, descripcionCatalogo, descripcionCompleta, revisor, duenio, seguro, nombre) VALUES
   (1, '2026-11-01', 1, 'Reloj de bolsillo siglo XIX', 'Reloj de bolsillo de oro, siglo XIX, en excelente estado de conservación.', 1, 4, 'POL-001', 'Reloj de bolsillo de oro'),
   (2, '2026-11-05', 1, 'Óleo sobre tela',             'Paisaje al óleo sobre tela, autor anónimo, con marco original.',          1, 4, NULL,      'Óleo sobre tela'),
-  -- Productos subidos por Juan (dueño 3). Cubren los estados que ve "Mis
-  -- productos" sin pasar por la propuesta (no hay ninguno 'tasado'/appraised):
-  --   3 -> sin itemCatalogo        => under_review (recién subido, en tasación)
-  --   4 -> itemCatalogo 'aceptado'  => approved
-  --   5 -> itemCatalogo 'rechazado' => rejected
-  --   6 -> itemCatalogo 'subastado' => auctioned (+ registroDeSubasta con la venta)
+  -- Productos subidos por Juan (dueño 3). Su estado en "Mis productos" sale de
+  -- la cotización (tabla cotizaciones, más abajo):
+  --   3 -> cotización 'en revisión' => under_review (recién subido)
+  --   4 -> cotización 'tasado'      => appraised (propuesta a aceptar/rechazar)
+  --   5 -> cotización 'rechazado'   => rejected
+  --   6 -> cotización 'aceptado'    => approved (+ registroDeSubasta con la venta)
   (3, '2026-06-06', 0, 'None',                 'Cámara de fotos vintage en su estuche original de cuero.', NULL, 3, NULL, 'Cámara vintage'),
   (4, '2026-06-02', 1, 'Guitarra criolla',     'Guitarra criolla de luthier, caja de cedro macizo.',       1,    3, NULL, 'Guitarra criolla'),
   (5, '2026-05-20', 0, 'None',                 'Cuadro de paisaje al óleo, sin firma identificable.',      1,    3, NULL, 'Cuadro sin firma'),
-  (6, '2026-04-10', 1, 'Vajilla de porcelana', 'Vajilla de porcelana Limoges, juego de 12 cubiertos.',     1,    3, NULL, 'Vajilla Limoges');
+  (6, '2026-04-10', 1, 'Vajilla de porcelana', 'Vajilla de porcelana Limoges, juego de 12 cubiertos.',     1,    3, NULL, 'Vajilla Limoges'),
+  -- Producto de la subasta 2 (USD): le da contenido al catálogo en dólares.
+  (7, '2026-12-01', 1, 'Moneda de colección',  'Moneda de colección estadounidense de plata, edición limitada.', 1, 4, NULL, 'Moneda de colección'),
+  -- Producto de Juan (dueño 3) rematado en la subasta 2 (USD): le da una venta
+  -- en dólares a "Mis productos" para demostrar la moneda en esa pantalla.
+  (8, '2026-12-03', 1, 'Lingote de plata',     'Lingote de plata de inversión, 1 onza troy.',                    1, 3, NULL, 'Lingote de plata');
 
 -- ---- fotos (photos; FK -> productos; foto es BLOB NOT NULL, placeholder PNG header)
 INSERT INTO fotos (identificador, producto, foto) VALUES
@@ -137,22 +153,52 @@ INSERT INTO fotos (identificador, producto, foto) VALUES
   (3, 3, x'89504e470d0a1a0a'),
   (4, 4, x'89504e470d0a1a0a'),
   (5, 5, x'89504e470d0a1a0a'),
-  (6, 6, x'89504e470d0a1a0a');
+  (6, 6, x'89504e470d0a1a0a'),
+  (7, 7, x'89504e470d0a1a0a'),
+  (8, 8, x'89504e470d0a1a0a');
 
 -- ---- catalogos (catalogs; FK -> subastas, empleados(responsable)) ----------
 INSERT INTO catalogos (identificador, descripcion, subasta, responsable) VALUES
-  (1, 'Catálogo Subasta Marzo 2027', 1, 1);
+  (1, 'Catálogo Subasta Marzo 2027', 1, 1),
+  (2, 'Catálogo Subasta Abril 2027 (USD)', 2, 1);
 
 -- ---- itemsCatalogo (catalog_items; FK -> catalogos, productos; checks: precioBase/comision > 0.01)
--- `estado` (enum) reemplazó a la vieja columna `subastado`. El reloj (item 1) ya
--- se remató -> 'subastado'; el óleo (item 2) está aceptado y a la espera -> 'aceptado'.
-INSERT INTO itemsCatalogo (identificador, catalogo, producto, precioBase, comision, estado) VALUES
-  (1, 1, 1, 180000, 12, 'subastado'),
-  (2, 1, 2, 90000,  10, 'aceptado'),
-  -- itemsCatalogo de los productos de Juan (le dan su `status` a "Mis productos").
-  (3, 1, 4, 50000,  10, 'aceptado'),
-  (4, 1, 5, 30000,  10, 'rechazado'),
-  (5, 1, 6, 120000, 12, 'subastado');
+-- `subastado` (0/1) es la columna original de EstructuraActual: ¿el item ya se
+-- remató? El ciclo de cotización (en revisión/tasado/aceptado/rechazado) ya NO
+-- vive acá -> se movió a la tabla `cotizaciones`. precioBase/comision se copian
+-- desde la cotización al cotizar el bien. Rematados (subastado=1): items 1, 5, 7.
+INSERT INTO itemsCatalogo (identificador, catalogo, producto, precioBase, comision, subastado) VALUES
+  (1, 1, 1, 180000, 12, 1),
+  (2, 1, 2, 90000,  10, 0),
+  -- itemsCatalogo de los productos de Juan.
+  (3, 1, 4, 50000,  10, 0),
+  (4, 1, 5, 30000,  10, 0),
+  (5, 1, 6, 120000, 12, 1),
+  -- Item del catálogo USD (subasta 2): precioBase y comisión en dólares.
+  (6, 2, 7, 1500, 5, 0),
+  -- El lingote de Juan (producto 8) ya se remató en la subasta 2.
+  (7, 2, 8, 2000, 8, 1);
+
+-- ---- cotizaciones (quotes; FK -> productos; 1:1 con producto) --------------
+-- La empresa emite una cotización por cada bien subido por un usuario. Nace en
+-- 'en revisión' (precio/comisión/mensaje en NULL); al cotizar pasa a 'tasado'
+-- (se cargan los 3 y precioBase/comision se copian al itemsCatalogo); el dueño
+-- la lleva a 'aceptado'/'rechazado'. precioBase de la cotización == el del
+-- itemsCatalogo. Los productos de Juan (3-6, 8) le dan su status a "Mis
+-- productos"; el producto 4 ('tasado') es el que abre la pantalla de propuesta.
+INSERT INTO cotizaciones (identificador, producto, precioBase, comision, mensaje, estado) VALUES
+  -- Bienes de Lucía (dueño 4): ya aceptados / en subasta.
+  (1, 1, 180000, 12, 'Pieza de relojería fina en excelente estado, apta para subasta de categoría oro.', 'aceptado'),
+  (2, 2, 90000,  10, 'Oleo con marco original; lo incluimos en la proxima subasta de arte.', 'aceptado'),
+  -- Bienes de Juan (dueño 3): cubren los 4 estados de "Mis productos".
+  (3, 3, NULL, NULL, NULL, 'en revisión'),
+  (4, 4, 50000,  10, 'Guitarra de luthier en muy buen estado. Proponemos este valor base y comision para la proxima subasta.', 'tasado'),
+  (5, 5, 30000,  10, 'No pudimos confirmar la autoria del cuadro; el valor base ofrecido es conservador.', 'rechazado'),
+  (6, 6, 120000, 12, 'Vajilla Limoges completa; excelente para una subasta de antiguedades.', 'aceptado'),
+  -- Bien de Lucía en el catálogo USD.
+  (7, 7, 1500,   5,  'Moneda de plata de edicion limitada; ingresa al catalogo en dolares.', 'aceptado'),
+  -- Bien de Juan rematado en la subasta 2 (USD).
+  (8, 8, 2000,   8,  'Lingote de plata de inversion; ingresa al catalogo en dolares.', 'aceptado');
 
 -- ---- asistentes (attendees; FK -> clientes, subastas) ----------------------
 INSERT INTO asistentes (identificador, numeroPostor, cliente, subasta) VALUES
@@ -171,6 +217,22 @@ INSERT INTO registroDeSubasta (identificador, subasta, duenio, producto, cliente
   (1, 1, 4, 1, 3, 185000, 12),
   -- La vajilla (producto 6) de Juan (dueño 3) se la lleva Ana (cliente 5).
   -- Da salePrice/saleDate a su card "Subastado" (saleDate = subastas.fecha).
-  (2, 1, 3, 6, 5, 135000, 12);
+  (2, 1, 3, 6, 5, 135000, 12),
+  -- El lingote (producto 8) de Juan (dueño 3) se lo lleva Ana (cliente 5) en la
+  -- subasta 2 (USD): salePrice en dólares para "Mis productos" de Juan.
+  (3, 2, 3, 8, 5, 2200, 8);
+
+-- ---- multas (penalties; FK -> clientes, subastas) --------------------------
+-- Multas de Juan (cliente 3), una por estado para la pantalla "Multas y pagos".
+-- Causal única = falta de pago (10% de lo ofertado). `estado` solo guarda
+-- pending/paid; 'overdue' (vencida) lo deriva el back si venceEl < hoy.
+-- `emitidaEl`/`venceEl` van como 'YYYY-MM-DD' (el back las normaliza a ISO).
+INSERT INTO multas (identificador, cliente, motivo, importe, moneda, estado, emitidaEl, venceEl, subasta) VALUES
+  -- Pendiente y vigente (vence en el futuro): se ve como "Pendiente" + botón Pagar.
+  (1, 3, 'Falta de pago', 18500, 'ARS', 'pending', '2026-06-15', '2026-06-30', 1),
+  -- Pendiente pero ya vencida (venceEl < hoy): el back la deriva a "Vencida".
+  (2, 3, 'Falta de pago', 13500, 'ARS', 'pending', '2026-04-10', '2026-04-13', 1),
+  -- Pagada en dólares (subasta 2 USD): prueba la moneda y el estado "Pagada".
+  (3, 3, 'Falta de pago', 220,   'USD', 'paid',    '2026-03-01', '2026-03-04', 2);
 
 PRAGMA foreign_keys = ON;

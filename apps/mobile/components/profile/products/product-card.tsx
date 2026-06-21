@@ -4,18 +4,13 @@ import { Alert, Pressable, Text, View } from "react-native";
 import type { Product } from "@subaspedia/types/product";
 import { Avatar, AvatarImage } from "@/components/ui/avatar";
 import { Card } from "@/components/ui/card";
+import { formatMoney } from "@/lib/format";
 
 import StatusBadge from "./status-badge";
 
 type ProductProps = { product: Product };
 
 type Action = { label: string; href: string; ready: boolean };
-
-const currencyFormatter = new Intl.NumberFormat("es-AR", {
-  style: "currency",
-  currency: "ARS",
-  maximumFractionDigits: 0,
-});
 
 const dateFormatter = new Intl.DateTimeFormat("es-AR", {
   day: "2-digit",
@@ -27,11 +22,14 @@ function getActionForStatus(product: Product): Action | null {
   switch (product.status) {
     case "approved":
     case "auctioned":
+      // Tanto un bien aprobado (en una subasta abierta) como uno ya rematado
+      // linkean al detalle real de su subasta (/auctions/{id}, que getDetail
+      // resuelve para subastas abiertas o cerradas).
       return product.auctionId
         ? {
             label: "Ver subasta",
             href: `/auctions/${product.auctionId}`,
-            ready: false,
+            ready: true,
           }
         : null;
     case "appraised":
@@ -40,8 +38,15 @@ function getActionForStatus(product: Product): Action | null {
         href: `/profile/products/${product.id}/proposal`,
         ready: true,
       };
-    case "under_review":
     case "rejected":
+      // Mismo detalle que la propuesta, pero en modo lectura: el dueño puede
+      // ver el motivo del rechazo (sin botones de aceptar/rechazar).
+      return {
+        label: "Ver motivo",
+        href: `/profile/products/${product.id}/proposal`,
+        ready: true,
+      };
+    case "under_review":
       return null;
   }
 }
@@ -90,7 +95,7 @@ export default function ProductCard({ product }: ProductProps) {
             product.salePrice !== null &&
             product.saleDate !== null && (
               <Text className="text-xs text-gray-600">
-                {currencyFormatter.format(product.salePrice)} ·{" "}
+                {formatMoney(product.salePrice, product.currency ?? "ARS")} ·{" "}
                 {dateFormatter.format(new Date(product.saleDate))}
               </Text>
             )}
