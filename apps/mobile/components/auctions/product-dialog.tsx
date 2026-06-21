@@ -1,4 +1,5 @@
-import { Image, ScrollView, View } from "react-native";
+import { useEffect, useState } from "react";
+import { Image, Pressable, ScrollView, View } from "react-native";
 
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
@@ -31,15 +32,26 @@ function TextSection({ title, body }: { title: string; body: string }) {
   );
 }
 
-function Thumbnails({ images }: { images: string[] }) {
+function Thumbnails({
+  images,
+  selected,
+  onSelect,
+}: {
+  images: string[];
+  selected: string;
+  onSelect: (uri: string) => void;
+}) {
   return (
     <View className="flex flex-row gap-2">
       {images.map(uri => (
-        <Image
-          key={uri}
-          source={{ uri }}
-          className="h-20 flex-1 rounded-lg drop-shadow-sm/30"
-        />
+        <Pressable key={uri} className="flex-1" onPress={() => onSelect(uri)}>
+          <Image
+            source={{ uri }}
+            className={`h-20 w-full rounded-lg drop-shadow-sm/30 ${
+              uri === selected ? "border-primary border-2" : ""
+            }`}
+          />
+        </Pressable>
       ))}
     </View>
   );
@@ -51,6 +63,11 @@ export function ProductDialog({
   onOpenChange,
 }: ProductDialogProps) {
   const { isAuthed } = useAuth();
+  const [mainImage, setMainImage] = useState(product?.image ?? "");
+
+  useEffect(() => {
+    if (product) setMainImage(product.image);
+  }, [product]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -67,10 +84,14 @@ export function ProductDialog({
             contentContainerClassName="gap-4 pb-1"
           >
             <Image
-              source={{ uri: product.image }}
+              source={{ uri: mainImage }}
               className="h-56 w-full rounded-xl drop-shadow-sm/30"
             />
-            <Thumbnails images={product.images} />
+            <Thumbnails
+              images={product.images}
+              selected={mainImage}
+              onSelect={setMainImage}
+            />
 
             <View className="border-gray-200 gap-4 rounded-2xl border bg-white p-4 shadow-sm shadow-black/10">
               <TextSection title="Descripción" body={product.description} />
