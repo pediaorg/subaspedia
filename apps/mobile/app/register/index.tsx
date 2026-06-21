@@ -41,6 +41,7 @@ export default function RegisterScreen() {
       legalAddress: "",
       country: "",
       email: "",
+      document: "",
       dniFront: "",
       dniBack: "",
     },
@@ -197,6 +198,26 @@ export default function RegisterScreen() {
                 autoCapitalize="none"
                 keyboardType="email-address"
                 placeholder="tu@email.com"
+                className={INPUT}
+              />
+            </FormField>
+          )}
+        />
+
+        <Controller
+          control={form.control}
+          name="document"
+          render={({ field, fieldState }) => (
+            <FormField
+              label="Número de documento"
+              error={fieldState.error?.message}
+            >
+              <Input
+                value={field.value}
+                onChangeText={field.onChange}
+                onBlur={field.onBlur}
+                keyboardType="number-pad"
+                placeholder="Sin puntos"
                 className={INPUT}
               />
             </FormField>

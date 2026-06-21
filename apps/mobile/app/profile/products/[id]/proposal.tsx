@@ -35,6 +35,7 @@ const MOCK_PRODUCT: Product = {
   proposedBasePrice: 180000,
   proposedCommission: 12,
   salePrice: null,
+  currency: null,
   saleDate: null,
   auctionId: null,
 };

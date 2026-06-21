@@ -19,17 +19,14 @@ export function SearchBar({
   className,
 }: SearchBarProps) {
   return (
-    <View className="relative justify-center">
+    <View className={cn("relative justify-center", className)}>
       <Input
         placeholder={placeholder}
         value={value}
         onChangeText={onChangeText}
-        className={cn(
-          "bg-secondary h-12 rounded-2xl border-0 pr-11 text-base",
-          className,
-        )}
+        className="bg-secondary h-12 rounded-2xl border-0 pr-11 text-base"
       />
-      <View className="absolute right-4">
+      <View className="absolute right-4 top-0 bottom-0 justify-center">
         <Icon as={Search} size={20} className="text-muted-foreground" />
       </View>
     </View>
