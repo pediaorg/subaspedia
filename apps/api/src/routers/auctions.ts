@@ -1,17 +1,7 @@
 import { ORPCError } from "@orpc/server";
-import { and, eq, ne } from "drizzle-orm";
 import { z } from "zod";
 
-import { authed, pub } from "@/api/context";
-
-import {
-  attendees,
-  auctions,
-  bids,
-  catalogItems,
-  catalogs,
-  clients,
-} from "../db/schema";
+import { pub } from "@/api/context";
 
 const CATEGORIES = ["common", "special", "silver", "gold", "platinum"] as const;
 
@@ -415,118 +405,5 @@ export const auctionsRouter = {
         itemName: bid.item?.product?.name ?? "Producto",
         bidderNumber: bid.attendee?.bidderNumber,
       }));
-    }),
-
-  // Realizar una puja (requiere autenticación)
-  placeBid: authed
-    .input(
-      z.object({
-        auctionId: z.number().int().positive(),
-        amount: z.number().positive("El monto debe ser mayor a 0"),
-      }),
-    )
-    .handler(async ({ context, input }) => {
-      const auction = await context.db.query.auctions.findFirst({
-        where: { id: input.auctionId, status: "open" },
-      });
-
-      if (!auction)
-        throw new ORPCError("NOT_FOUND", {
-          message: "Subasta no encontrada o cerrada",
-        });
-
-      const client = await context.db.query.clients.findFirst({
-        where: { id: context.userId },
-      });
-
-      if (!client)
-        throw new ORPCError("FORBIDDEN", {
-          message: "No tienes permiso para pujar",
-        });
-
-      let attendee = await context.db.query.attendees.findFirst({
-        where: { clientId: client.id, auctionId: input.auctionId },
-      });
-
-      if (!attendee) {
-        const maxBidder = await context.db.query.attendees.findFirst({
-          where: { auctionId: input.auctionId },
-          orderBy: (t, { desc }) => desc(t.bidderNumber),
-        });
-
-        const newBidderNumber = (maxBidder?.bidderNumber ?? 0) + 1;
-
-        const result = await context.db
-          .insert(attendees)
-          .values({
-            clientId: client.id,
-            auctionId: input.auctionId,
-            bidderNumber: newBidderNumber,
-          })
-          .returning();
-
-        attendee = result[0];
-      }
-
-      if (!attendee)
-        throw new ORPCError("INTERNAL_SERVER_ERROR", {
-          message: "Error al registrar asistente",
-        });
-
-      const catalog = await context.db.query.catalogs.findFirst({
-        where: { auctionId: input.auctionId },
-      });
-
-      if (!catalog)
-        throw new ORPCError("NOT_FOUND", {
-          message: "No hay catálogo en esta subasta",
-        });
-
-      const item = await context.db.query.catalogItems.findFirst({
-        where: { catalogId: catalog.id },
-      });
-
-      if (!item)
-        throw new ORPCError("NOT_FOUND", {
-          message: "No hay items en este catálogo",
-        });
-
-      const highestBid = await context.db.query.bids.findFirst({
-        columns: { amount: true },
-        where: { itemId: item.id },
-        orderBy: (t, { desc }) => desc(t.amount),
-      });
-
-      if (highestBid && input.amount <= highestBid.amount) {
-        throw new ORPCError("BAD_REQUEST", {
-          message: `El monto debe ser mayor a $${highestBid.amount}`,
-        });
-      }
-
-      const bidResult = await context.db
-        .insert(bids)
-        .values({
-          attendeeId: attendee.id,
-          itemId: item.id,
-          amount: input.amount,
-          winner: true,
-        })
-        .returning();
-
-      const newBid = bidResult[0];
-
-      // El UPDATE usa el Query Builder estándar, por eso aquí SÍ mantenemos eq, and y ne
-      if (highestBid) {
-        await context.db
-          .update(bids)
-          .set({ winner: false })
-          .where(and(eq(bids.itemId, item.id), ne(bids.id, newBid.id)));
-      }
-
-      return {
-        success: true,
-        bidId: newBid.id,
-        message: "Puja realizada exitosamente",
-      };
     }),
 };

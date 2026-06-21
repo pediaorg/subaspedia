@@ -6,7 +6,7 @@ import {
   useNavigation,
   useRouter,
 } from "expo-router";
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Image,
@@ -24,6 +24,7 @@ import { Sidebar } from "@/components/app-header/sidebar";
 import { CatalogDialog } from "@/components/auctions/catalog-dialog";
 import { ProductDialog } from "@/components/auctions/product-dialog";
 import { api } from "@/lib/api";
+import { useAuctionRoom, useCountdown } from "@/lib/auction-socket";
 import type { Product } from "@/lib/auctions";
 import { useAuth } from "@/lib/auth";
 import { formatMoney } from "@/lib/format";
@@ -71,6 +72,34 @@ export default function AuctionDetailScreen() {
   const auction = useMemo(() => rawAuction ?? null, [rawAuction]);
   const bids = useMemo(() => rawBids ?? [], [rawBids]);
 
+  // Suscripción en vivo a la subasta (Durable Object). Trae la puja actual,
+  // quién la tiene y el deadline, y es el ÚNICO canal de pujas (sendBid). Las
+  // pujas ya NO pasan por un RPC al backend.
+  const {
+    state: liveState,
+    closed: liveClosed,
+    error: bidError,
+    sendBid,
+    clearError,
+  } = useAuctionRoom(isValidId ? auctionId : null);
+  const secondsLeft = useCountdown(liveState?.deadline ?? null);
+
+  // Cada vez que el DO difunde un cambio, refrescamos la lista de pujas y el
+  // detalle (que vienen de la DB) para mantener todo en sync.
+  useEffect(() => {
+    if (!liveState && !liveClosed) return;
+    queryClient.invalidateQueries();
+  }, [liveState, liveClosed, queryClient]);
+
+  // Valores mostrados: priorizan el estado en vivo del WS y caen al de la API.
+  const basePrice = auction?.catalogs?.[0]?.items?.[0]?.basePrice ?? 0;
+  const currentPrice =
+    liveState?.currentBid && liveState.currentBid > 0
+      ? liveState.currentBid
+      : (auction?.currentBid ?? 0) || basePrice;
+  const leaderName = liveState?.leader?.name ?? bids[0]?.user ?? null;
+  const isClosed = liveClosed !== null || liveState?.status === "closed";
+
   const catalogProducts = useMemo<Product[]>(() => {
     if (!auction?.catalogs?.[0]?.items) return [];
 
@@ -97,19 +126,18 @@ export default function AuctionDetailScreen() {
     });
   }, [auction]);
 
-  // 5. Mutación
-  const { mutate: placeBid, isPending: isBidding } =
-    api.auctions.placeBid.useMutation({
-      onSuccess: () => {
-        setBidAmount("");
-        queryClient.invalidateQueries();
+  // 5. Estado de envío de puja. La puja viaja por el WebSocket: marcamos
+  // "pujando" al enviar y lo limpiamos cuando llega el nuevo estado (aceptada)
+  // o un error (rechazada). Mientras tanto, el botón queda deshabilitado para
+  // no permitir otra puja hasta recibir confirmación del sistema.
+  const [isBidding, setIsBidding] = useState(false);
 
-        alert("Puja realizada");
-      },
-      onError: error => {
-        alert("Error: " + (error.message || "No se pudo registrar"));
-      },
-    });
+  useEffect(() => {
+    if (!isBidding) return;
+    // La confirmación llegó (estado nuevo) o el rechazo (error): liberamos.
+    if (liveState) setBidAmount("");
+    setIsBidding(false);
+  }, [liveState, bidError]);
 
   // 6. Handlers
   const handlePlaceBid = () => {
@@ -120,15 +148,13 @@ export default function AuctionDetailScreen() {
 
     const amount = parseFloat(bidAmount);
 
-    if (isNaN(amount) || amount <= 0) {
+    if (Number.isNaN(amount) || amount <= 0) {
       alert("Monto inválido. Ingresa un monto mayor a 0");
       return;
     }
 
-    placeBid({
-      auctionId,
-      amount,
-    });
+    clearError();
+    if (sendBid(amount)) setIsBidding(true);
   };
 
   return (
@@ -274,17 +300,52 @@ export default function AuctionDetailScreen() {
                     </Text>
                   </View>
 
-                  {/* Card: Precio Actual */}
-                  <View className="w-[48%] bg-white rounded-2xl p-4 shadow-sm border border-gray-100 justify-center items-center flex-row">
-                    <Text className="text-blue-900 font-black text-2xl">
-                      {formatMoney(
-                        auction.currentBid ||
-                          auction.catalogs[0].items[0].basePrice,
-                        auction.currency,
-                      )}
+                  {/* Card: Precio Actual (en vivo) */}
+                  <View className="w-[48%] bg-white rounded-2xl p-4 shadow-sm border border-gray-100 justify-center items-center">
+                    <Text className="text-blue-500 font-bold text-xs mb-1">
+                      Puja actual
                     </Text>
+                    <Text className="text-blue-900 font-black text-2xl">
+                      {formatMoney(currentPrice, auction.currency)}
+                    </Text>
+                    {leaderName ? (
+                      <Text
+                        className="text-gray-500 text-xs mt-1"
+                        numberOfLines={1}
+                      >
+                        {isClosed ? "Ganó " : "Va ganando "}
+                        <Text className="font-semibold text-gray-700">
+                          {leaderName}
+                        </Text>
+                      </Text>
+                    ) : (
+                      <Text className="text-gray-400 text-xs mt-1">
+                        Precio base
+                      </Text>
+                    )}
                   </View>
                 </View>
+
+                {/* Banda de estado en vivo: tiempo restante / cierre */}
+                {isClosed ? (
+                  <View className="mt-4 bg-gray-900 rounded-2xl px-5 py-3 flex-row items-center justify-center">
+                    <Ionicons name="flag" size={16} color="white" />
+                    <Text className="text-white font-bold ml-2">
+                      Subasta finalizada
+                    </Text>
+                  </View>
+                ) : liveState?.deadline ? (
+                  <View
+                    className={`mt-4 rounded-2xl px-5 py-3 flex-row items-center justify-center ${
+                      secondsLeft <= 10 ? "bg-red-600" : "bg-blue-800"
+                    }`}
+                  >
+                    <Ionicons name="time-outline" size={16} color="white" />
+                    <Text className="text-white font-bold ml-2">
+                      Cierra en {secondsLeft}s si nadie supera la puja
+                    </Text>
+                  </View>
+                ) : null}
 
                 {/* Lista de Pujas */}
                 <View className="bg-white rounded-3xl p-5 shadow-sm border border-gray-100 mt-6">
@@ -326,15 +387,37 @@ export default function AuctionDetailScreen() {
             </ScrollView>
 
             {/* --- INPUT --- */}
-            {canBid ? (
+            {isClosed ? (
+              <View className="bg-[#F8F9FA] px-6 py-6 pb-12 items-center">
+                <Text className="text-gray-500 font-bold text-base">
+                  La subasta finalizó
+                </Text>
+              </View>
+            ) : canBid ? (
               <View className="bg-white px-6 py-4 border-t border-gray-100 pb-8">
+                {bidError ? (
+                  <Text className="text-red-600 text-sm font-medium mb-2 px-2">
+                    {bidError}
+                  </Text>
+                ) : liveState ? (
+                  <Text className="text-gray-400 text-xs mb-2 px-2">
+                    Puja mínima:{" "}
+                    {formatMoney(liveState.minBid, auction.currency)}
+                    {liveState.maxBid !== null
+                      ? ` · máxima: ${formatMoney(liveState.maxBid, auction.currency)}`
+                      : ""}
+                  </Text>
+                ) : null}
                 <View className="flex-row items-center bg-[#F8F9FA] rounded-full border border-gray-200 p-2">
                   <TextInput
                     className="flex-1 px-4 text-base font-semibold text-gray-700 h-12 mr-2"
                     placeholder="Ingresa tu oferta..."
                     keyboardType="numeric"
                     value={bidAmount}
-                    onChangeText={setBidAmount}
+                    onChangeText={t => {
+                      setBidAmount(t);
+                      if (bidError) clearError();
+                    }}
                     editable={!isBidding}
                   />
                   <TouchableOpacity
