@@ -1,5 +1,5 @@
 import { ORPCError } from "@orpc/server";
-import { and, count, eq, sql } from "drizzle-orm";
+import { and, count, desc, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { createPaymentMethodSchema } from "@subaspedia/types/forms/payment";
@@ -9,9 +9,18 @@ import {
 } from "@subaspedia/types/payment-method";
 import { penaltySchema, penaltyStatus } from "@subaspedia/types/penalty";
 import { transactionSchema } from "@subaspedia/types/transaction";
-import { rankSummarySchema } from "@subaspedia/types/user";
+import { bidHistorySchema, rankSummarySchema } from "@subaspedia/types/user";
 import { authed } from "@/api/context";
-import { attendees, bids, paymentMethods, penalties } from "@/api/db/schema";
+import {
+  attendees,
+  auctionRecords,
+  auctions,
+  bids,
+  catalogItems,
+  paymentMethods,
+  penalties,
+  products,
+} from "@/api/db/schema";
 import { toIso } from "@/api/lib/date";
 import { firstPhotoToImg } from "@/api/lib/photo";
 
@@ -121,6 +130,35 @@ export const userRouter = {
       .innerJoin(attendees, eq(bids.attendeeId, attendees.id))
       .where(eq(attendees.clientId, userId));
 
+    // Total pagado = importe + comisión de las ventas que ganó (las filas de
+    // registroDeSubasta donde el client es el comprador). `comision` es un
+    // PORCENTAJE del importe (p. ej. 12 = 12%), no un monto. Distinto de
+    // totalBid (que suma todas sus pujas, ganadas o no).
+    const [paidStats] = await context.db
+      .select({
+        totalPaid: sql<number>`coalesce(sum(${auctionRecords.amount} + ${auctionRecords.amount} * ${auctionRecords.commission} / 100.0), 0)`,
+      })
+      .from(auctionRecords)
+      .where(eq(auctionRecords.clientId, userId));
+
+    // Participaciones agrupadas por categoría de la subasta. Las subastas sin
+    // categoría (category null) se descartan del desglose.
+    const categoryRows = await context.db
+      .select({
+        category: auctions.category,
+        participated: count(),
+      })
+      .from(attendees)
+      .innerJoin(auctions, eq(attendees.auctionId, auctions.id))
+      .where(eq(attendees.clientId, userId))
+      .groupBy(auctions.category);
+
+    const byCategory = categoryRows.flatMap(r =>
+      r.category
+        ? [{ category: r.category, participated: r.participated }]
+        : [],
+    );
+
     return {
       category: client?.category ?? null,
       paymentMethods: {
@@ -131,8 +169,38 @@ export const userRouter = {
         participated: participatedRow?.value ?? 0,
         won: Number(bidStats?.won ?? 0),
         totalBid: Number(bidStats?.totalBid ?? 0),
+        totalPaid: Number(paidStats?.totalPaid ?? 0),
+        byCategory,
       },
     };
+  }),
+
+  // GET /users/me/bid-history — todas las pujas del client logueado, de la más
+  // reciente a la más vieja (orden por id; la tabla no tiene timestamp). Cada
+  // puja trae el nombre del bien y la subasta a la que pertenece.
+  bidHistory: authed.output(bidHistorySchema).handler(async ({ context }) => {
+    const rows = await context.db
+      .select({
+        id: bids.id,
+        amount: bids.amount,
+        winner: bids.winner,
+        productName: products.name,
+        auctionId: attendees.auctionId,
+      })
+      .from(bids)
+      .innerJoin(attendees, eq(bids.attendeeId, attendees.id))
+      .innerJoin(catalogItems, eq(bids.itemId, catalogItems.id))
+      .innerJoin(products, eq(catalogItems.productId, products.id))
+      .where(eq(attendees.clientId, context.userId))
+      .orderBy(desc(bids.id));
+
+    return rows.map(r => ({
+      id: r.id,
+      productName: r.productName,
+      amount: r.amount,
+      winner: r.winner ?? false,
+      auctionId: r.auctionId,
+    }));
   }),
 
   // GET /users/me/transactions — historial de compras del client logueado. Una
