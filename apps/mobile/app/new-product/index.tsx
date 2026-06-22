@@ -10,6 +10,7 @@ import {
   type NewProductFormOutput,
   newProductSchema,
 } from "@subaspedia/types/forms/new-product";
+import { MenuButton } from "@/components/app-header/menu-button";
 import { LoginPrompt } from "@/components/login-prompt";
 import { Alert, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -66,9 +67,12 @@ export default function PostProduct() {
         contentContainerClassName="gap-4 p-4 pb-12"
         keyboardShouldPersistTaps="handled"
       >
-        <Text variant="h3" className="font-bold text-center">
-          Subastar un producto
-        </Text>
+        <View className="flex-row items-center justify-between">
+          <Text variant="h3" className="font-bold">
+            Subastar un producto
+          </Text>
+          <MenuButton />
+        </View>
 
         <Separator className="bg-gray-300" />
         {isAuthed ? (

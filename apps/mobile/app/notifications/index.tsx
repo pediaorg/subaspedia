@@ -1,13 +1,11 @@
 import { router, Stack } from "expo-router";
-import { Menu } from "lucide-react-native";
-import { useState } from "react";
 import { Pressable, ScrollView, View } from "react-native";
 
 import type { Notification } from "@subaspedia/types/notification";
-import { Sidebar } from "@/components/app-header/sidebar";
+import { BackButton } from "@/components/app-header/back-button";
+import { MenuButton } from "@/components/app-header/menu-button";
 import { NotificationIcon } from "@/components/notifications/notification-icon";
 import { Card } from "@/components/ui/card";
-import { Icon } from "@/components/ui/icon";
 import { Separator } from "@/components/ui/separator";
 import { Text } from "@/components/ui/text";
 import { api } from "@/lib/api";
@@ -54,7 +52,6 @@ function NotificationRow({ notification }: { notification: Notification }) {
 
 export default function Notifications() {
   const { data, isLoading, error } = api.notifications.list.useQuery();
-  const [menuOpen, setMenuOpen] = useState(false);
 
   return (
     <>
@@ -65,16 +62,13 @@ export default function Notifications() {
         keyboardShouldPersistTaps="handled"
       >
         <View className="flex-row items-center justify-between">
-          <Text variant="h1" className="text-left font-bold">
-            Notificaciones
-          </Text>
-          <Pressable
-            onPress={() => setMenuOpen(true)}
-            accessibilityLabel="Abrir menú"
-            hitSlop={8}
-          >
-            <Icon as={Menu} size={28} className="text-foreground" />
-          </Pressable>
+          <View className="flex-row items-center gap-3">
+            <BackButton />
+            <Text variant="h3" className="text-left font-bold">
+              Notificaciones
+            </Text>
+          </View>
+          <MenuButton />
         </View>
         <Separator className="bg-[#D9D9D9]" />
 
@@ -94,8 +88,6 @@ export default function Notifications() {
           <NotificationRow key={n.id} notification={n} />
         ))}
       </ScrollView>
-
-      <Sidebar open={menuOpen} onClose={() => setMenuOpen(false)} />
     </>
   );
 }

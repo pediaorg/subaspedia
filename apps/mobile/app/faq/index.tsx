@@ -1,6 +1,8 @@
 import { Stack } from "expo-router";
-import { ScrollView } from "react-native";
+import { ScrollView, View } from "react-native";
 
+import { BackButton } from "@/components/app-header/back-button";
+import { MenuButton } from "@/components/app-header/menu-button";
 import { Accordion } from "@/components/ui/accordion";
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
@@ -60,9 +62,15 @@ export default function FAQ() {
         contentContainerClassName="gap-4 p-4 pb-12"
         keyboardShouldPersistTaps="handled"
       >
-        <Text variant="h1" className="text-left font-bold">
-          Preguntas Frecuentes
-        </Text>
+        <View className="flex-row items-center justify-between">
+          <View className="flex-row items-center gap-3">
+            <BackButton />
+            <Text variant="h3" className="text-left font-bold">
+              Preguntas Frecuentes
+            </Text>
+          </View>
+          <MenuButton />
+        </View>
         <Separator className="bg-border" />
         <Card className="drop-shadow-xl/40 border-0 p-4">
           <Accordion type="single" collapsible>

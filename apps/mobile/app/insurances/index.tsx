@@ -1,22 +1,14 @@
-import { useRouter } from "expo-router";
-import { ArrowLeft } from "lucide-react-native";
-import {
-  ActivityIndicator,
-  Pressable,
-  ScrollView,
-  Text,
-  View,
-} from "react-native";
+import { ActivityIndicator, ScrollView, Text, View } from "react-native";
 
+import { BackButton } from "@/components/app-header/back-button";
+import { MenuButton } from "@/components/app-header/menu-button";
 import { Avatar, AvatarImage } from "@/components/ui/avatar";
 import { Card } from "@/components/ui/card";
-import { Icon } from "@/components/ui/icon";
 import { Separator } from "@/components/ui/separator";
 import { api } from "@/lib/api";
 import { formatMoney } from "@/lib/format";
 
 export default function InsurancesScreen() {
-  const router = useRouter();
   const { data: insurances, isLoading } = api.user.insurances.useQuery();
 
   return (
@@ -26,16 +18,14 @@ export default function InsurancesScreen() {
         contentContainerClassName="p-4 pb-24 gap-5"
         showsVerticalScrollIndicator={false}
       >
-        <View className="flex-row items-center gap-3">
-          <Pressable
-            onPress={() => router.back()}
-            accessibilityLabel="Volver atrás"
-            hitSlop={8}
-            className="p-1 bg-white/90 rounded-full shadow-sm"
-          >
-            <Icon as={ArrowLeft} size={24} color="black" />
-          </Pressable>
-          <Text className="text-3xl font-extrabold">Seguros</Text>
+        <View className="flex-row items-center justify-between">
+          <View className="flex-row items-center gap-3">
+            <BackButton />
+            <Text className="text-2xl font-bold tracking-tight text-left">
+              Seguros
+            </Text>
+          </View>
+          <MenuButton />
         </View>
 
         {isLoading ? (
