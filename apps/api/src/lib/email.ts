@@ -110,12 +110,39 @@ function categoryLabel(category: AuctionCategory): string {
 }
 
 /**
+ * Botón que apunta al universal link del detalle de una compra. Lleva al ganador
+ * directo a la transacción, donde ve la factura y elige envío / retiro. Si la
+ * sesión venció, la app cae al login (limitación conocida del guard/refresh).
+ */
+function transactionButton(recordId: number, label: string): string {
+  const origin = env.WEB_ORIGIN ?? DEFAULT_WEB_ORIGIN;
+  const url = `${origin}/profile/transactions/${recordId}`;
+  return `
+    <p style="margin: 24px 0;">
+      <a href="${url}" style="display: inline-block; background: #111; color: #fff; text-decoration: none; padding: 12px 20px; border-radius: 8px; font-weight: 600;">${label}</a>
+    </p>
+  `;
+}
+
+/** Botón que apunta al link de set-password (un solo uso) con el token. */
+function setPasswordButton(token: string, label: string): string {
+  const origin = env.WEB_ORIGIN ?? DEFAULT_WEB_ORIGIN;
+  const url = `${origin}/register/set-password?token=${encodeURIComponent(token)}`;
+  return `
+    <p style="margin: 24px 0;">
+      <a href="${url}" style="display: inline-block; background: #111; color: #fff; text-decoration: none; padding: 12px 20px; border-radius: 8px; font-weight: 600;">${label}</a>
+    </p>
+  `;
+}
+
+/**
  * Avisa al postor que la empresa terminó la investigación y le asignó una
- * categoría. Lo invita a ingresar a la app a completar el registro.
+ * categoría. Incluye el link para que fije su contraseña y habilite el login.
  */
 export async function sendCategoryAssignedEmail(
   to: string,
   category: AuctionCategory,
+  setPasswordToken: string,
 ): Promise<void> {
   await sendEmail({
     to,
@@ -123,8 +150,8 @@ export async function sendCategoryAssignedEmail(
     html: layout(`
       <h1 style="font-size: 20px;">¡Bienvenido a Subaspedia!</h1>
       <p>Terminamos de revisar tus datos y te asignamos la categoría <strong>${categoryLabel(category)}</strong>.</p>
-      <p>Ya podés ingresar a la app, completar tu registro y crear tu clave personal para ver los precios base y las subastas de tu categoría.</p>
-      ${logoutButton("Ingresar a Subaspedia")}
+      <p>Para activar tu cuenta, creá tu clave personal desde el siguiente botón. El link vence en 72 horas.</p>
+      ${setPasswordButton(setPasswordToken, "Crear mi contraseña")}
       <p style="color: #666; font-size: 13px;">Para poder pujar, recordá registrar al menos un medio de pago y esperar a que lo validemos.</p>
     `),
   });
@@ -143,6 +170,60 @@ export async function sendPaymentMethodVerifiedEmail(
       <p>Para habilitar las pujas, cerrá sesión y volvé a entrar así actualizamos tu cuenta.</p>
       ${logoutButton("Actualizar mi sesión")}
       <p style="color: #666; font-size: 13px;">Después de volver a iniciar sesión vas a poder pujar en las subastas de tu categoría. ¡Mucha suerte!</p>
+    `),
+  });
+}
+
+/**
+ * Avisa al ganador de una subasta sobre el importe a pagar y lo lleva al detalle
+ * de su compra. `commission` y `shippingCost` llegan ya como MONTOS (la comisión
+ * resuelta sobre la puja y el envío por defecto), para que el total del mail
+ * coincida con la factura de la transacción.
+ */
+export async function sendAuctionWinEmail(args: {
+  to: string;
+  winnerName: string;
+  productName: string;
+  bidAmount: number;
+  commission: number;
+  shippingCost: number;
+  currency: "ARS" | "USD";
+  recordId: number;
+}): Promise<void> {
+  const total = args.bidAmount + args.commission + args.shippingCost;
+  const currencySymbol = args.currency === "ARS" ? "$" : "USD ";
+
+  await sendEmail({
+    to: args.to,
+    subject: `¡Ganaste "${args.productName}" en Subaspedia!`,
+    html: layout(`
+      <h1 style="font-size: 20px;">¡Felicidades ${args.winnerName}!</h1>
+      <p>Ganaste la subasta de <strong>${args.productName}</strong>.</p>
+
+      <div style="background: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0;">
+        <h3 style="margin-top: 0; font-size: 16px;">Detalle del pago:</h3>
+        <table style="width: 100%; border-collapse: collapse;">
+          <tr>
+            <td style="padding: 8px 0; border-bottom: 1px solid #ddd;">Monto pujado</td>
+            <td style="text-align: right; padding: 8px 0; border-bottom: 1px solid #ddd;"><strong>${currencySymbol}${args.bidAmount.toFixed(2)}</strong></td>
+          </tr>
+          <tr>
+            <td style="padding: 8px 0; border-bottom: 1px solid #ddd;">Comisión</td>
+            <td style="text-align: right; padding: 8px 0; border-bottom: 1px solid #ddd;"><strong>${currencySymbol}${args.commission.toFixed(2)}</strong></td>
+          </tr>
+          <tr>
+            <td style="padding: 8px 0; border-bottom: 1px solid #ddd;">Envío a tu domicilio</td>
+            <td style="text-align: right; padding: 8px 0; border-bottom: 1px solid #ddd;"><strong>${currencySymbol}${args.shippingCost.toFixed(2)}</strong></td>
+          </tr>
+          <tr>
+            <td style="padding: 12px 0; font-weight: 600;">Total a pagar</td>
+            <td style="text-align: right; padding: 12px 0; font-weight: 600; font-size: 16px;">${currencySymbol}${total.toFixed(2)}</td>
+          </tr>
+        </table>
+      </div>
+
+      <p style="color: #666; font-size: 13px;">Entrá a la app para ver el detalle de tu compra y elegir cómo recibirla: envío a domicilio o retiro personal.</p>
+      ${transactionButton(args.recordId, "Ver mi compra")}
     `),
   });
 }

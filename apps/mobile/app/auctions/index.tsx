@@ -41,6 +41,7 @@ export default function AuctionsScreen() {
           description: p.description ?? "",
           currentOwner: p.ownerName ?? "—",
           basePrice: p.basePrice,
+          currency: p.currency,
         };
         if (p.kind === "artwork") {
           return {

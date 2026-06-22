@@ -2,6 +2,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { router, useLocalSearchParams } from "expo-router";
 import { Controller, useForm } from "react-hook-form";
 import { View } from "react-native";
+import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 
 import {
   type NewPasswordInput,
@@ -12,13 +13,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Text } from "@/components/ui/text";
 import { api } from "@/lib/api";
-import { safeRedirect } from "@/lib/auth-redirect";
 import { authStore } from "@/lib/auth";
+import { safeRedirect } from "@/lib/auth-redirect";
 
-export default function NewPasswordScreen() {
-  const { email, code, redirect } = useLocalSearchParams<{
-    email: string;
-    code: string;
+export default function SetPasswordScreen() {
+  const { token, redirect } = useLocalSearchParams<{
+    token: string;
     redirect?: string;
   }>();
 
@@ -28,7 +28,7 @@ export default function NewPasswordScreen() {
     defaultValues: { password: "", confirmPassword: "" },
   });
 
-  const complete = api.auth.completeRegistration.useMutation({
+  const setPassword = api.auth.setPassword.useMutation({
     onSuccess: tokens => {
       authStore.set(tokens);
       router.replace(safeRedirect(redirect));
@@ -36,22 +36,39 @@ export default function NewPasswordScreen() {
   });
 
   const onSubmit = (data: NewPasswordInput) =>
-    complete.mutate({
-      email,
-      code,
+    setPassword.mutate({
+      token,
       password: data.password,
       confirmPassword: data.confirmPassword,
     });
 
   const submit = form.handleSubmit(onSubmit);
 
+  if (!token) {
+    return (
+      <View className="flex-1 justify-center gap-3 bg-white p-6">
+        <Text variant="h2" className="text-center font-bold">
+          Link inválido
+        </Text>
+        <Text className="text-muted-foreground text-center text-sm">
+          El enlace para crear tu contraseña no es válido o está incompleto.
+        </Text>
+      </View>
+    );
+  }
+
   return (
-    <View className="flex-1 justify-center gap-5 bg-white p-6">
+    <KeyboardAwareScrollView
+      bottomOffset={20}
+      showsVerticalScrollIndicator={false}
+      className="flex-1 bg-white"
+      contentContainerClassName="flex-grow justify-center gap-5 p-6"
+    >
       <Text variant="h2" className="text-center font-bold">
         Crear contraseña
       </Text>
       <Text className="text-muted-foreground text-center text-sm">
-        Generá tu clave personal para terminar el registro.
+        Generá tu clave personal para activar tu cuenta.
       </Text>
 
       <Controller
@@ -95,22 +112,22 @@ export default function NewPasswordScreen() {
         )}
       />
 
-      {complete.error ? (
+      {setPassword.error ? (
         <Text className="text-destructive text-center text-sm">
-          {complete.error.message}
+          {setPassword.error.message}
         </Text>
       ) : null}
 
       <Button
         size="lg"
-        disabled={!form.formState.isValid || complete.isPending}
+        disabled={!form.formState.isValid || setPassword.isPending}
         onPress={submit}
         className="bg-accent-foreground rounded-2xl border-0 py-4 shadow-none"
       >
         <Text className="text-base font-bold text-white">
-          {complete.isPending ? "Creando..." : "Completar registro"}
+          {setPassword.isPending ? "Activando..." : "Crear contraseña"}
         </Text>
       </Button>
-    </View>
+    </KeyboardAwareScrollView>
   );
 }

@@ -36,6 +36,7 @@ export function AuctionsPreview() {
           description: p.description ?? "",
           currentOwner: p.ownerName ?? "—",
           basePrice: p.basePrice,
+          currency: p.currency,
         };
         if (p.kind === "artwork") {
           return {
@@ -92,7 +93,7 @@ export function AuctionsPreview() {
           key={auction.id}
           auction={auction}
           onOpenCatalog={() => setCatalogAuctionId(Number(auction.id))}
-          onEnter={() => router.push("/auctions")}
+          onEnter={() => router.push(`/auctions/${auction.id}`)}
         />
       ))}
 

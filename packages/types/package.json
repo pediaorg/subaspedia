@@ -11,7 +11,11 @@
     "./forms/*": "./src/forms/*.ts",
     "./user": "./src/user/index.ts",
     "./product": "./src/product/index.ts",
-    "./payment-method": "./src/payment-method/index.ts"
+    "./penalty": "./src/penalty/index.ts",
+    "./transaction": "./src/transaction/index.ts",
+    "./payment-method": "./src/payment-method/index.ts",
+    "./insurance": "./src/insurance/index.ts",
+    "./notification": "./src/notification/index.ts"
   },
   "dependencies": {
     "zod": "^4.4.3"

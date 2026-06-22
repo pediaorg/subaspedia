@@ -1,6 +1,7 @@
 import { router, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
 import { View } from "react-native";
+import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 
 import { VERIFICATION_CODE_LENGTH } from "@subaspedia/types/forms/auth";
 import { FormField } from "@/components/form-field";
@@ -10,18 +11,11 @@ import { Text } from "@/components/ui/text";
 import { api } from "@/lib/api";
 
 export default function VerifyScreen() {
-  const { email, redirect } = useLocalSearchParams<{
-    email: string;
-    redirect?: string;
-  }>();
+  const { email } = useLocalSearchParams<{ email: string }>();
   const [code, setCode] = useState("");
 
   const verify = api.auth.verifyCode.useMutation({
-    onSuccess: () =>
-      router.push({
-        pathname: "/register/password",
-        params: { email, code, ...(redirect ? { redirect } : {}) },
-      }),
+    onSuccess: () => router.replace("/register/pending"),
   });
 
   const submit = () => {
@@ -30,7 +24,12 @@ export default function VerifyScreen() {
   };
 
   return (
-    <View className="flex-1 justify-center gap-5 bg-white p-6">
+    <KeyboardAwareScrollView
+      bottomOffset={20}
+      showsVerticalScrollIndicator={false}
+      className="flex-1 bg-white"
+      contentContainerClassName="flex-grow justify-center gap-5 p-6"
+    >
       <Text variant="h2" className="text-center font-bold">
         Verificar
       </Text>
@@ -62,6 +61,6 @@ export default function VerifyScreen() {
           {verify.isPending ? "Verificando..." : "Verificar"}
         </Text>
       </Button>
-    </View>
+    </KeyboardAwareScrollView>
   );
 }

@@ -1,93 +1,226 @@
+import { ORPCError } from "@orpc/server";
 import { newProductSchema } from "@subaspedia/types/forms";
 import { type ProductStatus, productSchema } from "@subaspedia/types/product";
+import { eq } from "drizzle-orm";
 import { z } from "zod";
 
-import { authed } from "../context";
-import { photos, products } from "../db/schema";
+import { type Context, authed } from "../context";
+import {
+  catalogItems,
+  employees,
+  owners,
+  people,
+  photos,
+  products,
+  quotes,
+} from "../db/schema";
+import { toIso } from "../lib/date";
+import { firstPhotoToImg } from "../lib/photo";
 
-// catalog_items.state guarda el estado en español (lo que escribe el back); el
-// front consume el enum ProductStatus en inglés. Un producto recién subido aún
-// no tiene catalog_item -> lo tratamos como "under_review" (en tasación).
-const STATE_TO_STATUS = {
+// owners.verifierId es NOT NULL (employees.id). En la demo no hay empleados
+// reales: garantizamos uno por defecto. Mismo patrón que backoffice.ts.
+async function ensureDefaultEmployee(db: Context["db"]): Promise<number> {
+  const existing = await db.query.employees.findFirst({
+    columns: { id: true },
+  });
+  if (existing) return existing.id;
+
+  const [person] = await db
+    .insert(people)
+    .values({ name: "Backoffice", status: "active" })
+    .returning({ id: people.id });
+  await db.insert(employees).values({ id: person.id, position: "Analista" });
+  return person.id;
+}
+
+// El user logueado es una `people`, no necesariamente un `owner`. Lo
+// materializamos en su primer upload para poder linkear el producto.
+async function ensureOwner(db: Context["db"], userId: number): Promise<number> {
+  const existing = await db.query.owners.findFirst({
+    where: { id: userId },
+    columns: { id: true },
+  });
+  if (existing) return existing.id;
+
+  const verifierId = await ensureDefaultEmployee(db);
+  await db.insert(owners).values({ id: userId, verifierId });
+  return userId;
+}
+
+// El status de "Mis productos" se deriva del estado de la COTIZACIÓN del bien
+// (tabla `cotizaciones`). El enum español es lo que persiste el back; el front
+// consume ProductStatus en inglés. Un producto sin cotización (no debería pasar
+// con el flujo nuevo, que la crea al subir) cae a "under_review". El estado
+// "auctioned" ya no sale de acá: pertenece a la venta (registroDeSubasta) y se
+// derivará por separado cuando se cierre ese flujo.
+const QUOTE_STATE_TO_STATUS = {
   "en revisión": "under_review",
   tasado: "appraised",
   aceptado: "approved",
   rechazado: "rejected",
-  subastado: "auctioned",
 } as const satisfies Record<string, ProductStatus>;
 
-// Primera foto del producto como data URI base64 (mismo criterio que el avatar
-// en users.ts: la columna es BLOB, el MIME se infiere de los magic bytes). Si
-// el producto no tiene fotos, caemos a un placeholder (img es no-nullable en el
-// schema del front). A futuro: thumbnail en R2 y devolver URL en vez de base64.
-function firstPhotoToImg(
-  photo: Buffer | null | undefined,
-  productId: number,
-): string {
-  if (!photo || photo.length === 0)
-    return `https://picsum.photos/seed/product-${productId}/200`;
-  const mime =
-    photo[0] === 0x89
-      ? "image/png"
-      : photo[0] === 0x47
-        ? "image/gif"
-        : "image/jpeg"; // JPEG (0xFF) y fallback
-  return `data:${mime};base64,${Buffer.from(photo).toString("base64")}`;
+// El front manda el estado en inglés (approved/rejected); la cotización guarda
+// el español.
+const STATUS_TO_QUOTE_STATE = {
+  approved: "aceptado",
+  rejected: "rechazado",
+} as const;
+
+// Relaciones que necesita el mapeo a `Product` (compartidas por list y getById).
+type ProductRow = {
+  id: number;
+  name: string;
+  photos: { id: number }[];
+  quote: {
+    state: "en revisión" | "tasado" | "aceptado" | "rechazado";
+    message: string | null;
+    basePrice: number | null;
+    commission: number | null;
+  } | null;
+  catalogItems: { catalog: { auctionId: number | null } | null }[];
+  auctionRecords: {
+    amount: number;
+    auction: {
+      id: number;
+      date: string | null;
+      currencyRow: { currency: "ARS" | "USD" } | null;
+    } | null;
+  }[];
+};
+
+// Arma el `Product` que consume el front a partir de la row + sus relaciones.
+function toProduct(
+  p: ProductRow,
+  apiOrigin: string,
+): z.infer<typeof productSchema> {
+  // Normalmente hay 1 catalog_item / 1 record por producto; si hubiera varios
+  // tomamos el último (el estado/venta más reciente).
+  const item = p.catalogItems.at(-1);
+  const record = p.auctionRecords.at(-1);
+  const quote = p.quote;
+  return {
+    id: p.id,
+    name: p.name,
+    // El status tiene DOS fuentes y la venta tiene precedencia: si el bien ya
+    // se remató (tiene registroDeSubasta) es "auctioned", aunque su cotización
+    // quedó en 'aceptado'. Sin venta, se deriva de la cotización (o
+    // "under_review" si todavía no tiene). Es la única vía que produce
+    // "auctioned": el enum lo define pero QUOTE_STATE_TO_STATUS no lo mapea.
+    status: record
+      ? "auctioned"
+      : quote
+        ? QUOTE_STATE_TO_STATUS[quote.state]
+        : "under_review",
+    img: firstPhotoToImg(p.photos[0]?.id, apiOrigin, p.id),
+    // Propuesta/tasación: sale de la cotización (null mientras está "en revisión").
+    proposalText: quote?.message ?? null,
+    proposedBasePrice: quote?.basePrice ?? null,
+    proposedCommission: quote?.commission ?? null,
+    // Venta: poblado solo si el bien ya se remató (auction_records).
+    salePrice: record?.amount ?? null,
+    // Moneda de la venta: la de la subasta donde se remató (default ARS si no
+    // tiene fila en monedasSubasta). Null si el bien no se vendió.
+    currency: record ? (record.auction?.currencyRow?.currency ?? "ARS") : null,
+    saleDate: record?.auction?.date ? toIso(record.auction.date) : null,
+    // ¿A qué subasta linkea "Ver subasta"? Para un bien vendido, la fuente
+    // correcta es la subasta de la VENTA (registroDeSubasta), no la del catálogo
+    // del catalogItem (pueden divergir si el item se re-catalogó). Para un bien
+    // aprobado sin venta caemos al catálogo.
+    auctionId: record?.auction?.id ?? item?.catalog?.auctionId ?? null,
+  };
 }
 
-// SQLite guarda fechas como "YYYY-MM-DD" o "YYYY-MM-DD HH:MM:SS" (sin T ni Z);
-// z.iso.datetime() del productSchema las rechaza -> normalizamos a ISO.
-function toIso(value: string): string {
-  if (value.includes("T")) return new Date(value).toISOString();
-  const withT = value.includes(" ")
-    ? value.replace(" ", "T")
-    : `${value}T00:00:00`;
-  return new Date(`${withT}Z`).toISOString();
-}
+const PRODUCT_WITH = {
+  photos: { columns: { id: true } },
+  quote: {
+    columns: { state: true, message: true, basePrice: true, commission: true },
+  },
+  catalogItems: {
+    columns: { id: true },
+    with: { catalog: { columns: { auctionId: true } } },
+  },
+  auctionRecords: {
+    columns: { amount: true },
+    with: {
+      auction: {
+        columns: { id: true, date: true },
+        with: { currencyRow: true },
+      },
+    },
+  },
+} as const;
 
 export const productsRouter = {
   // GET /products — Mis productos (solo los del owner logueado) con su estado.
-  // La propuesta/tasación (proposalText/proposedBasePrice/proposedCommission)
-  // se implementa más adelante -> por ahora va en null.
   list: authed.output(z.array(productSchema)).handler(async ({ context }) => {
     const rows = await context.db.query.products.findMany({
       where: { ownerId: context.userId },
-      with: {
-        photos: { columns: { photo: true } },
-        catalogItems: {
-          columns: { state: true },
-          with: { catalog: { columns: { auctionId: true } } },
-        },
-        auctionRecords: {
-          columns: { amount: true },
-          with: { auction: { columns: { date: true } } },
-        },
-      },
+      with: PRODUCT_WITH,
     });
-
-    return rows.map(p => {
-      // Normalmente hay 1 catalog_item / 1 record por producto; si hubiera
-      // varios tomamos el último (el estado/venta más reciente).
-      const item = p.catalogItems.at(-1);
-      const record = p.auctionRecords.at(-1);
-      return {
-        id: p.id,
-        name: p.name,
-        status: item?.state ? STATE_TO_STATUS[item.state] : "under_review",
-        img: firstPhotoToImg(p.photos[0]?.photo, p.id),
-        // Propuesta: pendiente (ver proposal.tsx / GET /products/{id}).
-        proposalText: null,
-        proposedBasePrice: null,
-        proposedCommission: null,
-        // Venta: poblado solo si el bien ya se remató (auction_records).
-        salePrice: record?.amount ?? null,
-        saleDate: record?.auction?.date ? toIso(record.auction.date) : null,
-        auctionId: item?.catalog?.auctionId ?? null,
-      };
-    });
+    return rows.map(p => toProduct(p, context.apiOrigin));
   }),
 
+  // GET /products/{id} — Detalle de un producto propio y su cotización.
+  getById: authed
+    .input(z.object({ id: z.number().int().positive() }))
+    .output(productSchema)
+    .handler(async ({ context, input }) => {
+      const row = await context.db.query.products.findFirst({
+        // Ownership: solo el dueño puede ver el detalle de su bien.
+        where: { id: input.id, ownerId: context.userId },
+        with: PRODUCT_WITH,
+      });
+      if (!row)
+        throw new ORPCError("NOT_FOUND", { message: "Producto no encontrado" });
+      return toProduct(row, context.apiOrigin);
+    }),
+
+  // PUT /products/{id}/status — El dueño acepta/rechaza la cotización tasada.
+  // tasado -> aceptado/rechazado. (El admin solo sugiere, vía backoffice.)
+  updateStatus: authed
+    .input(
+      z.object({
+        id: z.number().int().positive(),
+        status: z.enum(["approved", "rejected"]),
+      }),
+    )
+    .output(z.object({ success: z.boolean() }))
+    .handler(async ({ context, input }) => {
+      const product = await context.db.query.products.findFirst({
+        where: { id: input.id, ownerId: context.userId },
+        columns: { id: true },
+        with: { quote: { columns: { id: true, state: true } } },
+      });
+      if (!product?.quote)
+        throw new ORPCError("NOT_FOUND", {
+          message: "Cotización no encontrada",
+        });
+      if (product.quote.state !== "tasado")
+        throw new ORPCError("CONFLICT", {
+          message: "La cotización no está pendiente de aceptación",
+        });
+
+      await context.db
+        .update(quotes)
+        .set({ state: STATUS_TO_QUOTE_STATE[input.status] })
+        .where(eq(quotes.id, product.quote.id));
+
+      // Si el dueño rechaza, el catalogItem que se creó al tasar (en el holding)
+      // queda huérfano: lo borramos para no dejar basura. Un bien rechazado
+      // nunca llegó a un catálogo definitivo, así que su único catalogItem es el
+      // del holding.
+      if (input.status === "rejected")
+        await context.db
+          .delete(catalogItems)
+          .where(eq(catalogItems.productId, input.id));
+
+      return { success: true };
+    }),
+
   create: authed.input(newProductSchema).handler(async ({ context, input }) => {
+    const ownerId = await ensureOwner(context.db, context.userId);
+
     const [created] = await context.db
       .insert(products)
       .values({
@@ -95,9 +228,7 @@ export const productsRouter = {
         fullDescription: input.description ?? "",
         catalogDescription: input.interest || "None",
         available: false,
-        // ownerId: context.userId,
-        // reviewerId: 0,
-        // comenté estas 2 propiedades pq el user y reviewer no existen
+        ownerId,
       })
       .returning({ id: products.id });
 
@@ -107,6 +238,14 @@ export const productsRouter = {
         photo: Buffer.from(image, "base64"),
       })),
     );
+
+    // La cotización nace al subir el bien, en "en revisión" (sin precio/comisión/
+    // mensaje): así el dueño ve en "Mis productos" que está a la espera de que la
+    // empresa lo evalúe. El backoffice la pasa a tasado/rechazado.
+    await context.db.insert(quotes).values({
+      productId: created.id,
+      state: "en revisión",
+    });
 
     return { success: true, id: created.id };
   }),

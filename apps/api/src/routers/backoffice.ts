@@ -1,23 +1,51 @@
 import { ORPCError } from "@orpc/server";
-import { eq, isNull } from "drizzle-orm";
+import { and, eq, inArray, isNull } from "drizzle-orm";
 import { z } from "zod";
 
-import { auctionCategory } from "@subaspedia/types";
+import { auctionCategory, currency } from "@subaspedia/types";
 import { type Context, pub } from "@/api/context";
-import { clients, employees, paymentMethods, people } from "@/api/db/schema";
+import {
+  auctioneers,
+  auctionRecords,
+  auctions,
+  catalogItems,
+  catalogs,
+  clients,
+  employees,
+  insurances,
+  paymentMethods,
+  penalties,
+  people,
+  products,
+  quotes,
+  salePayments,
+} from "@/api/db/schema";
+import { generateSetPasswordToken, SET_PASSWORD_TTL_MS } from "@/api/lib/auth";
+import { toIso } from "@/api/lib/date";
 import {
   sendCategoryAssignedEmail,
   sendPaymentMethodVerifiedEmail,
 } from "@/api/lib/email";
+import { SHIPPING_COST } from "@/api/lib/shipping";
+
+// Fecha "YYYY-MM-DD" desplazada `days` días desde hoy (mismo formato que guarda
+// el resto del schema). Se usa para emitir multas: issuedAt = hoy, dueDate = +3
+// (las 72hs del enunciado para presentar los fondos).
+function dateOffset(days: number): string {
+  const d = new Date();
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
 
 // El backoffice representa procesos internos de la empresa (investigación de
-// postores, validación de medios de pago) que NO forman parte de la app del
-// usuario. Esta pantalla existe solo para poder demostrar esos pasos asíncronos.
-// Por eso los endpoints son públicos: no hay rol/empleado logueado en la demo.
+// postores, validación de medios de pago, tasación de bienes, armado de
+// catálogos y subastas) que NO forman parte de la app del usuario. Esta pantalla
+// existe solo para poder demostrar esos pasos asíncronos. Por eso los endpoints
+// son públicos: no hay rol/empleado logueado en la demo.
 
-// Toda acción del backoffice queda "firmada" por un empleado (clients.verifier_id
-// es NOT NULL). En la demo no hay empleados reales, así que garantizamos uno por
-// defecto y usamos su id como verificador.
+// Toda acción del backoffice queda "firmada" por un empleado (varios FKs son NOT
+// NULL: clients.verifier_id, catalogs.manager_id). En la demo no hay empleados
+// reales, así que garantizamos uno por defecto y usamos su id.
 async function ensureDefaultEmployee(db: Context["db"]): Promise<number> {
   const existing = await db.query.employees.findFirst({
     columns: { id: true },
@@ -30,6 +58,29 @@ async function ensureDefaultEmployee(db: Context["db"]): Promise<number> {
     .returning({ id: people.id });
   await db.insert(employees).values({ id: person.id, position: "Analista" });
   return person.id;
+}
+
+// Al cotizar se crea un `catalogItem` (para poder asignarlo luego a un catálogo
+// de subasta), pero esa tabla exige un `catalogId` y el catálogo definitivo aún
+// no existe. Usamos un catálogo "holding" sin subasta que junta los items recién
+// cotizados todavía no agrupados. Se identifica por esta descripción centinela y
+// se excluye de los catálogos reales (ver listDraftCatalogs). El ESTADO de la
+// cotización ya no vive en el catalogItem: está en la tabla `cotizaciones`.
+const HOLDING_CATALOG_DESC = "__cotizaciones_sin_catalogo__";
+
+async function ensureHoldingCatalog(db: Context["db"]): Promise<number> {
+  const existing = await db.query.catalogs.findFirst({
+    where: { description: HOLDING_CATALOG_DESC },
+    columns: { id: true },
+  });
+  if (existing) return existing.id;
+
+  const managerId = await ensureDefaultEmployee(db);
+  const [created] = await db
+    .insert(catalogs)
+    .values({ description: HOLDING_CATALOG_DESC, managerId })
+    .returning({ id: catalogs.id });
+  return created.id;
 }
 
 export const backofficeRouter = {
@@ -92,9 +143,21 @@ export const backofficeRouter = {
         verifierId,
       });
 
-      // Le avisamos que ya puede ingresar a la app y completar el registro.
+      // Generamos el token de set-password y lo guardamos en la persona: el
+      // postor lo usa (vía el link del mail) para fijar su clave y habilitar el
+      // login. La cuenta sigue sin contraseña hasta ese momento.
+      const token = generateSetPasswordToken();
+      const setPasswordExpiresAt = new Date(
+        Date.now() + SET_PASSWORD_TTL_MS,
+      ).toISOString();
+      await context.db
+        .update(people)
+        .set({ setPasswordToken: token, setPasswordExpiresAt })
+        .where(eq(people.id, input.personId));
+
+      // Le avisamos que ya puede ingresar a la app y fijar su contraseña.
       if (person.email)
-        await sendCategoryAssignedEmail(person.email, input.category);
+        await sendCategoryAssignedEmail(person.email, input.category, token);
 
       return { success: true };
     }),
@@ -158,6 +221,643 @@ export const backofficeRouter = {
         columns: { email: true },
       });
       if (client?.email) await sendPaymentMethodVerifiedEmail(client.email);
+
+      return { success: true };
+    }),
+
+  // --- Cotización / tasación de bienes (feature 1) ---
+
+  // Bienes subidos por los usuarios pendientes de cotizar: su cotización está
+  // en 'en revisión' (nace así cuando el usuario sube el bien).
+  pendingAppraisals: pub.handler(async ({ context }) => {
+    const rows = await context.db.query.quotes.findMany({
+      where: { state: "en revisión" },
+      columns: { id: true },
+      with: {
+        product: {
+          columns: {
+            id: true,
+            name: true,
+            fullDescription: true,
+            date: true,
+            // Dueño del bien (= quien lo subió): destinatario de la notificación
+            // de propuesta cuando se lo cotiza (ver cotizaciones.tsx).
+            ownerId: true,
+          },
+        },
+      },
+    });
+
+    return rows.flatMap(q =>
+      q.product
+        ? [
+            {
+              id: q.product.id,
+              name: q.product.name,
+              fullDescription: q.product.fullDescription,
+              date: q.product.date,
+              ownerId: q.product.ownerId,
+            },
+          ]
+        : [],
+    );
+  }),
+
+  // Cotiza un bien: la cotización pasa de 'en revisión' a 'tasado' con el precio
+  // base, la comisión y un mensaje para el usuario. Además crea el catalogItem
+  // (en el holding) copiando base + comisión, para poder asignarlo a un catálogo
+  // de subasta más adelante.
+  proposeQuote: pub
+    .input(
+      z.object({
+        productId: z.number().int().positive(),
+        basePrice: z.number().positive(),
+        // La comisión es un PORCENTAJE del precio base (no un monto): 0 < x <= 100.
+        commission: z.number().gt(0).max(100),
+        message: z.string().trim().min(1),
+        // Datos del seguro (opcionales)
+        insurancePolicyNumber: z.string().trim().optional(),
+        insuranceCompany: z.string().trim().optional(),
+        insuranceAmount: z.number().positive().optional(),
+        insuranceCombined: z.boolean().optional(),
+      }),
+    )
+    .handler(async ({ context, input }) => {
+      const quote = await context.db.query.quotes.findFirst({
+        where: { productId: input.productId },
+        columns: { id: true, state: true },
+      });
+      if (!quote)
+        throw new ORPCError("NOT_FOUND", { message: "Bien no encontrado" });
+      if (quote.state !== "en revisión")
+        throw new ORPCError("CONFLICT", {
+          message: "El bien ya tiene una cotización",
+        });
+
+      // Validar que si se provee algún campo del seguro, se provean los obligatorios
+      if (
+        input.insurancePolicyNumber ||
+        input.insuranceCompany ||
+        input.insuranceAmount
+      ) {
+        if (
+          !input.insurancePolicyNumber ||
+          !input.insuranceCompany ||
+          !input.insuranceAmount
+        ) {
+          throw new ORPCError("BAD_REQUEST", {
+            message:
+              "Si registrás un seguro, debés ingresar el número de póliza, la compañía y el importe.",
+          });
+        }
+
+        // Insertar o actualizar la póliza de seguro
+        const existingInsurance = await context.db.query.insurances.findFirst({
+          where: { policyNumber: input.insurancePolicyNumber },
+        });
+
+        if (!existingInsurance) {
+          await context.db.insert(insurances).values({
+            policyNumber: input.insurancePolicyNumber,
+            company: input.insuranceCompany,
+            amount: input.insuranceAmount,
+            combinedPolicy: input.insuranceCombined ?? false,
+          });
+        } else {
+          await context.db
+            .update(insurances)
+            .set({
+              company: input.insuranceCompany,
+              amount: input.insuranceAmount,
+              combinedPolicy: input.insuranceCombined ?? false,
+            })
+            .where(eq(insurances.policyNumber, input.insurancePolicyNumber));
+        }
+
+        // Asociar la póliza al producto
+        await context.db
+          .update(products)
+          .set({ insurancePolicy: input.insurancePolicyNumber })
+          .where(eq(products.id, input.productId));
+      }
+
+      await context.db
+        .update(quotes)
+        .set({
+          basePrice: input.basePrice,
+          commission: input.commission,
+          message: input.message,
+          state: "tasado",
+        })
+        .where(eq(quotes.id, quote.id));
+
+      const catalogId = await ensureHoldingCatalog(context.db);
+      await context.db.insert(catalogItems).values({
+        catalogId,
+        productId: input.productId,
+        basePrice: input.basePrice,
+        commission: input.commission,
+      });
+
+      return { success: true };
+    }),
+
+  // Rechaza un bien directamente (la empresa no lo acepta): 'en revisión' ->
+  // 'rechazado', con el motivo en el mensaje (la consigna exige que el dueño
+  // pueda ver las causas del rechazo). No se crea catalogItem.
+  rejectAppraisal: pub
+    .input(
+      z.object({
+        productId: z.number().int().positive(),
+        message: z.string().trim().min(1),
+      }),
+    )
+    .handler(async ({ context, input }) => {
+      const quote = await context.db.query.quotes.findFirst({
+        where: { productId: input.productId },
+        columns: { id: true, state: true },
+      });
+      if (!quote)
+        throw new ORPCError("NOT_FOUND", { message: "Bien no encontrado" });
+      if (quote.state !== "en revisión")
+        throw new ORPCError("CONFLICT", {
+          message: "El bien ya fue cotizado o rechazado",
+        });
+
+      await context.db
+        .update(quotes)
+        .set({ message: input.message, state: "rechazado" })
+        .where(eq(quotes.id, quote.id));
+      return { success: true };
+    }),
+
+  // Cotizaciones ya emitidas (no 'en revisión') con el nombre del bien.
+  listQuotes: pub.handler(async ({ context }) => {
+    const rows = await context.db.query.quotes.findMany({
+      columns: {
+        id: true,
+        basePrice: true,
+        commission: true,
+        message: true,
+        state: true,
+      },
+      with: { product: { columns: { name: true, ownerId: true } } },
+    });
+
+    return rows
+      .filter(q => q.state !== "en revisión")
+      .map(({ product, ...q }) => ({
+        ...q,
+        productName: product?.name ?? "Bien",
+        // Dueño del bien: destinatario de la notificación al confirmar la
+        // cotización (producto aceptado -> Mis productos).
+        ownerId: product?.ownerId ?? null,
+      }));
+  }),
+
+  // El dueño acepta el precio base y la comisión: tasado -> aceptado. (En la
+  // demo lo dispara el backoffice; en la app real lo hace el usuario desde
+  // products.updateStatus.)
+  confirmQuote: pub
+    .input(z.object({ quoteId: z.number().int().positive() }))
+    .handler(async ({ context, input }) => {
+      const quote = await context.db.query.quotes.findFirst({
+        where: { id: input.quoteId },
+        columns: { id: true, state: true },
+      });
+      if (!quote)
+        throw new ORPCError("NOT_FOUND", {
+          message: "Cotización no encontrada",
+        });
+      if (quote.state !== "tasado")
+        throw new ORPCError("CONFLICT", {
+          message: "La cotización no está en estado tasado",
+        });
+
+      await context.db
+        .update(quotes)
+        .set({ state: "aceptado" })
+        .where(eq(quotes.id, input.quoteId));
+      return { success: true };
+    }),
+
+  // El dueño rechaza el precio base / comisión: tasado -> rechazado.
+  rejectQuote: pub
+    .input(z.object({ quoteId: z.number().int().positive() }))
+    .handler(async ({ context, input }) => {
+      const quote = await context.db.query.quotes.findFirst({
+        where: { id: input.quoteId },
+        columns: { id: true, state: true, productId: true },
+      });
+      if (!quote)
+        throw new ORPCError("NOT_FOUND", {
+          message: "Cotización no encontrada",
+        });
+      if (quote.state !== "tasado")
+        throw new ORPCError("CONFLICT", {
+          message: "La cotización no está en estado tasado",
+        });
+
+      await context.db
+        .update(quotes)
+        .set({ state: "rechazado" })
+        .where(eq(quotes.id, input.quoteId));
+
+      // El catalogItem creado al tasar (en el holding) queda huérfano al
+      // rechazar: lo borramos para no dejar basura.
+      await context.db
+        .delete(catalogItems)
+        .where(eq(catalogItems.productId, quote.productId));
+
+      return { success: true };
+    }),
+
+  // --- Armado de catálogos (feature 2) ---
+
+  // Bienes ya cotizados y confirmados (estado "aceptado") que siguen en el
+  // holding, es decir, todavía no fueron agrupados en un catálogo definitivo.
+  confirmedItems: pub.handler(async ({ context }) => {
+    const holding = await context.db.query.catalogs.findFirst({
+      where: { description: HOLDING_CATALOG_DESC },
+      columns: { id: true },
+    });
+    if (!holding) return [];
+
+    const rows = await context.db.query.catalogItems.findMany({
+      where: { catalogId: holding.id },
+      columns: { id: true, basePrice: true, commission: true },
+      with: {
+        product: {
+          columns: { name: true },
+          with: { quote: { columns: { state: true } } },
+        },
+      },
+    });
+
+    // Solo los items cuyo dueño ya aceptó la cotización.
+    return rows.flatMap(({ product, ...it }) =>
+      product?.quote?.state === "aceptado"
+        ? [{ ...it, productName: product.name }]
+        : [],
+    );
+  }),
+
+  // Crea un catálogo definitivo (sin subasta todavía) y le mueve los items
+  // confirmados elegidos.
+  createCatalog: pub
+    .input(
+      z.object({
+        description: z.string().trim().min(1),
+        itemIds: z.array(z.number().int().positive()).min(1),
+      }),
+    )
+    .handler(async ({ context, input }) => {
+      const managerId = await ensureDefaultEmployee(context.db);
+      const [catalog] = await context.db
+        .insert(catalogs)
+        .values({ description: input.description, managerId })
+        .returning({ id: catalogs.id });
+
+      // Los itemIds vienen de confirmedItems (ya filtrados por cotización
+      // aceptada), así que solo los movemos al catálogo definitivo.
+      await context.db
+        .update(catalogItems)
+        .set({ catalogId: catalog.id })
+        .where(inArray(catalogItems.id, input.itemIds));
+
+      return { success: true, catalogId: catalog.id };
+    }),
+
+  // Catálogos definitivos todavía sin subasta asignada (auctionId null y que no
+  // son el holding). Listos para meter en una subasta.
+  listDraftCatalogs: pub.handler(async ({ context }) => {
+    const rows = await context.db.query.catalogs.findMany({
+      columns: { id: true, description: true, auctionId: true },
+      with: { items: { columns: { id: true } } },
+    });
+
+    return rows
+      .filter(
+        c => c.auctionId == null && c.description !== HOLDING_CATALOG_DESC,
+      )
+      .map(({ items, auctionId: _a, ...c }) => ({
+        ...c,
+        itemCount: items.length,
+      }));
+  }),
+
+  // --- Creación de subastas (feature 3) ---
+
+  // Subastadores disponibles para asignar (opcional).
+  listAuctioneers: pub.handler(async ({ context }) => {
+    const rows = await context.db.query.auctioneers.findMany({
+      columns: { id: true, license: true, region: true },
+      with: { person: { columns: { name: true, lastName: true } } },
+    });
+    return rows.map(({ person, ...a }) => ({
+      ...a,
+      name: [person?.name, person?.lastName].filter(Boolean).join(" ") || "—",
+    }));
+  }),
+
+  // Crea una subasta (abierta) con los catálogos elegidos.
+  createAuction: pub
+    .input(
+      z.object({
+        date: z.string().trim().min(1),
+        time: z.string().trim().min(1),
+        category: auctionCategory,
+        location: z.string().trim().optional(),
+        attendeeCapacity: z.number().int().positive().optional(),
+        hasWarehouse: z.boolean().optional(),
+        ownSecurity: z.boolean().optional(),
+        auctioneerId: z.number().int().positive().optional(),
+        catalogIds: z.array(z.number().int().positive()).min(1),
+      }),
+    )
+    .handler(async ({ context, input }) => {
+      const [auction] = await context.db
+        .insert(auctions)
+        .values({
+          date: input.date,
+          time: input.time,
+          category: input.category,
+          status: "open",
+          location: input.location,
+          attendeeCapacity: input.attendeeCapacity,
+          hasWarehouse: input.hasWarehouse,
+          ownSecurity: input.ownSecurity,
+          auctioneerId: input.auctioneerId,
+        })
+        .returning({ id: auctions.id });
+
+      await context.db
+        .update(catalogs)
+        .set({ auctionId: auction.id })
+        .where(
+          and(
+            inArray(catalogs.id, input.catalogIds),
+            isNull(catalogs.auctionId),
+          ),
+        );
+
+      return { success: true, auctionId: auction.id };
+    }),
+
+  // --- Infracciones / multas (feature 0) ---
+  //
+  // Emite las multas (tabla `penalties`, modelo de la PR #24: lado usuario =
+  // ver/pagar en profile; acá está el lado backoffice = emitir). El estado
+  // 'overdue' NO se persiste: se deriva al leer (pending && venceEl < hoy).
+
+  // Clientes para elegir a quién aplicarle la multa.
+  listClients: pub.handler(async ({ context }) => {
+    const rows = await context.db.query.clients.findMany({
+      columns: { id: true },
+      with: { person: { columns: { name: true, lastName: true } } },
+    });
+
+    return rows.map(c => ({
+      id: c.id,
+      name:
+        [c.person?.name, c.person?.lastName].filter(Boolean).join(" ") ||
+        `Cliente #${c.id}`,
+    }));
+  }),
+
+  // Subastas para (opcionalmente) atar la multa. Trae la moneda de cada una
+  // (default ARS si no tiene fila en monedasSubasta) para heredarla en el form.
+  listAuctionsForPenalty: pub.handler(async ({ context }) => {
+    const rows = await context.db.query.auctions.findMany({
+      columns: { id: true, date: true, category: true },
+      with: { currencyRow: { columns: { currency: true } } },
+    });
+
+    return rows.map(a => ({
+      id: a.id,
+      date: a.date,
+      category: a.category,
+      currency: a.currencyRow?.currency ?? "ARS",
+    }));
+  }),
+
+  // Emite una multa contra un cliente. Si se ata a una subasta, hereda su
+  // moneda; si no, se usa la moneda elegida (default ARS). issuedAt = hoy,
+  // dueDate = +3 días (72hs del enunciado). Nace en estado 'pending'.
+  createPenalty: pub
+    .input(
+      z.object({
+        clientId: z.number().int().positive(),
+        reason: z.string().trim().min(1),
+        amount: z.number().gt(0.01),
+        currency: currency.optional(),
+        auctionId: z.number().int().positive().optional(),
+      }),
+    )
+    .handler(async ({ context, input }) => {
+      const client = await context.db.query.clients.findFirst({
+        where: { id: input.clientId },
+        columns: { id: true },
+      });
+      if (!client)
+        throw new ORPCError("NOT_FOUND", { message: "Cliente no encontrado" });
+
+      let penaltyCurrency = input.currency ?? "ARS";
+      if (input.auctionId) {
+        const auction = await context.db.query.auctions.findFirst({
+          where: { id: input.auctionId },
+          columns: { id: true },
+          with: { currencyRow: { columns: { currency: true } } },
+        });
+        if (!auction)
+          throw new ORPCError("NOT_FOUND", {
+            message: "Subasta no encontrada",
+          });
+        // La multa atada a una subasta se cancela en la moneda de esa subasta.
+        penaltyCurrency = auction.currencyRow?.currency ?? "ARS";
+      }
+
+      await context.db.insert(penalties).values({
+        clientId: input.clientId,
+        reason: input.reason,
+        amount: input.amount,
+        currency: penaltyCurrency,
+        status: "pending",
+        issuedAt: dateOffset(0),
+        dueDate: dateOffset(3),
+        auctionId: input.auctionId ?? null,
+      });
+
+      return { success: true };
+    }),
+
+  // Todas las multas (de todos los clientes) con el nombre del cliente y el
+  // estado derivado (overdue si venció y sigue pendiente).
+  listPenalties: pub.handler(async ({ context }) => {
+    const rows = await context.db.query.penalties.findMany({
+      orderBy: (t, { desc }) => desc(t.issuedAt),
+      columns: {
+        id: true,
+        reason: true,
+        amount: true,
+        currency: true,
+        status: true,
+        issuedAt: true,
+        dueDate: true,
+        auctionId: true,
+      },
+      with: {
+        client: {
+          columns: {},
+          with: { person: { columns: { name: true, lastName: true } } },
+        },
+      },
+    });
+
+    const now = new Date();
+    return rows.map(p => ({
+      id: p.id,
+      reason: p.reason,
+      amount: p.amount,
+      currency: p.currency,
+      status:
+        p.status === "pending" && new Date(p.dueDate) < now
+          ? ("overdue" as const)
+          : p.status,
+      issuedAt: toIso(p.issuedAt),
+      dueDate: toIso(p.dueDate),
+      auctionId: p.auctionId,
+      clientName:
+        [p.client?.person?.name, p.client?.person?.lastName]
+          .filter(Boolean)
+          .join(" ") || "Cliente",
+    }));
+  }),
+
+  // Marca una multa como saldada desde el backoffice (p. ej. pago en efectivo).
+  markPenaltyPaid: pub
+    .input(z.object({ id: z.number().int().positive() }))
+    .handler(async ({ context, input }) => {
+      const penalty = await context.db.query.penalties.findFirst({
+        where: { id: input.id },
+        columns: { status: true },
+      });
+      if (!penalty)
+        throw new ORPCError("NOT_FOUND", { message: "Multa no encontrada" });
+      if (penalty.status === "paid")
+        throw new ORPCError("CONFLICT", { message: "La multa ya está pagada" });
+
+      await context.db
+        .update(penalties)
+        .set({ status: "paid" })
+        .where(eq(penalties.id, input.id));
+      return { success: true };
+    }),
+
+  // GET /backoffice/sale-payments/pending — pagos de compras ganadas que el
+  // ganador ya abonó (pagosVenta en 'pending') y esperan la aprobación de la
+  // empresa. Total = puja + comisión + envío (lo que pagó el comprador).
+  pendingSalePayments: pub.handler(async ({ context }) => {
+    const rows = await context.db.query.salePayments.findMany({
+      where: { state: "pending" },
+      columns: { recordId: true },
+      with: {
+        record: {
+          columns: { amount: true, commission: true },
+          with: {
+            product: { columns: { name: true } },
+            auction: {
+              columns: { id: true },
+              with: { currencyRow: { columns: { currency: true } } },
+            },
+            client: {
+              with: { person: { columns: { name: true, lastName: true } } },
+            },
+            shipment: { columns: { deliveryMethod: true, shippingCost: true } },
+          },
+        },
+      },
+    });
+
+    return rows.flatMap(p => {
+      const r = p.record;
+      if (!r?.product) return [];
+      const currency = r.auction?.currencyRow?.currency ?? "ARS";
+      const method = r.shipment?.deliveryMethod ?? "shipping";
+      const shippingCost =
+        method === "shipping"
+          ? (r.shipment?.shippingCost ?? SHIPPING_COST[currency])
+          : 0;
+      const total = r.amount + (r.amount * r.commission) / 100 + shippingCost;
+      const clientName =
+        `${r.client?.person?.name ?? ""} ${r.client?.person?.lastName ?? ""}`.trim();
+      return [
+        {
+          id: p.recordId,
+          productName: r.product.name,
+          clientName,
+          total,
+          currency,
+        },
+      ];
+    });
+  }),
+
+  // POST /backoffice/sale-payments/resolve — la empresa simula la aprobación del
+  // pago. accepted -> 'accepted' (la compra queda pagada/retirada). rejected ->
+  // 'rejected' + multa automática al comprador (falta de pago, 10% de lo
+  // ofertado por consigna), atada a la subasta para heredar su moneda.
+  resolveSalePayment: pub
+    .input(
+      z.object({
+        id: z.number().int().positive(),
+        decision: z.enum(["accepted", "rejected"]),
+      }),
+    )
+    .handler(async ({ context, input }) => {
+      const payment = await context.db.query.salePayments.findFirst({
+        where: { recordId: input.id },
+        columns: { state: true },
+        with: {
+          record: {
+            columns: { amount: true, clientId: true, auctionId: true },
+            with: { product: { columns: { name: true } } },
+          },
+        },
+      });
+      if (!payment?.record)
+        throw new ORPCError("NOT_FOUND", { message: "Pago no encontrado" });
+      if (payment.state !== "pending")
+        throw new ORPCError("CONFLICT", { message: "El pago ya fue resuelto" });
+
+      await context.db
+        .update(salePayments)
+        .set({ state: input.decision })
+        .where(eq(salePayments.recordId, input.id));
+
+      if (input.decision === "rejected") {
+        const r = payment.record;
+        let penaltyCurrency: "ARS" | "USD" = "ARS";
+        if (r.auctionId) {
+          const auction = await context.db.query.auctions.findFirst({
+            where: { id: r.auctionId },
+            columns: { id: true },
+            with: { currencyRow: { columns: { currency: true } } },
+          });
+          penaltyCurrency = auction?.currencyRow?.currency ?? "ARS";
+        }
+        // Multa = 10% de lo ofertado (consigna). issuedAt hoy, dueDate +3d (72hs).
+        await context.db.insert(penalties).values({
+          clientId: r.clientId,
+          reason: `Pago rechazado: ${r.product?.name ?? "compra"}`,
+          amount: r.amount * 0.1,
+          currency: penaltyCurrency,
+          status: "pending",
+          issuedAt: dateOffset(0),
+          dueDate: dateOffset(3),
+          auctionId: r.auctionId ?? null,
+        });
+      }
 
       return { success: true };
     }),

@@ -16,8 +16,14 @@ const SHOWN: string[] = [
 
 // Subpantallas (que caerían bajo SHOWN por prefijo) donde la barra NO debe
 // aparecer: flujos full-screen con su propio chrome, como el alta de medio de
-// pago (mismo criterio que el hideHeader de profile/_layout.tsx).
-const HIDDEN: string[] = ["/profile/payment-methods/new"];
+// pago o el detalle de propuesta/rechazo (mismo criterio que el hideHeader de
+// profile/_layout.tsx). Son patrones porque algunas rutas tienen segmentos
+// dinámicos (p. ej. el id del producto en la propuesta).
+const HIDDEN: RegExp[] = [
+  /^\/profile\/payment-methods\/new$/,
+  /^\/profile\/products\/[^/]+\/proposal$/,
+  /^\/profile\/transactions\/[^/]+$/,
+];
 
 function matches(pathname: string, href: string) {
   if (href === "/" || href === "/auctions") return pathname === href;
@@ -29,7 +35,7 @@ export function BottomNav() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
-  if (HIDDEN.includes(pathname)) return null;
+  if (HIDDEN.some(re => re.test(pathname))) return null;
   if (!SHOWN.some(h => matches(pathname, h))) return null;
 
   return (

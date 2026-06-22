@@ -1,15 +1,111 @@
 import { ORPCError } from "@orpc/server";
-import { and, count, eq, sql } from "drizzle-orm";
+import { and, count, desc, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 
+import { type DeliveryMethod, deliveryMethod } from "@subaspedia/types";
 import { createPaymentMethodSchema } from "@subaspedia/types/forms/payment";
+import { insuranceSchema } from "@subaspedia/types/insurance";
 import {
   MAX_PAYMENT_METHODS,
   paymentMethodSchema,
 } from "@subaspedia/types/payment-method";
-import { rankSummarySchema } from "@subaspedia/types/user";
-import { authed } from "@/api/context";
-import { attendees, bids, paymentMethods } from "@/api/db/schema";
+import { penaltySchema, penaltyStatus } from "@subaspedia/types/penalty";
+import {
+  type OrderStatus,
+  type PaymentStatus,
+  type TransactionDetail,
+  transactionDetailSchema,
+  transactionSchema,
+} from "@subaspedia/types/transaction";
+import { bidHistorySchema, rankSummarySchema } from "@subaspedia/types/user";
+import { authed, type Context } from "@/api/context";
+import {
+  attendees,
+  auctionRecords,
+  auctions,
+  bids,
+  catalogItems,
+  insurances,
+  paymentMethods,
+  penalties,
+  photos,
+  products,
+  salePayments,
+  saleShipments,
+} from "@/api/db/schema";
+import { toIso } from "@/api/lib/date";
+import { firstPhotoToImg } from "@/api/lib/photo";
+import { SHIPPING_COST } from "@/api/lib/shipping";
+
+// Deriva el estado que ve el usuario (badge) combinando el estado de PAGO
+// (persistido en pagosVenta; ausencia = todavía sin pagar) con el método de
+// ENTREGA. Es la única fuente del `status`: nunca se persiste.
+function deriveOrderStatus(
+  paymentState: PaymentStatus | undefined,
+  method: DeliveryMethod,
+): OrderStatus {
+  if (!paymentState) return "unpaid";
+  if (paymentState === "pending") return "pending";
+  if (paymentState === "rejected") return "rejected";
+  // accepted: el desenlace depende de la entrega elegida.
+  return method === "pickup" ? "picked_up" : "paid";
+}
+
+// Arma el detalle (factura) de una compra del client logueado. Lo comparten
+// transactionById (lectura) y setDelivery (devuelve el detalle ya actualizado).
+// El método de entrega se resuelve con default 'shipping' (ausencia de fila en
+// enviosVenta = envío); la dirección se lee EN VIVO de personas y se omite si es
+// retiro. Lanza NOT_FOUND si la compra no es del usuario o le faltan datos.
+async function loadTransactionDetail(
+  context: Context & { userId: number },
+  id: number,
+): Promise<TransactionDetail> {
+  const r = await context.db.query.auctionRecords.findFirst({
+    where: { id, clientId: context.userId },
+    columns: { id: true, amount: true, commission: true, auctionId: true },
+    with: {
+      product: {
+        columns: { id: true, name: true },
+        with: { photos: { columns: { id: true } } },
+      },
+      auction: { columns: { date: true }, with: { currencyRow: true } },
+      shipment: { columns: { deliveryMethod: true, shippingCost: true } },
+      payment: { columns: { state: true } },
+      client: { with: { person: { columns: { address: true } } } },
+    },
+  });
+  if (!r?.product || !r.auction?.date)
+    throw new ORPCError("NOT_FOUND", { message: "Compra no encontrada" });
+
+  const currency = r.auction.currencyRow?.currency ?? "ARS";
+  const method = r.shipment?.deliveryMethod ?? "shipping";
+  const shippingCost =
+    method === "shipping"
+      ? (r.shipment?.shippingCost ?? SHIPPING_COST[currency])
+      : 0;
+  const commissionAmount = (r.amount * r.commission) / 100;
+
+  return {
+    id: r.id,
+    productName: r.product.name,
+    img: firstPhotoToImg(
+      r.product.photos[0]?.id,
+      context.apiOrigin,
+      r.product.id,
+    ),
+    currency,
+    date: toIso(r.auction.date),
+    auctionId: r.auctionId,
+    status: deriveOrderStatus(r.payment?.state, method),
+    deliveryMethod: method,
+    bidAmount: r.amount,
+    commissionAmount,
+    shippingCost,
+    total: r.amount + commissionAmount + shippingCost,
+    shippingAddress:
+      method === "shipping" ? (r.client?.person?.address ?? null) : null,
+  };
+}
 
 export const userRouter = {
   // GET /users/me/payment-methods — los medios de pago del client logueado.
@@ -117,6 +213,35 @@ export const userRouter = {
       .innerJoin(attendees, eq(bids.attendeeId, attendees.id))
       .where(eq(attendees.clientId, userId));
 
+    // Total pagado = importe + comisión de las ventas que ganó (las filas de
+    // registroDeSubasta donde el client es el comprador). `comision` es un
+    // PORCENTAJE del importe (p. ej. 12 = 12%), no un monto. Distinto de
+    // totalBid (que suma todas sus pujas, ganadas o no).
+    const [paidStats] = await context.db
+      .select({
+        totalPaid: sql<number>`coalesce(sum(${auctionRecords.amount} + ${auctionRecords.amount} * ${auctionRecords.commission} / 100.0), 0)`,
+      })
+      .from(auctionRecords)
+      .where(eq(auctionRecords.clientId, userId));
+
+    // Participaciones agrupadas por categoría de la subasta. Las subastas sin
+    // categoría (category null) se descartan del desglose.
+    const categoryRows = await context.db
+      .select({
+        category: auctions.category,
+        participated: count(),
+      })
+      .from(attendees)
+      .innerJoin(auctions, eq(attendees.auctionId, auctions.id))
+      .where(eq(attendees.clientId, userId))
+      .groupBy(auctions.category);
+
+    const byCategory = categoryRows.flatMap(r =>
+      r.category
+        ? [{ category: r.category, participated: r.participated }]
+        : [],
+    );
+
     return {
       category: client?.category ?? null,
       paymentMethods: {
@@ -127,9 +252,299 @@ export const userRouter = {
         participated: participatedRow?.value ?? 0,
         won: Number(bidStats?.won ?? 0),
         totalBid: Number(bidStats?.totalBid ?? 0),
+        totalPaid: Number(paidStats?.totalPaid ?? 0),
+        byCategory,
       },
     };
   }),
+
+  // GET /users/me/bid-history — todas las pujas del client logueado, de la más
+  // reciente a la más vieja (orden por id; la tabla no tiene timestamp). Cada
+  // puja trae el nombre del bien y la subasta a la que pertenece.
+  bidHistory: authed.output(bidHistorySchema).handler(async ({ context }) => {
+    const rows = await context.db
+      .select({
+        id: bids.id,
+        amount: bids.amount,
+        winner: bids.winner,
+        productName: products.name,
+        auctionId: attendees.auctionId,
+      })
+      .from(bids)
+      .innerJoin(attendees, eq(bids.attendeeId, attendees.id))
+      .innerJoin(catalogItems, eq(bids.itemId, catalogItems.id))
+      .innerJoin(products, eq(catalogItems.productId, products.id))
+      .where(eq(attendees.clientId, context.userId))
+      .orderBy(desc(bids.id));
+
+    return rows.map(r => ({
+      id: r.id,
+      productName: r.productName,
+      amount: r.amount,
+      winner: r.winner ?? false,
+      auctionId: r.auctionId,
+    }));
+  }),
+
+  // GET /users/me/transactions — historial de compras del client logueado. Una
+  // fila de registroDeSubasta = una subasta ganada y pagada por el client.
+  // Espejo de products.list pero filtrando por comprador (clientId) en vez de
+  // dueño; img/fecha/moneda se resuelven igual que ahí (helpers compartidos +
+  // tabla satélite monedasSubasta).
+  transactions: authed
+    .output(z.array(transactionSchema))
+    .handler(async ({ context }) => {
+      const records = await context.db.query.auctionRecords.findMany({
+        where: { clientId: context.userId },
+        columns: { id: true, amount: true, commission: true, auctionId: true },
+        with: {
+          product: {
+            columns: { id: true, name: true },
+            with: { photos: { columns: { id: true } } },
+          },
+          auction: {
+            columns: { date: true },
+            with: { currencyRow: true },
+          },
+          // Entrega elegida (tabla satélite). Sin fila = default 'shipping'.
+          shipment: { columns: { deliveryMethod: true, shippingCost: true } },
+          // Pago (tabla satélite). Sin fila = todavía sin pagar (unpaid).
+          payment: { columns: { state: true } },
+        },
+      });
+
+      return records.flatMap(r => {
+        // El historial son compras concretadas (subasta cerrada), que siempre
+        // tienen producto y fecha. Si por un dato inconsistente faltara alguno,
+        // omitimos la fila: productName/date son no-nullable en transactionSchema.
+        if (!r.product || !r.auction?.date) return [];
+        const currency = r.auction.currencyRow?.currency ?? "ARS";
+        // Default = envío: ausencia de fila satélite se trata como 'shipping'.
+        const method = r.shipment?.deliveryMethod ?? "shipping";
+        const shippingCost =
+          method === "shipping"
+            ? (r.shipment?.shippingCost ?? SHIPPING_COST[currency])
+            : 0;
+        // `comision` es un PORCENTAJE de la puja (no un monto), p. ej. 12 = 12%.
+        const commissionAmount = (r.amount * r.commission) / 100;
+        return [
+          {
+            id: r.id,
+            productName: r.product.name,
+            img: firstPhotoToImg(
+              r.product.photos[0]?.id,
+              context.apiOrigin,
+              r.product.id,
+            ),
+            // Total pagado = puja + comisión + envío (el envío suma solo si el
+            // método resuelto es 'shipping').
+            amount: r.amount + commissionAmount + shippingCost,
+            currency,
+            date: toIso(r.auction.date),
+            auctionId: r.auctionId,
+            // Estado derivado de (pago × entrega): sin fila de pago = "unpaid"
+            // (habilita "Pagar"); pending/rejected del backoffice; aceptado ->
+            // 'picked_up' (retiro) o 'paid' (envío).
+            status: deriveOrderStatus(r.payment?.state, method),
+            deliveryMethod: method,
+            shippingCost,
+          },
+        ];
+      });
+    }),
+
+  // GET /users/me/transactions/{id} — detalle (factura) de una compra. Desglosa
+  // puja + comisión + envío y muestra la dirección declarada (si es envío).
+  transactionById: authed
+    .input(z.object({ id: z.number().int().positive() }))
+    .output(transactionDetailSchema)
+    .handler(({ context, input }) => loadTransactionDetail(context, input.id)),
+
+  // PUT /users/me/transactions/{id}/delivery — el comprador elige envío o
+  // retiro. Envío (default) snapshotea el costo por moneda; retiro lo deja en 0
+  // (y pierde el seguro, avisado en el front). Upsert en la satélite enviosVenta.
+  setDelivery: authed
+    .input(z.object({ id: z.number().int().positive(), deliveryMethod }))
+    .output(transactionDetailSchema)
+    .handler(async ({ context, input }) => {
+      // La compra debe ser del client logueado. Traemos la moneda de la subasta
+      // para fijar el costo de envío.
+      const record = await context.db.query.auctionRecords.findFirst({
+        where: { id: input.id, clientId: context.userId },
+        columns: { id: true },
+        with: {
+          auction: { columns: { id: true }, with: { currencyRow: true } },
+        },
+      });
+      if (!record)
+        throw new ORPCError("NOT_FOUND", { message: "Compra no encontrada" });
+
+      const currency = record.auction?.currencyRow?.currency ?? "ARS";
+      const shippingCost =
+        input.deliveryMethod === "shipping" ? SHIPPING_COST[currency] : 0;
+
+      await context.db
+        .insert(saleShipments)
+        .values({
+          recordId: input.id,
+          deliveryMethod: input.deliveryMethod,
+          shippingCost,
+        })
+        .onConflictDoUpdate({
+          target: saleShipments.recordId,
+          set: { deliveryMethod: input.deliveryMethod, shippingCost },
+        });
+
+      return loadTransactionDetail(context, input.id);
+    }),
+
+  // PUT /users/me/transactions/{id}/pay — el ganador paga la compra con un medio
+  // verificado. Inserta la fila pagosVenta en 'pending': queda esperando que el
+  // backoffice apruebe o rechace. Guards: la compra es suya, el medio es suyo y
+  // está verificado, y no hay un pago previo. Devuelve el detalle actualizado.
+  payTransaction: authed
+    .input(
+      z.object({
+        id: z.number().int().positive(),
+        paymentMethodId: z.number().int().positive(),
+      }),
+    )
+    .output(transactionDetailSchema)
+    .handler(async ({ context, input }) => {
+      // La compra debe ser del client logueado y no estar ya pagada.
+      const record = await context.db.query.auctionRecords.findFirst({
+        where: { id: input.id, clientId: context.userId },
+        columns: { id: true },
+        with: { payment: { columns: { recordId: true } } },
+      });
+      if (!record)
+        throw new ORPCError("NOT_FOUND", { message: "Compra no encontrada" });
+      if (record.payment)
+        throw new ORPCError("CONFLICT", { message: "La compra ya fue pagada" });
+
+      // El medio de pago debe ser del client y estar verificado.
+      const method = await context.db.query.paymentMethods.findFirst({
+        where: { id: input.paymentMethodId, clientId: context.userId },
+        columns: { id: true, verified: true },
+      });
+      if (!method)
+        throw new ORPCError("NOT_FOUND", {
+          message: "Medio de pago no encontrado",
+        });
+      if (!method.verified)
+        throw new ORPCError("FORBIDDEN", {
+          message: "El medio de pago no está verificado",
+        });
+
+      await context.db.insert(salePayments).values({
+        recordId: input.id,
+        paymentMethodId: input.paymentMethodId,
+        state: "pending",
+      });
+
+      return loadTransactionDetail(context, input.id);
+    }),
+
+  // GET /users/me/penalties — las multas del client logueado. Causal única de
+  // dominio = falta de pago. El estado 'overdue' (vencida) NO se persiste: se
+  // deriva acá comparando venceEl con hoy (regla del proyecto: tiempo en la capa
+  // de app). Las fechas se guardan como 'YYYY-MM-DD' -> se normalizan a ISO.
+  penalties: authed
+    .output(z.array(penaltySchema))
+    .handler(async ({ context }) => {
+      const rows = await context.db.query.penalties.findMany({
+        where: { clientId: context.userId },
+        columns: {
+          id: true,
+          reason: true,
+          amount: true,
+          currency: true,
+          status: true,
+          issuedAt: true,
+          dueDate: true,
+          auctionId: true,
+        },
+      });
+
+      const now = new Date();
+      return rows.map(p => ({
+        id: p.id,
+        reason: p.reason,
+        amount: p.amount,
+        currency: p.currency,
+        // Una multa pendiente cuyo vencimiento ya pasó se muestra como vencida.
+        status:
+          p.status === "pending" && new Date(p.dueDate) < now
+            ? "overdue"
+            : p.status,
+        issuedAt: toIso(p.issuedAt),
+        dueDate: toIso(p.dueDate),
+        auctionId: p.auctionId,
+      }));
+    }),
+
+  // PUT /users/me/penalties/{id}/status — pagar una multa (-> paid) con un medio
+  // de pago elegido. La única transición soportada desde el cliente es a 'paid'
+  // ('overdue' es derivado; 'pending' no se revierte).
+  payPenalty: authed
+    .input(
+      z.object({
+        id: z.number().int().positive(),
+        status: penaltyStatus,
+        paymentMethodId: z.number().int().positive(),
+      }),
+    )
+    .handler(async ({ context, input }) => {
+      if (input.status !== "paid")
+        throw new ORPCError("BAD_REQUEST", {
+          message: "Solo se puede marcar la multa como pagada",
+        });
+
+      // La multa debe ser del client logueado. En DB solo hay pending/paid: una
+      // multa "vencida" es la misma fila pending con venceEl ya pasado.
+      const penalty = await context.db.query.penalties.findFirst({
+        where: { id: input.id, clientId: context.userId },
+        columns: { status: true, dueDate: true },
+      });
+      if (!penalty)
+        throw new ORPCError("NOT_FOUND", { message: "Multa no encontrada" });
+      if (penalty.status === "paid")
+        throw new ORPCError("CONFLICT", { message: "La multa ya está pagada" });
+      // Pasadas las 72hs (venceEl) la multa queda vencida y ya no se puede pagar
+      // en la app (el caso se deriva a la justicia, fuera del alcance del sistema).
+      if (new Date(penalty.dueDate) < new Date())
+        throw new ORPCError("FORBIDDEN", {
+          message: "La multa venció y ya no se puede pagar",
+        });
+
+      // El medio de pago debe ser del client y estar verificado (mismo criterio
+      // que canPayPenaltyWith en el front). TODO(moneda): validar que el medio
+      // soporte penalty.currency cuando PaymentMethod modele moneda/scope.
+      const method = await context.db.query.paymentMethods.findFirst({
+        where: { id: input.paymentMethodId, clientId: context.userId },
+        columns: { verified: true },
+      });
+      if (!method)
+        throw new ORPCError("NOT_FOUND", {
+          message: "Medio de pago no encontrado",
+        });
+      if (!method.verified)
+        throw new ORPCError("FORBIDDEN", {
+          message: "El medio de pago no está verificado",
+        });
+
+      await context.db
+        .update(penalties)
+        .set({ status: "paid" })
+        .where(
+          and(
+            eq(penalties.id, input.id),
+            eq(penalties.clientId, context.userId),
+          ),
+        );
+
+      return { success: true };
+    }),
 
   paymentLimit: authed.handler(async ({ context }) => {
     const client = await context.db.query.clients.findFirst({
@@ -149,4 +564,45 @@ export const userRouter = {
 
     return { limit };
   }),
+
+  // GET /users/me/insurances — las pólizas de seguro de los bienes del dueño logueado.
+  insurances: authed
+    .output(z.array(insuranceSchema))
+    .handler(async ({ context }) => {
+      // Unimos los productos del dueño que tengan seguro
+      const rows = await context.db
+        .select({
+          productId: products.id,
+          productName: products.name,
+          policyNumber: insurances.policyNumber,
+          company: insurances.company,
+          amount: insurances.amount,
+        })
+        .from(products)
+        .innerJoin(
+          insurances,
+          eq(products.insurancePolicy, insurances.policyNumber),
+        )
+        .where(eq(products.ownerId, context.userId));
+
+      // Obtenemos la primera foto de cada producto para la imagen
+      const result = await Promise.all(
+        rows.map(async row => {
+          const productPhoto = await context.db.query.photos.findFirst({
+            where: { productId: row.productId },
+            columns: { id: true },
+          });
+          return {
+            ...row,
+            img: firstPhotoToImg(
+              productPhoto?.id,
+              context.apiOrigin,
+              row.productId,
+            ),
+          };
+        }),
+      );
+
+      return result;
+    }),
 };

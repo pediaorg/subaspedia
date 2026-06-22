@@ -1,200 +1,79 @@
 import { useState } from "react";
-import { ActivityIndicator, ScrollView, View } from "react-native";
+import { ScrollView, View } from "react-native";
+import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 
-import { type AuctionCategory, PRODUCT_CATEGORIES } from "@subaspedia/types";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Text } from "@/components/ui/text";
-import { api } from "@/lib/api";
+
+import { CatalogosSection } from "./_/catalogos";
+import { CotizacionesSection } from "./_/cotizaciones";
+import { InfraccionesSection } from "./_/infracciones";
+import { PagosSection } from "./_/pagos";
+import { PagosSubastaSection } from "./_/pagos-subasta";
+import { PostoresSection } from "./_/postores";
+import { SubastasSection } from "./_/subastas";
 
 // Pantalla interna de la empresa (no forma parte de la app del usuario). Sirve
-// para disparar a mano los procesos asíncronos del enunciado: la investigación
-// que asigna categoría a un postor y la validación de medios de pago. Es
-// deliberadamente simple, solo para la demo.
+// para disparar a mano los procesos que el enunciado describe como manuales o
+// asíncronos. Cada proceso vive en su propio componente bajo `_/`; acá solo está
+// el shell de tabs que los conmuta.
+
+const TABS = [
+  { value: "postores", label: "Postores", Section: PostoresSection },
+  { value: "pagos", label: "Pagos", Section: PagosSection },
+  {
+    value: "pagos-subasta",
+    label: "Pagos subasta",
+    Section: PagosSubastaSection,
+  },
+  {
+    value: "cotizaciones",
+    label: "Cotizaciones",
+    Section: CotizacionesSection,
+  },
+  { value: "catalogos", label: "Catálogos", Section: CatalogosSection },
+  { value: "subastas", label: "Subastas", Section: SubastasSection },
+  {
+    value: "infracciones",
+    label: "Infracciones",
+    Section: InfraccionesSection,
+  },
+] as const;
+
 export default function BackofficeScreen() {
-  return (
-    <ScrollView
-      className="flex-1 bg-white"
-      contentContainerClassName="p-4 gap-8"
-    >
-      <Text variant="h1" className="font-bold">
-        Backoffice
-      </Text>
-
-      <PendingClientsSection />
-      <PendingPaymentsSection />
-    </ScrollView>
-  );
-}
-
-// --- Paso 2: asignar categoría tras la investigación ---
-function PendingClientsSection() {
-  const pending = api.backoffice.pendingClients.useQuery();
-  const assign = api.backoffice.assignCategory.useMutation({
-    onSuccess: () => pending.refetch(),
-  });
+  const [tab, setTab] = useState<string>(TABS[0].value);
+  const Active = TABS.find(t => t.value === tab)?.Section ?? PostoresSection;
 
   return (
-    <View className="gap-3">
-      <Text variant="h3" className="font-semibold">
-        Postores a investigar
-      </Text>
-      <Text className="text-muted-foreground text-sm">
-        Asigná una categoría para admitir al postor.
-      </Text>
-
-      {pending.isLoading && <ActivityIndicator />}
-      {pending.error && (
-        <Text className="text-red-500">Error: {pending.error.message}</Text>
-      )}
-      {!pending.isLoading && pending.data?.length === 0 && (
-        <Text className="text-gray-400">No hay postores pendientes</Text>
-      )}
-
-      {pending.data?.map(person => (
-        <View
-          key={person.id}
-          className="border-border gap-2 rounded-xl border p-3"
+    <View className="flex-1 bg-white">
+      <View className="gap-3 p-4 pb-2">
+        <Text variant="h1" className="font-bold">
+          Backoffice
+        </Text>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerClassName="gap-0"
         >
-          <Text className="font-semibold">{person.name ?? "Sin nombre"}</Text>
-          <Text className="text-muted-foreground text-sm">{person.email}</Text>
-          <View className="mt-1 flex-row flex-wrap gap-2">
-            {PRODUCT_CATEGORIES.map(cat => (
-              <CategoryButton
-                key={cat.value}
-                label={cat.label}
-                disabled={assign.isPending}
-                onPress={() =>
-                  assign.mutate({
-                    personId: person.id,
-                    category: cat.value as AuctionCategory,
-                  })
-                }
-              />
-            ))}
-          </View>
-        </View>
-      ))}
-      {assign.error && (
-        <Text className="text-red-500">{assign.error.message}</Text>
-      )}
-    </View>
-  );
-}
-
-function CategoryButton({
-  label,
-  onPress,
-  disabled,
-}: {
-  label: string;
-  onPress: () => void;
-  disabled?: boolean;
-}) {
-  return (
-    <Button
-      size="sm"
-      variant="outline"
-      disabled={disabled}
-      onPress={onPress}
-      className="rounded-full"
-    >
-      <Text className="text-sm font-medium">{label}</Text>
-    </Button>
-  );
-}
-
-// --- Paso 5: validar medios de pago fijando el monto garantizado ---
-function PendingPaymentsSection() {
-  const pending = api.backoffice.pendingPaymentMethods.useQuery();
-
-  return (
-    <View className="gap-3">
-      <Text variant="h3" className="font-semibold">
-        Medios de pago a validar
-      </Text>
-      <Text className="text-muted-foreground text-sm">
-        Al aceptar, fijás el monto garantizado. La suma de los montos
-        verificados es el límite de compra del cliente.
-      </Text>
-
-      {pending.isLoading && <ActivityIndicator />}
-      {pending.error && (
-        <Text className="text-red-500">Error: {pending.error.message}</Text>
-      )}
-      {!pending.isLoading && pending.data?.length === 0 && (
-        <Text className="text-gray-400">No hay medios de pago pendientes</Text>
-      )}
-
-      {pending.data?.map(pm => (
-        <PaymentRow
-          key={pm.id}
-          id={pm.id}
-          type={pm.type}
-          details={pm.details}
-          clientName={pm.clientName}
-          onAccepted={() => pending.refetch()}
-        />
-      ))}
-    </View>
-  );
-}
-
-const PAYMENT_TYPE_LABELS: Record<string, string> = {
-  bank_account: "Cuenta bancaria",
-  credit_card: "Tarjeta de crédito",
-  certified_check: "Cheque certificado",
-};
-
-function PaymentRow({
-  id,
-  type,
-  details,
-  clientName,
-  onAccepted,
-}: {
-  id: number;
-  type: string;
-  details: string | null;
-  clientName: string | null;
-  onAccepted: () => void;
-}) {
-  const [amount, setAmount] = useState("");
-  const accept = api.backoffice.acceptPaymentMethod.useMutation({
-    onSuccess: onAccepted,
-  });
-
-  const parsed = Number(amount);
-  const valid = amount.length > 0 && Number.isFinite(parsed) && parsed > 0;
-
-  return (
-    <View className="border-border gap-2 rounded-xl border p-3">
-      <Text className="font-semibold">{clientName ?? "Cliente"}</Text>
-      <Text className="text-muted-foreground text-sm">
-        {PAYMENT_TYPE_LABELS[type] ?? type}
-      </Text>
-      {details && <Text className="text-sm">{details}</Text>}
-      <View className="mt-1 flex-row items-center gap-2">
-        <Input
-          value={amount}
-          onChangeText={setAmount}
-          keyboardType="numeric"
-          placeholder="Monto garantizado"
-          className="bg-secondary flex-1 border-none"
-        />
-        <Button
-          size="sm"
-          disabled={!valid || accept.isPending}
-          onPress={() => accept.mutate({ paymentMethodId: id, amount: parsed })}
-        >
-          <Text className="text-sm font-semibold text-white">
-            {accept.isPending ? "..." : "Aceptar"}
-          </Text>
-        </Button>
+          <Tabs value={tab} onValueChange={setTab}>
+            <TabsList>
+              {TABS.map(t => (
+                <TabsTrigger key={t.value} value={t.value}>
+                  <Text>{t.label}</Text>
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </Tabs>
+        </ScrollView>
       </View>
-      {accept.error && (
-        <Text className="text-red-500 text-sm">{accept.error.message}</Text>
-      )}
+
+      <KeyboardAwareScrollView
+        className="flex-1"
+        contentContainerClassName="p-4 pt-2 gap-6"
+        keyboardShouldPersistTaps="handled"
+      >
+        <Active />
+      </KeyboardAwareScrollView>
     </View>
   );
 }

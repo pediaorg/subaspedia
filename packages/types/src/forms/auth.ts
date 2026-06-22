@@ -27,6 +27,11 @@ export const registerStep1Schema = z.object({
   legalAddress: z.string().trim().min(1, "Ingresá tu domicilio legal"),
   country: z.string().trim().min(1, "Seleccioná tu país"),
   email,
+  // Número de documento. Validación laxa por ser multi-país: solo dígitos.
+  document: z
+    .string()
+    .trim()
+    .regex(/^\d{6,15}$/, "Documento inválido"),
   // Fotos del documento (frente y dorso). En el cliente se cargan como URIs;
   // acá solo validamos su presencia.
   dniFront: z.string().min(1, "Subí el frente del documento"),
@@ -47,11 +52,10 @@ export const verifyCodeSchema = z.object({
 
 export type VerifyCodeInput = z.infer<typeof verifyCodeSchema>;
 
-// --- Registro etapa 2b: creación de la clave personal ---
-export const completeRegistrationSchema = z
+// --- Set-password: el postor aprobado fija su clave vía token del mail ---
+export const setPasswordSchema = z
   .object({
-    email,
-    code: z.string().trim().length(VERIFICATION_CODE_LENGTH, "Código inválido"),
+    token: z.string().min(1, "Token requerido"),
     password,
     confirmPassword: z.string(),
   })
@@ -60,9 +64,7 @@ export const completeRegistrationSchema = z
     path: ["confirmPassword"],
   });
 
-export type CompleteRegistrationInput = z.infer<
-  typeof completeRegistrationSchema
->;
+export type SetPasswordInput = z.infer<typeof setPasswordSchema>;
 
 // Schema solo del formulario de contraseña (sin email/code, que viajan por la
 // navegación) para usar con react-hook-form en la pantalla.

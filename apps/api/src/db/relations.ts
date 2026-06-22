@@ -48,6 +48,8 @@ export const relations = defineRelations(schema, r => ({
     attendees: r.many.attendees(),
     auctionRecords: r.many.auctionRecords(),
     paymentMethods: r.many.paymentMethods(),
+    penalties: r.many.penalties(),
+    notifications: r.many.notifications(),
   },
   paymentMethods: {
     client: r.one.clients({
@@ -86,6 +88,13 @@ export const relations = defineRelations(schema, r => ({
     catalogs: r.many.catalogs(),
     attendees: r.many.attendees(),
     auctionRecords: r.many.auctionRecords(),
+    penalties: r.many.penalties(),
+    // Moneda de la subasta (tabla satélite monedasSubasta). 0..1: si no hay
+    // fila, el handler cae al default 'ARS'.
+    currencyRow: r.one.auctionCurrencies({
+      from: r.auctions.id,
+      to: r.auctionCurrencies.auctionId,
+    }),
   },
   products: {
     reviewer: r.one.employees({
@@ -106,6 +115,11 @@ export const relations = defineRelations(schema, r => ({
     artworkDetails: r.one.artworkDetails({
       from: r.products.id,
       to: r.artworkDetails.productId,
+    }),
+    // Cotización de la empresa para este bien (1:1).
+    quote: r.one.quotes({
+      from: r.products.id,
+      to: r.quotes.productId,
     }),
   },
   artworkDetails: {
@@ -141,6 +155,12 @@ export const relations = defineRelations(schema, r => ({
       to: r.products.id,
     }),
     bids: r.many.bids(),
+  },
+  quotes: {
+    product: r.one.products({
+      from: r.quotes.productId,
+      to: r.products.id,
+    }),
   },
   attendees: {
     client: r.one.clients({
@@ -178,6 +198,57 @@ export const relations = defineRelations(schema, r => ({
     }),
     client: r.one.clients({
       from: r.auctionRecords.clientId,
+      to: r.clients.id,
+    }),
+    // Envío/entrega de la venta (tabla satélite enviosVenta). 0..1: si no hay
+    // fila, el handler cae al default 'shipping'.
+    shipment: r.one.saleShipments({
+      from: r.auctionRecords.id,
+      to: r.saleShipments.recordId,
+    }),
+    // Pago de la venta (tabla satélite pagosVenta). 0..1: sin fila = todavía
+    // sin pagar (unpaid).
+    payment: r.one.salePayments({
+      from: r.auctionRecords.id,
+      to: r.salePayments.recordId,
+    }),
+  },
+  auctionCurrencies: {
+    auction: r.one.auctions({
+      from: r.auctionCurrencies.auctionId,
+      to: r.auctions.id,
+    }),
+  },
+  saleShipments: {
+    record: r.one.auctionRecords({
+      from: r.saleShipments.recordId,
+      to: r.auctionRecords.id,
+    }),
+  },
+  salePayments: {
+    record: r.one.auctionRecords({
+      from: r.salePayments.recordId,
+      to: r.auctionRecords.id,
+    }),
+    paymentMethod: r.one.paymentMethods({
+      from: r.salePayments.paymentMethodId,
+      to: r.paymentMethods.id,
+    }),
+  },
+  penalties: {
+    client: r.one.clients({
+      from: r.penalties.clientId,
+      to: r.clients.id,
+    }),
+    // La subasta que originó la multa. Nullable: puede no estar atada a una.
+    auction: r.one.auctions({
+      from: r.penalties.auctionId,
+      to: r.auctions.id,
+    }),
+  },
+  notifications: {
+    client: r.one.clients({
+      from: r.notifications.clientId,
       to: r.clients.id,
     }),
   },

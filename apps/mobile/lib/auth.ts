@@ -61,6 +61,12 @@ export const authStore = {
     }
     emit();
   },
+  // Reemplaza solo el access token (tras un refresh) sin tocar el refresh token.
+  setAccessToken: (accessToken: string) => {
+    current = { ...current, accessToken };
+    storage.set(ACCESS_KEY, accessToken);
+    emit();
+  },
   subscribe: (cb: () => void) => {
     listeners.add(cb);
     return () => listeners.delete(cb);
