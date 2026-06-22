@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { ScrollView, View } from "react-native";
+import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Text } from "@/components/ui/text";
@@ -60,13 +61,13 @@ export default function BackofficeScreen() {
         </ScrollView>
       </View>
 
-      <ScrollView
+      <KeyboardAwareScrollView
         className="flex-1"
         contentContainerClassName="p-4 pt-2 gap-6"
         keyboardShouldPersistTaps="handled"
       >
         <Active />
-      </ScrollView>
+      </KeyboardAwareScrollView>
     </View>
   );
 }

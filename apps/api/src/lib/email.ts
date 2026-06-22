@@ -158,3 +158,51 @@ export async function sendPaymentMethodVerifiedEmail(
     `),
   });
 }
+
+/** Avisa al ganador de una subasta sobre el importe a pagar. */
+export async function sendAuctionWinEmail(args: {
+  to: string;
+  winnerName: string;
+  productName: string;
+  bidAmount: number;
+  commission: number;
+  shippingCost: number;
+  currency: "ARS" | "USD";
+}): Promise<void> {
+  const total = args.bidAmount + args.commission + args.shippingCost;
+  const currencySymbol = args.currency === "ARS" ? "$" : "USD ";
+
+  await sendEmail({
+    to: args.to,
+    subject: `¡Ganaste "${args.productName}" en Subaspedia!`,
+    html: layout(`
+      <h1 style="font-size: 20px;">¡Felicidades ${args.winnerName}!</h1>
+      <p>Ganaste la subasta de <strong>${args.productName}</strong>.</p>
+
+      <div style="background: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0;">
+        <h3 style="margin-top: 0; font-size: 16px;">Detalle del pago:</h3>
+        <table style="width: 100%; border-collapse: collapse;">
+          <tr>
+            <td style="padding: 8px 0; border-bottom: 1px solid #ddd;">Monto pujado</td>
+            <td style="text-align: right; padding: 8px 0; border-bottom: 1px solid #ddd;"><strong>${currencySymbol}${args.bidAmount.toFixed(2)}</strong></td>
+          </tr>
+          <tr>
+            <td style="padding: 8px 0; border-bottom: 1px solid #ddd;">Comisión</td>
+            <td style="text-align: right; padding: 8px 0; border-bottom: 1px solid #ddd;"><strong>${currencySymbol}${args.commission.toFixed(2)}</strong></td>
+          </tr>
+          <tr>
+            <td style="padding: 8px 0; border-bottom: 1px solid #ddd;">Envío a tu domicilio</td>
+            <td style="text-align: right; padding: 8px 0; border-bottom: 1px solid #ddd;"><strong>${currencySymbol}${args.shippingCost.toFixed(2)}</strong></td>
+          </tr>
+          <tr>
+            <td style="padding: 12px 0; font-weight: 600;">Total a pagar</td>
+            <td style="text-align: right; padding: 12px 0; font-weight: 600; font-size: 16px;">${currencySymbol}${total.toFixed(2)}</td>
+          </tr>
+        </table>
+      </div>
+
+      <p style="color: #666; font-size: 13px;">Iniciá sesión en la app para ver los detalles de tu compra y elegir cómo proceder con el envío o retiro.</p>
+      ${logoutButton("Ir a Subaspedia")}
+    `),
+  });
+}
