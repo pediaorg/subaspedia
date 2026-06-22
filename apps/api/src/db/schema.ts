@@ -407,3 +407,29 @@ export const penalties = sqliteTable(
     check("chk_penalty_status", sql`${t.status} IN ('pending', 'paid')`),
   ],
 );
+
+// Notificaciones que recibe el client. `route` define a qué pantalla envía el
+// botón del detalle (y qué ícono se pinta en la lista). Es texto libre con
+// CHECK para los valores válidos; su fuente lógica es el enum
+// `notificationRoute` de @subaspedia/types — mantenerlos alineados.
+export const notifications = sqliteTable(
+  "notificaciones",
+  {
+    id: integer("identificador").primaryKey({ autoIncrement: true }),
+    clientId: integer("cliente")
+      .notNull()
+      .references(() => clients.id),
+    title: text("titulo").notNull(),
+    body: text("cuerpo").notNull(),
+    route: text("ruta", {
+      enum: ["winProduct", "sanction", "paymentMethod", "proposal", "auction"],
+    }).notNull(),
+    createdAt: text("creadoEn").notNull().default(sql`(current_timestamp)`),
+  },
+  t => [
+    check(
+      "chk_notification_route",
+      sql`${t.route} IN ('winProduct', 'sanction', 'paymentMethod', 'proposal', 'auction')`,
+    ),
+  ],
+);

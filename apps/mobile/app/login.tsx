@@ -3,6 +3,7 @@ import { Link, router, Stack, useLocalSearchParams } from "expo-router";
 import { X } from "lucide-react-native";
 import { Controller, useForm } from "react-hook-form";
 import { Pressable, View } from "react-native";
+import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 
 import { type LoginInput, loginSchema } from "@subaspedia/types/forms/auth";
 import { FormField } from "@/components/form-field";
@@ -68,7 +69,11 @@ export default function LoginScreen() {
 
         {/* Drawer blanco (~70%) con el formulario centrado. */}
         <View className="h-[70%] rounded-t-3xl bg-white px-6">
-          <View className="flex-1 justify-center gap-5">
+          <KeyboardAwareScrollView
+            bottomOffset={20}
+            showsVerticalScrollIndicator={false}
+            contentContainerClassName="flex-grow justify-center gap-5"
+          >
             <Controller
               control={form.control}
               name="email"
@@ -160,7 +165,7 @@ export default function LoginScreen() {
                 Registrate
               </Link>
             </View>
-          </View>
+          </KeyboardAwareScrollView>
         </View>
       </View>
     </>

@@ -49,6 +49,7 @@ export const relations = defineRelations(schema, r => ({
     auctionRecords: r.many.auctionRecords(),
     paymentMethods: r.many.paymentMethods(),
     penalties: r.many.penalties(),
+    notifications: r.many.notifications(),
   },
   paymentMethods: {
     client: r.one.clients({
@@ -215,6 +216,12 @@ export const relations = defineRelations(schema, r => ({
     auction: r.one.auctions({
       from: r.penalties.auctionId,
       to: r.auctions.id,
+    }),
+  },
+  notifications: {
+    client: r.one.clients({
+      from: r.notifications.clientId,
+      to: r.clients.id,
     }),
   },
 }));

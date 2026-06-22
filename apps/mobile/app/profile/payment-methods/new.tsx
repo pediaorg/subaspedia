@@ -8,7 +8,8 @@ import {
   ScrollText,
 } from "lucide-react-native";
 import { useState } from "react";
-import { Pressable, ScrollView, View } from "react-native";
+import { Pressable, View } from "react-native";
+import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 
 import { FormField } from "@/components/form-field";
 import { Button } from "@/components/ui/button";
@@ -128,7 +129,7 @@ export default function PaymentMethodScreen() {
 
       {/* Cajón blanco que sube desde abajo (contenedor 2) */}
       <View className="flex-1 overflow-hidden rounded-t-3xl bg-white">
-        <ScrollView
+        <KeyboardAwareScrollView
           contentContainerClassName="grow gap-4 px-6 pb-12 pt-8"
           keyboardShouldPersistTaps="handled"
         >
@@ -310,7 +311,7 @@ export default function PaymentMethodScreen() {
           <Text className="text-accent-foreground text-center text-xs">
             La empresa validará tu medio de pago antes de habilitarte a pujar.
           </Text>
-        </ScrollView>
+        </KeyboardAwareScrollView>
       </View>
     </View>
   );

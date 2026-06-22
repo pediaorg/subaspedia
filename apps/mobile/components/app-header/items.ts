@@ -2,9 +2,10 @@ import type { Href } from "expo-router";
 import {
   Bell,
   HelpCircle,
-  type LucideIcon,
+  Home,
   Shield,
   Star,
+  type LucideIcon,
 } from "lucide-react-native";
 
 export type SidebarItemDef = {
@@ -16,6 +17,7 @@ export type SidebarItemDef = {
 
 export function sidebarItems(): SidebarItemDef[] {
   return [
+    { key: "home", label: "Inicio", icon: Home, href: "/" },
     { key: "rank", label: "Rango", icon: Star, href: "/rank-up" },
     {
       key: "insurances",
@@ -25,9 +27,9 @@ export function sidebarItems(): SidebarItemDef[] {
     },
     {
       key: "notifications",
-      label: "Notifications",
+      label: "Notificaciones",
       icon: Bell,
-      href: "/notifications",
+      href: "/notifications" as Href,
     },
     { key: "faq", label: "FAQ", icon: HelpCircle, href: "/faq" },
   ];

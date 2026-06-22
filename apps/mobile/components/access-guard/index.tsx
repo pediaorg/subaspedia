@@ -14,6 +14,7 @@ type AccessLevel = "auth" | "rank" | "payment";
 // jerárquicos: "rank" implica "auth" y "payment" implica ambos.
 const PROTECTED_ROUTES: { pattern: RegExp; level: AccessLevel }[] = [
   { pattern: /^\/profile(\/|$)/, level: "auth" },
+  { pattern: /^\/notifications(\/|$)/, level: "auth" },
   { pattern: /^\/new-product(\/|$)/, level: "auth" },
   { pattern: /^\/auctions\/[^/]+/, level: "auth" },
   { pattern: /^\/rank-up(\/|$)/, level: "rank" },
