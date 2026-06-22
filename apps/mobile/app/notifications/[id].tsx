@@ -13,21 +13,17 @@ import { Text } from "@/components/ui/text";
 import { api } from "@/lib/api";
 
 // Resuelve el destino del botón del detalle según el tipo de notificación.
-// La obra ganada (winProduct) lleva al detalle de la compra, donde el usuario
-// elige el método de entrega (envío / retiro). Ese destino es DINÁMICO: depende
-// del `targetId` (el id de la venta). Si por algún motivo llega sin targetId,
-// caemos al historial de compras (tab "Pagos" de Multas y pagos).
+// winProduct (obra ganada) es DECORATIVA: devuelve null y el detalle no muestra
+// botón. El aviso de la obra ganada y la acción real (ver la compra y elegir
+// envío / retiro) llegan por EMAIL, que linkea directo a la transacción.
 // Los demás tipos navegan a una pantalla fija: sanction -> multas,
 // proposal -> mis productos, paymentMethod -> medios de pago, auction -> index.
-function resolveTarget(n: Notification): { href: string; label: string } {
+function resolveTarget(
+  n: Notification,
+): { href: string; label: string } | null {
   switch (n.route) {
     case "winProduct":
-      return n.targetId
-        ? {
-            href: `/profile/transactions/${n.targetId}`,
-            label: "Ver mi compra",
-          }
-        : { href: "/profile/infractions", label: "Ver mis compras" };
+      return null;
     case "sanction":
       return { href: "/profile/infractions", label: "Ver multas y pagos" };
     case "proposal":
@@ -124,6 +120,7 @@ export default function NotificationDetail() {
 
             {(() => {
               const target = resolveTarget(data);
+              if (!target) return null;
               return (
                 <Button
                   size="lg"

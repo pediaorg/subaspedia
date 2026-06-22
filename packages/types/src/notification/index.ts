@@ -17,11 +17,6 @@ export const notificationSchema = z.object({
   title: z.string(),
   body: z.string(),
   route: notificationRoute,
-  // Id de la entidad a la que apunta la notificación, para deep-linkear al
-  // detalle. Es POLIMÓRFICO según `route`: winProduct -> venta (registro de
-  // subasta), auction -> subasta, sanction -> multa, etc. Nullable porque una
-  // notificación puede no tener un destino puntual.
-  targetId: z.number().int().positive().nullable(),
   createdAt: z.iso.datetime(),
 });
 
@@ -32,7 +27,6 @@ export const createNotificationSchema = z.object({
   title: z.string().min(1),
   body: z.string().min(1),
   route: notificationRoute,
-  targetId: z.number().int().positive().nullable().optional(),
 });
 
 export type CreateNotificationInput = z.infer<typeof createNotificationSchema>;
