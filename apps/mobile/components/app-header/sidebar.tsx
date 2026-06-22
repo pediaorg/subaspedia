@@ -121,14 +121,16 @@ export function Sidebar({ open, onClose }: Props) {
           <Separator className="border-border w-2/3 mb-3" />
 
           <View className="self-center">
-            {sidebarItems().map(item => (
-              <SidebarItem
-                key={item.key}
-                icon={item.icon}
-                label={item.label}
-                onPress={() => go(item.href)}
-              />
-            ))}
+            {sidebarItems()
+              .filter(item => isAuthed || !item.authOnly)
+              .map(item => (
+                <SidebarItem
+                  key={item.key}
+                  icon={item.icon}
+                  label={item.label}
+                  onPress={() => go(item.href)}
+                />
+              ))}
           </View>
 
           {!isAuthed && (

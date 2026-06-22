@@ -179,6 +179,23 @@ export class AuctionRoom extends DurableObject<Env> {
     return cap;
   }
 
+  // ---- Multas (penalties) -------------------------------------------------
+
+  /**
+   * `true` si el cliente tiene al menos una multa impaga. Regla del enunciado:
+   * la multa por falta de pago "deberá abonar antes de poder participar en otra
+   * subasta". El estado 'overdue' es derivado (no se persiste), así que basta
+   * con buscar cualquier multa en estado 'pending': vencida o no, mientras siga
+   * impaga bloquea la participación.
+   */
+  private async hasUnpaidPenalty(clientId: number): Promise<boolean> {
+    const penalty = await createDb(this.env.DB).query.penalties.findFirst({
+      where: { clientId, status: "pending" },
+      columns: { id: true },
+    });
+    return penalty != null;
+  }
+
   // ---- Cálculo de límites de puja -----------------------------------------
 
   private bounds(snap: Snapshot): { min: number; max: number | null } {
@@ -253,6 +270,15 @@ export class AuctionRoom extends DurableObject<Env> {
         ok: false,
         code: "BAD_REQUEST",
         message: "El tiempo de puja venció",
+      };
+
+    // Multa impaga => no puede participar en ninguna subasta hasta saldarla.
+    if (await this.hasUnpaidPenalty(params.clientId))
+      return {
+        ok: false,
+        code: "FORBIDDEN",
+        message:
+          "Tenés una multa pendiente de pago. Saldala para volver a participar en subastas",
       };
 
     const cap = await this.capFor(params.clientId);
