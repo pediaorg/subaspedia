@@ -35,7 +35,10 @@
 PRAGMA foreign_keys = OFF;
 
 -- ---- Limpieza (orden inverso a las dependencias FK) ------------------------
+DELETE FROM notificaciones;
 DELETE FROM multas;
+DELETE FROM enviosVenta;
+DELETE FROM pagosVenta;
 DELETE FROM registroDeSubasta;
 DELETE FROM pujos;
 DELETE FROM asistentes;
@@ -174,8 +177,8 @@ INSERT INTO itemsCatalogo (identificador, catalogo, producto, precioBase, comisi
   (3, 1, 4, 50000,  10, 0),
   (4, 1, 5, 30000,  10, 0),
   (5, 1, 6, 120000, 12, 1),
-  -- Item del catálogo USD (subasta 2): precioBase y comisión en dólares.
-  (6, 2, 7, 1500, 5, 0),
+  -- Item del catálogo USD (subasta 2): la moneda se la lleva Juan (registro 4).
+  (6, 2, 7, 1500, 5, 1),
   -- El lingote de Juan (producto 8) ya se remató en la subasta 2.
   (7, 2, 8, 2000, 8, 1);
 
@@ -220,7 +223,30 @@ INSERT INTO registroDeSubasta (identificador, subasta, duenio, producto, cliente
   (2, 1, 3, 6, 5, 135000, 12),
   -- El lingote (producto 8) de Juan (dueño 3) se lo lleva Ana (cliente 5) en la
   -- subasta 2 (USD): salePrice en dólares para "Mis productos" de Juan.
-  (3, 2, 3, 8, 5, 2200, 8);
+  (3, 2, 3, 8, 5, 2200, 8),
+  -- Juan (cliente 3) COMPRA la moneda (producto 7) de Lucía (dueño 4) en la
+  -- subasta 2 (USD): le da una compra en dólares a "Multas y pagos" -> tab
+  -- Pagos. Junto con el reloj (registro 1, ARS) cubre ambas monedas de envío.
+  (4, 2, 4, 7, 3, 1800, 5);
+
+-- ---- enviosVenta (sale_shipments) — tabla satélite de envío/entrega --------
+-- 1:1 con registroDeSubasta. La fila SOLO existe cuando el comprador eligió;
+-- su ausencia = default 'shipping' (la lectura va LEFT JOIN + COALESCE). Por eso
+-- el reloj de Juan (registro 1, ARS) NO tiene fila acá: cae al default envío y
+-- la factura le suma el costo ARS. La moneda (registro 4, USD) sí tiene fila,
+-- con 'pickup' (retiro): no suma envío y dispara el aviso de pérdida de seguro.
+INSERT INTO enviosVenta (registro, metodoEntrega, costoEnvio) VALUES
+  (4, 'pickup', 0);
+
+-- ---- pagosVenta (sale_payments) — tabla satélite de pago de la venta -------
+-- 1:1 con registroDeSubasta. La fila SOLO existe una vez que el ganador apretó
+-- "Pagar" (ausencia = todavía sin pagar -> estado "A pagar" + botón Pagar).
+-- El reloj de Juan (registro 1, ARS) NO tiene fila: queda impago para que Juan
+-- lo pague EN VIVO (-> 'pending' -> el backoffice lo resuelve). La moneda
+-- (registro 4, USD) nace 'pending' (Juan ya la pagó con su medio verificado id
+-- 1) para que el backoffice tenga algo que aprobar/rechazar de entrada.
+INSERT INTO pagosVenta (registro, medioPago, estado) VALUES
+  (4, 1, 'pending');
 
 -- ---- multas (penalties; FK -> clientes, subastas) --------------------------
 -- Multas de Juan (cliente 3), una por estado para la pantalla "Multas y pagos".
@@ -234,5 +260,12 @@ INSERT INTO multas (identificador, cliente, motivo, importe, moneda, estado, emi
   (2, 3, 'Falta de pago', 13500, 'ARS', 'pending', '2026-04-10', '2026-04-13', 1),
   -- Pagada en dólares (subasta 2 USD): prueba la moneda y el estado "Pagada".
   (3, 3, 'Falta de pago', 220,   'USD', 'paid',    '2026-03-01', '2026-03-04', 2);
+
+-- ---- notificaciones (notifications; FK -> clientes) ------------------------
+-- Notif de obra ganada para Juan (cliente 3). Es DECORATIVA: avisa pero no
+-- navega a ningún lado. La acción real (ver la compra y elegir envío / retiro)
+-- llega por EMAIL, que linkea directo a la transacción.
+INSERT INTO notificaciones (identificador, cliente, titulo, cuerpo, ruta) VALUES
+  (1, 3, '¡Ganaste una subasta!', 'Te quedaste con el Reloj de bolsillo de oro. Te enviamos un mail con el detalle del pago y cómo recibirlo.', 'winProduct');
 
 PRAGMA foreign_keys = ON;

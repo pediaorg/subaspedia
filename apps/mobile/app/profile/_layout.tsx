@@ -18,6 +18,7 @@ export default function ProfileLayout() {
         <Stack.Screen name="products" />
         <Stack.Screen name="stats" />
         <Stack.Screen name="infractions" />
+        <Stack.Screen name="transactions/[id]" />
         <Stack.Screen name="payment-methods/index" />
         <Stack.Screen
           name="payment-methods/new"

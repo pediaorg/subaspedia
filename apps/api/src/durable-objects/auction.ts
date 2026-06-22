@@ -11,9 +11,10 @@ import {
   MIN_BID_INCREMENT_RATE,
 } from "@subaspedia/types";
 import { createDb } from "@/api/db";
-import { attendees, auctions, bids } from "@/api/db/schema";
+import { attendees, auctionRecords, auctions, bids } from "@/api/db/schema";
 import type { Env } from "@/api/index";
 import { sendAuctionWinEmail } from "@/api/lib/email";
+import { SHIPPING_COST } from "@/api/lib/shipping";
 
 type Category = "common" | "special" | "silver" | "gold" | "platinum";
 
@@ -418,11 +419,11 @@ export class AuctionRoom extends DurableObject<Env> {
       .set({ status: "closed" })
       .where(eq(auctions.id, snap.auctionId));
 
-    // Enviar email al ganador con los detalles del pago
+    // Registrar la venta y avisar al ganador (con el link a su compra).
     if (snap.leader?.clientId) {
-      this.sendWinEmail(snap).catch(err => {
+      this.finalizeWin(snap).catch(err => {
         console.error(
-          `[auction ${snap.auctionId}] Error enviando email de ganador:`,
+          `[auction ${snap.auctionId}] Error registrando la venta / email de ganador:`,
           err,
         );
       });
@@ -436,10 +437,14 @@ export class AuctionRoom extends DurableObject<Env> {
     });
   }
 
-  private async sendWinEmail(snap: Snapshot): Promise<void> {
+  // Al cerrar la subasta materializa la venta (registroDeSubasta) y le avisa al
+  // ganador por mail con el detalle del pago y el link directo a su compra. La
+  // venta no existía hasta acá: este es el único punto que la registra en
+  // runtime (antes solo la creaba el seed).
+  private async finalizeWin(snap: Snapshot): Promise<void> {
     const db = createDb(this.env.DB);
 
-    // Obtener datos del cliente ganador
+    // Datos del cliente ganador.
     const client = await db.query.clients.findFirst({
       where: { id: snap.leader?.clientId },
       with: {
@@ -451,34 +456,54 @@ export class AuctionRoom extends DurableObject<Env> {
 
     if (!client?.person?.email) return;
 
-    // Obtener datos del producto
+    // Producto, dueño (vendedor) y comisión: necesarios para la venta.
     const item = await db.query.catalogItems.findFirst({
       where: { id: snap.itemId },
-      columns: { basePrice: true, commission: true },
+      columns: { commission: true },
       with: {
         product: {
-          columns: { name: true },
+          columns: { id: true, name: true, ownerId: true },
         },
       },
     });
 
-    if (!item?.product?.name) return;
+    // Sin producto, dueño o comisión válida no podemos registrar la venta
+    // (FKs + CHECK > 0.01 de registroDeSubasta); sin venta no hay a qué
+    // linkear, así que tampoco mandamos el mail. `commission` es un PORCENTAJE.
+    const commissionPct = item?.commission ?? 0;
+    if (
+      !item?.product?.name ||
+      item.product.ownerId == null ||
+      commissionPct <= 0.01
+    )
+      return;
 
-    // Valores por defecto (en caso de no tener comisión específica)
-    const commission = item.commission ?? 0;
-    const shippingCost = 0; // TODO: calcular según domicilio y producto
+    const [record] = await db
+      .insert(auctionRecords)
+      .values({
+        auctionId: snap.auctionId,
+        ownerId: item.product.ownerId,
+        productId: item.product.id,
+        clientId: client.id,
+        amount: snap.currentBid,
+        commission: commissionPct,
+      })
+      .returning({ id: auctionRecords.id });
 
     const winnerName =
       `${client.person.name ?? ""} ${client.person.lastName ?? ""}`.trim();
 
+    // El mail muestra MONTOS: la comisión resuelta sobre la puja y el envío por
+    // defecto (la factura recalcula si después elige retiro).
     await sendAuctionWinEmail({
       to: client.person.email,
       winnerName,
       productName: item.product.name,
       bidAmount: snap.currentBid,
-      commission,
-      shippingCost,
+      commission: (snap.currentBid * commissionPct) / 100,
+      shippingCost: SHIPPING_COST[snap.currency],
       currency: snap.currency,
+      recordId: record.id,
     });
   }
 

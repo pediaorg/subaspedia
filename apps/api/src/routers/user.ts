@@ -2,30 +2,110 @@ import { ORPCError } from "@orpc/server";
 import { and, count, desc, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 
+import { type DeliveryMethod, deliveryMethod } from "@subaspedia/types";
 import { createPaymentMethodSchema } from "@subaspedia/types/forms/payment";
+import { insuranceSchema } from "@subaspedia/types/insurance";
 import {
   MAX_PAYMENT_METHODS,
   paymentMethodSchema,
 } from "@subaspedia/types/payment-method";
 import { penaltySchema, penaltyStatus } from "@subaspedia/types/penalty";
-import { transactionSchema } from "@subaspedia/types/transaction";
+import {
+  type OrderStatus,
+  type PaymentStatus,
+  type TransactionDetail,
+  transactionDetailSchema,
+  transactionSchema,
+} from "@subaspedia/types/transaction";
 import { bidHistorySchema, rankSummarySchema } from "@subaspedia/types/user";
-import { insuranceSchema } from "@subaspedia/types/insurance";
-import { authed } from "@/api/context";
+import { authed, type Context } from "@/api/context";
 import {
   attendees,
   auctionRecords,
   auctions,
   bids,
   catalogItems,
+  insurances,
   paymentMethods,
   penalties,
-  products,
-  insurances,
   photos,
+  products,
+  salePayments,
+  saleShipments,
 } from "@/api/db/schema";
 import { toIso } from "@/api/lib/date";
 import { firstPhotoToImg } from "@/api/lib/photo";
+import { SHIPPING_COST } from "@/api/lib/shipping";
+
+// Deriva el estado que ve el usuario (badge) combinando el estado de PAGO
+// (persistido en pagosVenta; ausencia = todavía sin pagar) con el método de
+// ENTREGA. Es la única fuente del `status`: nunca se persiste.
+function deriveOrderStatus(
+  paymentState: PaymentStatus | undefined,
+  method: DeliveryMethod,
+): OrderStatus {
+  if (!paymentState) return "unpaid";
+  if (paymentState === "pending") return "pending";
+  if (paymentState === "rejected") return "rejected";
+  // accepted: el desenlace depende de la entrega elegida.
+  return method === "pickup" ? "picked_up" : "paid";
+}
+
+// Arma el detalle (factura) de una compra del client logueado. Lo comparten
+// transactionById (lectura) y setDelivery (devuelve el detalle ya actualizado).
+// El método de entrega se resuelve con default 'shipping' (ausencia de fila en
+// enviosVenta = envío); la dirección se lee EN VIVO de personas y se omite si es
+// retiro. Lanza NOT_FOUND si la compra no es del usuario o le faltan datos.
+async function loadTransactionDetail(
+  context: Context & { userId: number },
+  id: number,
+): Promise<TransactionDetail> {
+  const r = await context.db.query.auctionRecords.findFirst({
+    where: { id, clientId: context.userId },
+    columns: { id: true, amount: true, commission: true, auctionId: true },
+    with: {
+      product: {
+        columns: { id: true, name: true },
+        with: { photos: { columns: { id: true } } },
+      },
+      auction: { columns: { date: true }, with: { currencyRow: true } },
+      shipment: { columns: { deliveryMethod: true, shippingCost: true } },
+      payment: { columns: { state: true } },
+      client: { with: { person: { columns: { address: true } } } },
+    },
+  });
+  if (!r?.product || !r.auction?.date)
+    throw new ORPCError("NOT_FOUND", { message: "Compra no encontrada" });
+
+  const currency = r.auction.currencyRow?.currency ?? "ARS";
+  const method = r.shipment?.deliveryMethod ?? "shipping";
+  const shippingCost =
+    method === "shipping"
+      ? (r.shipment?.shippingCost ?? SHIPPING_COST[currency])
+      : 0;
+  const commissionAmount = (r.amount * r.commission) / 100;
+
+  return {
+    id: r.id,
+    productName: r.product.name,
+    img: firstPhotoToImg(
+      r.product.photos[0]?.id,
+      context.apiOrigin,
+      r.product.id,
+    ),
+    currency,
+    date: toIso(r.auction.date),
+    auctionId: r.auctionId,
+    status: deriveOrderStatus(r.payment?.state, method),
+    deliveryMethod: method,
+    bidAmount: r.amount,
+    commissionAmount,
+    shippingCost,
+    total: r.amount + commissionAmount + shippingCost,
+    shippingAddress:
+      method === "shipping" ? (r.client?.person?.address ?? null) : null,
+  };
+}
 
 export const userRouter = {
   // GET /users/me/payment-methods — los medios de pago del client logueado.
@@ -226,6 +306,10 @@ export const userRouter = {
             columns: { date: true },
             with: { currencyRow: true },
           },
+          // Entrega elegida (tabla satélite). Sin fila = default 'shipping'.
+          shipment: { columns: { deliveryMethod: true, shippingCost: true } },
+          // Pago (tabla satélite). Sin fila = todavía sin pagar (unpaid).
+          payment: { columns: { state: true } },
         },
       });
 
@@ -234,6 +318,15 @@ export const userRouter = {
         // tienen producto y fecha. Si por un dato inconsistente faltara alguno,
         // omitimos la fila: productName/date son no-nullable en transactionSchema.
         if (!r.product || !r.auction?.date) return [];
+        const currency = r.auction.currencyRow?.currency ?? "ARS";
+        // Default = envío: ausencia de fila satélite se trata como 'shipping'.
+        const method = r.shipment?.deliveryMethod ?? "shipping";
+        const shippingCost =
+          method === "shipping"
+            ? (r.shipment?.shippingCost ?? SHIPPING_COST[currency])
+            : 0;
+        // `comision` es un PORCENTAJE de la puja (no un monto), p. ej. 12 = 12%.
+        const commissionAmount = (r.amount * r.commission) / 100;
         return [
           {
             id: r.id,
@@ -243,19 +336,113 @@ export const userRouter = {
               context.apiOrigin,
               r.product.id,
             ),
-            // Total pagado = puja + comisión. `comision` es un PORCENTAJE de la
-            // puja (no un monto), p. ej. 12 = 12%. TODO(envío): sumar el costo
-            // de envío cuando se modele.
-            amount: r.amount + (r.amount * r.commission) / 100,
-            currency: r.auction.currencyRow?.currency ?? "ARS",
+            // Total pagado = puja + comisión + envío (el envío suma solo si el
+            // método resuelto es 'shipping').
+            amount: r.amount + commissionAmount + shippingCost,
+            currency,
             date: toIso(r.auction.date),
             auctionId: r.auctionId,
-            // El registro existe -> la subasta se ganó y pagó. TODO(pedido):
-            // derivar shipped/delivered/picked_up cuando se modele el envío.
-            status: "paid" as const,
+            // Estado derivado de (pago × entrega): sin fila de pago = "unpaid"
+            // (habilita "Pagar"); pending/rejected del backoffice; aceptado ->
+            // 'picked_up' (retiro) o 'paid' (envío).
+            status: deriveOrderStatus(r.payment?.state, method),
+            deliveryMethod: method,
+            shippingCost,
           },
         ];
       });
+    }),
+
+  // GET /users/me/transactions/{id} — detalle (factura) de una compra. Desglosa
+  // puja + comisión + envío y muestra la dirección declarada (si es envío).
+  transactionById: authed
+    .input(z.object({ id: z.number().int().positive() }))
+    .output(transactionDetailSchema)
+    .handler(({ context, input }) => loadTransactionDetail(context, input.id)),
+
+  // PUT /users/me/transactions/{id}/delivery — el comprador elige envío o
+  // retiro. Envío (default) snapshotea el costo por moneda; retiro lo deja en 0
+  // (y pierde el seguro, avisado en el front). Upsert en la satélite enviosVenta.
+  setDelivery: authed
+    .input(z.object({ id: z.number().int().positive(), deliveryMethod }))
+    .output(transactionDetailSchema)
+    .handler(async ({ context, input }) => {
+      // La compra debe ser del client logueado. Traemos la moneda de la subasta
+      // para fijar el costo de envío.
+      const record = await context.db.query.auctionRecords.findFirst({
+        where: { id: input.id, clientId: context.userId },
+        columns: { id: true },
+        with: {
+          auction: { columns: { id: true }, with: { currencyRow: true } },
+        },
+      });
+      if (!record)
+        throw new ORPCError("NOT_FOUND", { message: "Compra no encontrada" });
+
+      const currency = record.auction?.currencyRow?.currency ?? "ARS";
+      const shippingCost =
+        input.deliveryMethod === "shipping" ? SHIPPING_COST[currency] : 0;
+
+      await context.db
+        .insert(saleShipments)
+        .values({
+          recordId: input.id,
+          deliveryMethod: input.deliveryMethod,
+          shippingCost,
+        })
+        .onConflictDoUpdate({
+          target: saleShipments.recordId,
+          set: { deliveryMethod: input.deliveryMethod, shippingCost },
+        });
+
+      return loadTransactionDetail(context, input.id);
+    }),
+
+  // PUT /users/me/transactions/{id}/pay — el ganador paga la compra con un medio
+  // verificado. Inserta la fila pagosVenta en 'pending': queda esperando que el
+  // backoffice apruebe o rechace. Guards: la compra es suya, el medio es suyo y
+  // está verificado, y no hay un pago previo. Devuelve el detalle actualizado.
+  payTransaction: authed
+    .input(
+      z.object({
+        id: z.number().int().positive(),
+        paymentMethodId: z.number().int().positive(),
+      }),
+    )
+    .output(transactionDetailSchema)
+    .handler(async ({ context, input }) => {
+      // La compra debe ser del client logueado y no estar ya pagada.
+      const record = await context.db.query.auctionRecords.findFirst({
+        where: { id: input.id, clientId: context.userId },
+        columns: { id: true },
+        with: { payment: { columns: { recordId: true } } },
+      });
+      if (!record)
+        throw new ORPCError("NOT_FOUND", { message: "Compra no encontrada" });
+      if (record.payment)
+        throw new ORPCError("CONFLICT", { message: "La compra ya fue pagada" });
+
+      // El medio de pago debe ser del client y estar verificado.
+      const method = await context.db.query.paymentMethods.findFirst({
+        where: { id: input.paymentMethodId, clientId: context.userId },
+        columns: { id: true, verified: true },
+      });
+      if (!method)
+        throw new ORPCError("NOT_FOUND", {
+          message: "Medio de pago no encontrado",
+        });
+      if (!method.verified)
+        throw new ORPCError("FORBIDDEN", {
+          message: "El medio de pago no está verificado",
+        });
+
+      await context.db.insert(salePayments).values({
+        recordId: input.id,
+        paymentMethodId: input.paymentMethodId,
+        state: "pending",
+      });
+
+      return loadTransactionDetail(context, input.id);
     }),
 
   // GET /users/me/penalties — las multas del client logueado. Causal única de

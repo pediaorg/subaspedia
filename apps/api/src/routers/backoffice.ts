@@ -6,6 +6,7 @@ import { auctionCategory, currency } from "@subaspedia/types";
 import { type Context, pub } from "@/api/context";
 import {
   auctioneers,
+  auctionRecords,
   auctions,
   catalogItems,
   catalogs,
@@ -17,13 +18,15 @@ import {
   people,
   products,
   quotes,
+  salePayments,
 } from "@/api/db/schema";
-import { toIso } from "@/api/lib/date";
 import { generateSetPasswordToken, SET_PASSWORD_TTL_MS } from "@/api/lib/auth";
+import { toIso } from "@/api/lib/date";
 import {
   sendCategoryAssignedEmail,
   sendPaymentMethodVerifiedEmail,
 } from "@/api/lib/email";
+import { SHIPPING_COST } from "@/api/lib/shipping";
 
 // Fecha "YYYY-MM-DD" desplazada `days` días desde hoy (mismo formato que guarda
 // el resto del schema). Se usa para emitir multas: issuedAt = hoy, dueDate = +3
@@ -748,6 +751,114 @@ export const backofficeRouter = {
         .update(penalties)
         .set({ status: "paid" })
         .where(eq(penalties.id, input.id));
+      return { success: true };
+    }),
+
+  // GET /backoffice/sale-payments/pending — pagos de compras ganadas que el
+  // ganador ya abonó (pagosVenta en 'pending') y esperan la aprobación de la
+  // empresa. Total = puja + comisión + envío (lo que pagó el comprador).
+  pendingSalePayments: pub.handler(async ({ context }) => {
+    const rows = await context.db.query.salePayments.findMany({
+      where: { state: "pending" },
+      columns: { recordId: true },
+      with: {
+        record: {
+          columns: { amount: true, commission: true },
+          with: {
+            product: { columns: { name: true } },
+            auction: {
+              columns: { id: true },
+              with: { currencyRow: { columns: { currency: true } } },
+            },
+            client: {
+              with: { person: { columns: { name: true, lastName: true } } },
+            },
+            shipment: { columns: { deliveryMethod: true, shippingCost: true } },
+          },
+        },
+      },
+    });
+
+    return rows.flatMap(p => {
+      const r = p.record;
+      if (!r?.product) return [];
+      const currency = r.auction?.currencyRow?.currency ?? "ARS";
+      const method = r.shipment?.deliveryMethod ?? "shipping";
+      const shippingCost =
+        method === "shipping"
+          ? (r.shipment?.shippingCost ?? SHIPPING_COST[currency])
+          : 0;
+      const total = r.amount + (r.amount * r.commission) / 100 + shippingCost;
+      const clientName =
+        `${r.client?.person?.name ?? ""} ${r.client?.person?.lastName ?? ""}`.trim();
+      return [
+        {
+          id: p.recordId,
+          productName: r.product.name,
+          clientName,
+          total,
+          currency,
+        },
+      ];
+    });
+  }),
+
+  // POST /backoffice/sale-payments/resolve — la empresa simula la aprobación del
+  // pago. accepted -> 'accepted' (la compra queda pagada/retirada). rejected ->
+  // 'rejected' + multa automática al comprador (falta de pago, 10% de lo
+  // ofertado por consigna), atada a la subasta para heredar su moneda.
+  resolveSalePayment: pub
+    .input(
+      z.object({
+        id: z.number().int().positive(),
+        decision: z.enum(["accepted", "rejected"]),
+      }),
+    )
+    .handler(async ({ context, input }) => {
+      const payment = await context.db.query.salePayments.findFirst({
+        where: { recordId: input.id },
+        columns: { state: true },
+        with: {
+          record: {
+            columns: { amount: true, clientId: true, auctionId: true },
+            with: { product: { columns: { name: true } } },
+          },
+        },
+      });
+      if (!payment?.record)
+        throw new ORPCError("NOT_FOUND", { message: "Pago no encontrado" });
+      if (payment.state !== "pending")
+        throw new ORPCError("CONFLICT", { message: "El pago ya fue resuelto" });
+
+      await context.db
+        .update(salePayments)
+        .set({ state: input.decision })
+        .where(eq(salePayments.recordId, input.id));
+
+      if (input.decision === "rejected") {
+        const r = payment.record;
+        let penaltyCurrency: "ARS" | "USD" = "ARS";
+        if (r.auctionId) {
+          const auction = await context.db.query.auctions.findFirst({
+            where: { id: r.auctionId },
+            columns: { id: true },
+            with: { currencyRow: { columns: { currency: true } } },
+          });
+          penaltyCurrency = auction?.currencyRow?.currency ?? "ARS";
+        }
+        // Multa = 10% de lo ofertado (consigna). issuedAt hoy, dueDate +3d (72hs).
+        await context.db.insert(penalties).values({
+          clientId: r.clientId,
+          reason: `Pago rechazado: ${r.product?.name ?? "compra"}`,
+          amount: r.amount * 0.1,
+          currency: penaltyCurrency,
+          status: "pending",
+          issuedAt: dateOffset(0),
+          dueDate: dateOffset(3),
+          auctionId: r.auctionId ?? null,
+        });
+      }
+
       return { success: true };
     }),
 };

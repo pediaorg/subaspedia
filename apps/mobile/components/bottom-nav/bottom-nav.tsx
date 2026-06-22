@@ -22,6 +22,7 @@ const SHOWN: string[] = [
 const HIDDEN: RegExp[] = [
   /^\/profile\/payment-methods\/new$/,
   /^\/profile\/products\/[^/]+\/proposal$/,
+  /^\/profile\/transactions\/[^/]+$/,
 ];
 
 function matches(pathname: string, href: string) {

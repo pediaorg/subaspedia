@@ -200,11 +200,39 @@ export const relations = defineRelations(schema, r => ({
       from: r.auctionRecords.clientId,
       to: r.clients.id,
     }),
+    // Envío/entrega de la venta (tabla satélite enviosVenta). 0..1: si no hay
+    // fila, el handler cae al default 'shipping'.
+    shipment: r.one.saleShipments({
+      from: r.auctionRecords.id,
+      to: r.saleShipments.recordId,
+    }),
+    // Pago de la venta (tabla satélite pagosVenta). 0..1: sin fila = todavía
+    // sin pagar (unpaid).
+    payment: r.one.salePayments({
+      from: r.auctionRecords.id,
+      to: r.salePayments.recordId,
+    }),
   },
   auctionCurrencies: {
     auction: r.one.auctions({
       from: r.auctionCurrencies.auctionId,
       to: r.auctions.id,
+    }),
+  },
+  saleShipments: {
+    record: r.one.auctionRecords({
+      from: r.saleShipments.recordId,
+      to: r.auctionRecords.id,
+    }),
+  },
+  salePayments: {
+    record: r.one.auctionRecords({
+      from: r.salePayments.recordId,
+      to: r.auctionRecords.id,
+    }),
+    paymentMethod: r.one.paymentMethods({
+      from: r.salePayments.paymentMethodId,
+      to: r.paymentMethods.id,
     }),
   },
   penalties: {
