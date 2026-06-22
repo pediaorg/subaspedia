@@ -3,7 +3,7 @@ import { ArrowLeft, Menu } from "lucide-react-native";
 import { useState } from "react";
 import { Pressable, ScrollView, View } from "react-native";
 
-import type { NotificationRoute } from "@subaspedia/types/notification";
+import type { Notification } from "@subaspedia/types/notification";
 import { Sidebar } from "@/components/app-header/sidebar";
 import { NotificationIcon } from "@/components/notifications/notification-icon";
 import { Button } from "@/components/ui/button";
@@ -12,72 +12,34 @@ import { Separator } from "@/components/ui/separator";
 import { Text } from "@/components/ui/text";
 import { api } from "@/lib/api";
 
-// Cada tipo lleva al usuario a la pantalla relevante con un botón único:
-// sanction -> ver la multa, proposal -> listado de productos del dueño (donde
-// está la propuesta), paymentMethod -> medios de pago y auction -> index
-// (TODO: linkear al detalle cuando el id viaje también).
-//
-// winProduct es la EXCEPCIÓN: no navega a una pantalla, sino que pide decidir el
-// método de entrega de la obra ganada (envío / retiro). Por eso su footer se
-// renderiza aparte (ver WinProductActions) y su entrada acá queda sin usar; se
-// mantiene solo para satisfacer el Record completo de NotificationRoute.
-const TARGET: Record<NotificationRoute, { href: string; label: string }> = {
-  paymentMethod: {
-    href: "/profile/payment-methods",
-    label: "Ver mis medios de pago",
-  },
-  proposal: {
-    href: "/profile/products",
-    label: "Ver mis productos",
-  },
-  sanction: {
-    href: "/profile/infractions",
-    label: "Ver multas y pagos",
-  },
-  winProduct: {
-    href: "/profile/infractions",
-    label: "Ver multas y pagos",
-  },
-  auction: {
-    href: "/auctions",
-    label: "Ver subastas",
-  },
-};
-
-// Footer especial para notificaciones de obra ganada (winProduct): en vez de
-// navegar, el usuario elige cómo recibir la obra. La acción real (registrar el
-// envío / coordinar el retiro) todavía no está definida en el back -> por ahora
-// los handlers son placeholders.
-function WinProductActions() {
-  const choose = (method: "shipping" | "pickup") => {
-    // TODO: disparar la acción real de envío/retiro cuando exista el endpoint.
-    void method;
-  };
-
-  return (
-    <View className="mt-4 gap-3">
-      <Text className="text-center text-sm text-gray-500">
-        ¿Cómo querés recibir tu obra?
-      </Text>
-      <View className="flex-row gap-3">
-        <Button
-          size="lg"
-          variant="outline"
-          onPress={() => choose("shipping")}
-          className="flex-1 rounded-full"
-        >
-          <Text className="font-bold">Envío</Text>
-        </Button>
-        <Button
-          size="lg"
-          onPress={() => choose("pickup")}
-          className="flex-1 rounded-full"
-        >
-          <Text className="font-bold text-white">Ir a buscarlo</Text>
-        </Button>
-      </View>
-    </View>
-  );
+// Resuelve el destino del botón del detalle según el tipo de notificación.
+// La obra ganada (winProduct) lleva al detalle de la compra, donde el usuario
+// elige el método de entrega (envío / retiro). Ese destino es DINÁMICO: depende
+// del `targetId` (el id de la venta). Si por algún motivo llega sin targetId,
+// caemos al historial de compras (tab "Pagos" de Multas y pagos).
+// Los demás tipos navegan a una pantalla fija: sanction -> multas,
+// proposal -> mis productos, paymentMethod -> medios de pago, auction -> index.
+function resolveTarget(n: Notification): { href: string; label: string } {
+  switch (n.route) {
+    case "winProduct":
+      return n.targetId
+        ? {
+            href: `/profile/transactions/${n.targetId}`,
+            label: "Ver mi compra",
+          }
+        : { href: "/profile/infractions", label: "Ver mis compras" };
+    case "sanction":
+      return { href: "/profile/infractions", label: "Ver multas y pagos" };
+    case "proposal":
+      return { href: "/profile/products", label: "Ver mis productos" };
+    case "paymentMethod":
+      return {
+        href: "/profile/payment-methods",
+        label: "Ver mis medios de pago",
+      };
+    case "auction":
+      return { href: "/auctions", label: "Ver subastas" };
+  }
 }
 
 function formatDateTime(iso: string) {
@@ -160,19 +122,18 @@ export default function NotificationDetail() {
 
             <Text className="text-base leading-6">{data.body}</Text>
 
-            {data.route === "winProduct" ? (
-              <WinProductActions />
-            ) : (
-              <Button
-                size="lg"
-                onPress={() => router.push(TARGET[data.route].href as never)}
-                className="self-center mt-4 rounded-full px-8"
-              >
-                <Text className="font-bold text-white">
-                  {TARGET[data.route].label}
-                </Text>
-              </Button>
-            )}
+            {(() => {
+              const target = resolveTarget(data);
+              return (
+                <Button
+                  size="lg"
+                  onPress={() => router.push(target.href as never)}
+                  className="self-center mt-4 rounded-full px-8"
+                >
+                  <Text className="font-bold text-white">{target.label}</Text>
+                </Button>
+              );
+            })()}
           </View>
         )}
       </ScrollView>
