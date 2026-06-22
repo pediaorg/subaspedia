@@ -231,7 +231,15 @@ export const backofficeRouter = {
       columns: { id: true },
       with: {
         product: {
-          columns: { id: true, name: true, fullDescription: true, date: true },
+          columns: {
+            id: true,
+            name: true,
+            fullDescription: true,
+            date: true,
+            // Dueño del bien (= quien lo subió): destinatario de la notificación
+            // de propuesta cuando se lo cotiza (ver cotizaciones.tsx).
+            ownerId: true,
+          },
         },
       },
     });
@@ -244,6 +252,7 @@ export const backofficeRouter = {
               name: q.product.name,
               fullDescription: q.product.fullDescription,
               date: q.product.date,
+              ownerId: q.product.ownerId,
             },
           ]
         : [],
@@ -336,7 +345,7 @@ export const backofficeRouter = {
         message: true,
         state: true,
       },
-      with: { product: { columns: { name: true } } },
+      with: { product: { columns: { name: true, ownerId: true } } },
     });
 
     return rows
@@ -344,6 +353,9 @@ export const backofficeRouter = {
       .map(({ product, ...q }) => ({
         ...q,
         productName: product?.name ?? "Bien",
+        // Dueño del bien: destinatario de la notificación al confirmar la
+        // cotización (producto aceptado -> Mis productos).
+        ownerId: product?.ownerId ?? null,
       }));
   }),
 

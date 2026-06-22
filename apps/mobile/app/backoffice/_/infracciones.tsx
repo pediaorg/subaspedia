@@ -38,8 +38,17 @@ export function InfraccionesSection() {
   const [reason, setReason] = useState("");
   const [amount, setAmount] = useState("");
 
+  const notify = api.notifications.create.useMutation();
+
   const create = api.backoffice.createPenalty.useMutation({
-    onSuccess: () => {
+    onSuccess: async (_, variables) => {
+      await notify.mutateAsync({
+        clientId: variables.clientId,
+        title: "Nueva multa",
+        body: `Se ha emitido una multa en tu cuenta.\nMotivo: ${variables.reason}.\nMonto: ${formatMoney(variables.amount, variables.currency ?? effectiveCurrency)}.`,
+        route: "sanction",
+      });
+
       setClientId(null);
       setAuctionId(null);
       setCurrency("ARS");
@@ -159,7 +168,7 @@ export function InfraccionesSection() {
         />
 
         <Button
-          disabled={!valid || create.isPending}
+          disabled={!valid || create.isPending || notify.isPending}
           onPress={() =>
             clientId &&
             create.mutate({
@@ -172,7 +181,9 @@ export function InfraccionesSection() {
           }
         >
           <Text className="font-semibold text-white">
-            {create.isPending ? "Emitiendo..." : "Emitir multa"}
+            {create.isPending || notify.isPending
+              ? "Emitiendo..."
+              : "Emitir multa"}
           </Text>
         </Button>
         {create.error && (

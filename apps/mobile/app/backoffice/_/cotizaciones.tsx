@@ -25,14 +25,42 @@ export function CotizacionesSection() {
     quotes.refetch();
   };
 
+  // Notificaciones al dueño del bien. Fire-and-forget (notify.mutate, sin await):
+  // si el owner todavía no está dado de alta como client la notificación falla
+  // pero NO rompe la cotización. Reusamos la route "proposal" (lleva a Mis
+  // productos) tanto para la propuesta como para el aviso de aceptado.
+  const notify = api.notifications.create.useMutation();
+
   const propose = api.backoffice.proposeQuote.useMutation({
-    onSuccess: refetchAll,
+    onSuccess: (_, variables) => {
+      const product = pending.data?.find(p => p.id === variables.productId);
+      if (product?.ownerId != null) {
+        notify.mutate({
+          clientId: product.ownerId,
+          title: "Nueva propuesta de cotización",
+          body: `Tasamos tu bien "${product.name}": valor base ${formatMoney(variables.basePrice, "ARS")} y comisión del ${variables.commission}%. Revisá la propuesta en Mis productos.`,
+          route: "proposal",
+        });
+      }
+      refetchAll();
+    },
   });
   const rejectAppraisal = api.backoffice.rejectAppraisal.useMutation({
     onSuccess: refetchAll,
   });
   const confirm = api.backoffice.confirmQuote.useMutation({
-    onSuccess: () => quotes.refetch(),
+    onSuccess: (_, variables) => {
+      const quote = quotes.data?.find(q => q.id === variables.quoteId);
+      if (quote?.ownerId != null) {
+        notify.mutate({
+          clientId: quote.ownerId,
+          title: "¡Tu producto fue aceptado!",
+          body: `Aceptamos "${quote.productName}" y ya quedó listo para incluirse en una próxima subasta. Podés verlo en Mis productos.`,
+          route: "proposal",
+        });
+      }
+      quotes.refetch();
+    },
   });
   const reject = api.backoffice.rejectQuote.useMutation({
     onSuccess: () => quotes.refetch(),

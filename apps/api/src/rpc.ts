@@ -6,6 +6,7 @@ import { auctionsRouter } from "./routers/auctions";
 import { authRouter } from "./routers/auth";
 import { backofficeRouter } from "./routers/backoffice";
 import { countriesRouter } from "./routers/countries";
+import { notificationsRouter } from "./routers/notifications";
 import { productsRouter } from "./routers/products";
 import { userRouter } from "./routers/user";
 import { usersRouter } from "./routers/users";
@@ -19,6 +20,7 @@ export const router = {
   products: productsRouter,
   auth: authRouter,
   backoffice: backofficeRouter,
+  notifications: notificationsRouter,
   user: userRouter,
   users: usersRouter,
 };

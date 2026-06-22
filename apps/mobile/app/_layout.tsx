@@ -10,6 +10,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { AccessGuard } from "@/components/access-guard";
 import { BottomNav } from "@/components/bottom-nav/bottom-nav";
+import { NotificationToaster } from "@/components/notifications/notification-toaster";
 import { queryClient } from "@/lib/query-client";
 
 export default function RootLayout() {
@@ -35,6 +36,8 @@ export default function RootLayout() {
           <BottomNav />
 
           <AccessGuard />
+
+          <NotificationToaster />
 
           <StatusBar style="auto" />
 
