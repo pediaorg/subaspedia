@@ -3,6 +3,7 @@ import { View } from "react-native";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
 import { Text } from "@/components/ui/text";
 import { api } from "@/lib/api";
 import { formatMoney } from "@/lib/format";
@@ -85,12 +86,24 @@ export function CotizacionesSection() {
             name={p.name}
             description={p.fullDescription}
             disabled={propose.isPending || rejectAppraisal.isPending}
-            onPropose={(basePrice, commission, message) =>
+            onPropose={(
+              basePrice,
+              commission,
+              message,
+              insurancePolicyNumber,
+              insuranceCompany,
+              insuranceAmount,
+              insuranceCombined,
+            ) =>
               propose.mutate({
                 productId: p.id,
                 basePrice,
                 commission,
                 message,
+                insurancePolicyNumber,
+                insuranceCompany,
+                insuranceAmount,
+                insuranceCombined,
               })
             }
             onReject={message =>
@@ -173,15 +186,43 @@ function AppraisalRow({
   name: string;
   description: string | null;
   disabled?: boolean;
-  onPropose: (basePrice: number, commission: number, message: string) => void;
+  onPropose: (
+    basePrice: number,
+    commission: number,
+    message: string,
+    insurancePolicyNumber?: string,
+    insuranceCompany?: string,
+    insuranceAmount?: number,
+    insuranceCombined?: boolean,
+  ) => void;
   onReject: (message: string) => void;
 }) {
   const [base, setBase] = useState("");
   const [commission, setCommission] = useState("");
   const [message, setMessage] = useState("");
 
+  // Campos para el seguro opcional
+  const [policyNumber, setPolicyNumber] = useState("");
+  const [company, setCompany] = useState("");
+  const [insuranceAmountStr, setInsuranceAmountStr] = useState("");
+  const [combined, setCombined] = useState(false);
+
   const basePrice = Number(base);
   const comm = Number(commission);
+
+  const insAmount = Number(insuranceAmountStr);
+  const isInsuranceEmpty =
+    policyNumber.trim() === "" &&
+    company.trim() === "" &&
+    insuranceAmountStr.trim() === "";
+  const isInsuranceValid =
+    isInsuranceEmpty ||
+    (policyNumber.trim() !== "" &&
+      company.trim() !== "" &&
+      insuranceAmountStr.trim() !== "" &&
+      insAmount > 0 &&
+      Number.isFinite(insAmount));
+
   const valid =
     base.length > 0 &&
     commission.length > 0 &&
@@ -191,7 +232,9 @@ function AppraisalRow({
     comm > 0 &&
     comm <= 100 &&
     Number.isFinite(basePrice) &&
-    Number.isFinite(comm);
+    Number.isFinite(comm) &&
+    isInsuranceValid;
+
   // Rechazar solo exige el motivo (mensaje), no precio ni comisión.
   const canReject = message.trim().length > 0;
 
@@ -225,12 +268,54 @@ function AppraisalRow({
         placeholder="Mensaje (propuesta o motivo del rechazo)"
         className="bg-secondary border-none"
       />
+
+      <Text className="font-semibold text-xs mt-2 text-muted-foreground">
+        Datos del Seguro (Opcional)
+      </Text>
       <View className="flex-row gap-2">
+        <Input
+          value={policyNumber}
+          onChangeText={setPolicyNumber}
+          placeholder="Nro de Póliza"
+          className="bg-secondary flex-1 border-none"
+        />
+        <Input
+          value={company}
+          onChangeText={setCompany}
+          placeholder="Compañía"
+          className="bg-secondary flex-1 border-none"
+        />
+      </View>
+      <View className="flex-row gap-4 items-center mt-1">
+        <Input
+          value={insuranceAmountStr}
+          onChangeText={setInsuranceAmountStr}
+          keyboardType="numeric"
+          placeholder="Importe Asegurado"
+          className="bg-secondary flex-1 border-none"
+        />
+        <View className="flex-row items-center gap-2 pr-2">
+          <Switch checked={combined} onCheckedChange={setCombined} />
+          <Text className="text-sm">Combinada</Text>
+        </View>
+      </View>
+
+      <View className="flex-row gap-2 mt-2">
         <Button
           size="sm"
           className="flex-1"
           disabled={!valid || disabled}
-          onPress={() => onPropose(basePrice, comm, message.trim())}
+          onPress={() =>
+            onPropose(
+              basePrice,
+              comm,
+              message.trim(),
+              policyNumber.trim() || undefined,
+              company.trim() || undefined,
+              insuranceAmountStr.trim() ? insAmount : undefined,
+              combined,
+            )
+          }
         >
           <Text className="text-sm font-semibold text-white">Cotizar</Text>
         </Button>

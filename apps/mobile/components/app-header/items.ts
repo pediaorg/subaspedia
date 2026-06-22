@@ -3,8 +3,9 @@ import {
   Bell,
   HelpCircle,
   Home,
-  type LucideIcon,
+  Shield,
   Star,
+  type LucideIcon,
 } from "lucide-react-native";
 
 export type SidebarItemDef = {
@@ -19,10 +20,16 @@ export function sidebarItems(): SidebarItemDef[] {
     { key: "home", label: "Inicio", icon: Home, href: "/" },
     { key: "rank", label: "Rango", icon: Star, href: "/rank-up" },
     {
+      key: "insurances",
+      label: "Seguros",
+      icon: Shield,
+      href: "/insurances" as Href,
+    },
+    {
       key: "notifications",
       label: "Notificaciones",
       icon: Bell,
-      href: "/notifications",
+      href: "/notifications" as Href,
     },
     { key: "faq", label: "FAQ", icon: HelpCircle, href: "/faq" },
   ];

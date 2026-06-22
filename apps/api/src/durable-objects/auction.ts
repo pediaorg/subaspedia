@@ -11,8 +11,9 @@ import {
   MIN_BID_INCREMENT_RATE,
 } from "@subaspedia/types";
 import { createDb } from "@/api/db";
-import { attendees, auctions, bids, catalogItems } from "@/api/db/schema";
+import { attendees, auctions, bids } from "@/api/db/schema";
 import type { Env } from "@/api/index";
+import { sendAuctionWinEmail } from "@/api/lib/email";
 
 type Category = "common" | "special" | "silver" | "gold" | "platinum";
 
@@ -384,16 +385,74 @@ export class AuctionRoom extends DurableObject<Env> {
     // quedó marcada winner=true en D1). Marcamos la subasta como cerrada.
     snap.status = "closed";
     await this.persist();
-    await createDb(this.env.DB)
+
+    const db = createDb(this.env.DB);
+    await db
       .update(auctions)
       .set({ status: "closed" })
       .where(eq(auctions.id, snap.auctionId));
+
+    // Enviar email al ganador con los detalles del pago
+    if (snap.leader?.clientId) {
+      this.sendWinEmail(snap).catch(err => {
+        console.error(
+          `[auction ${snap.auctionId}] Error enviando email de ganador:`,
+          err,
+        );
+      });
+    }
 
     this.broadcast({
       type: "closed",
       auctionId: snap.auctionId,
       winner: snap.leader,
       amount: snap.currentBid,
+    });
+  }
+
+  private async sendWinEmail(snap: Snapshot): Promise<void> {
+    const db = createDb(this.env.DB);
+
+    // Obtener datos del cliente ganador
+    const client = await db.query.clients.findFirst({
+      where: { id: snap.leader?.clientId },
+      with: {
+        person: {
+          columns: { email: true, name: true, lastName: true },
+        },
+      },
+    });
+
+    if (!client?.person?.email) return;
+
+    // Obtener datos del producto
+    const item = await db.query.catalogItems.findFirst({
+      where: { id: snap.itemId },
+      columns: { basePrice: true, commission: true },
+      with: {
+        product: {
+          columns: { name: true },
+        },
+      },
+    });
+
+    if (!item?.product?.name) return;
+
+    // Valores por defecto (en caso de no tener comisión específica)
+    const commission = item.commission ?? 0;
+    const shippingCost = 0; // TODO: calcular según domicilio y producto
+
+    const winnerName =
+      `${client.person.name ?? ""} ${client.person.lastName ?? ""}`.trim();
+
+    await sendAuctionWinEmail({
+      to: client.person.email,
+      winnerName,
+      productName: item.product.name,
+      bidAmount: snap.currentBid,
+      commission,
+      shippingCost,
+      currency: snap.currency,
     });
   }
 

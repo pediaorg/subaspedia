@@ -4,6 +4,7 @@ import { z } from "zod";
 
 import { deliveryMethod } from "@subaspedia/types";
 import { createPaymentMethodSchema } from "@subaspedia/types/forms/payment";
+import { insuranceSchema } from "@subaspedia/types/insurance";
 import {
   MAX_PAYMENT_METHODS,
   paymentMethodSchema,
@@ -22,8 +23,10 @@ import {
   auctions,
   bids,
   catalogItems,
+  insurances,
   paymentMethods,
   penalties,
+  photos,
   products,
   saleShipments,
 } from "@/api/db/schema";
@@ -492,4 +495,45 @@ export const userRouter = {
 
     return { limit };
   }),
+
+  // GET /users/me/insurances — las pólizas de seguro de los bienes del dueño logueado.
+  insurances: authed
+    .output(z.array(insuranceSchema))
+    .handler(async ({ context }) => {
+      // Unimos los productos del dueño que tengan seguro
+      const rows = await context.db
+        .select({
+          productId: products.id,
+          productName: products.name,
+          policyNumber: insurances.policyNumber,
+          company: insurances.company,
+          amount: insurances.amount,
+        })
+        .from(products)
+        .innerJoin(
+          insurances,
+          eq(products.insurancePolicy, insurances.policyNumber),
+        )
+        .where(eq(products.ownerId, context.userId));
+
+      // Obtenemos la primera foto de cada producto para la imagen
+      const result = await Promise.all(
+        rows.map(async row => {
+          const productPhoto = await context.db.query.photos.findFirst({
+            where: { productId: row.productId },
+            columns: { id: true },
+          });
+          return {
+            ...row,
+            img: firstPhotoToImg(
+              productPhoto?.id,
+              context.apiOrigin,
+              row.productId,
+            ),
+          };
+        }),
+      );
+
+      return result;
+    }),
 };
