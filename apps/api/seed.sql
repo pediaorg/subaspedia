@@ -35,6 +35,7 @@
 PRAGMA foreign_keys = OFF;
 
 -- ---- Limpieza (orden inverso a las dependencias FK) ------------------------
+DELETE FROM notificaciones;
 DELETE FROM multas;
 DELETE FROM enviosVenta;
 DELETE FROM registroDeSubasta;
@@ -248,5 +249,13 @@ INSERT INTO multas (identificador, cliente, motivo, importe, moneda, estado, emi
   (2, 3, 'Falta de pago', 13500, 'ARS', 'pending', '2026-04-10', '2026-04-13', 1),
   -- Pagada en dólares (subasta 2 USD): prueba la moneda y el estado "Pagada".
   (3, 3, 'Falta de pago', 220,   'USD', 'paid',    '2026-03-01', '2026-03-04', 2);
+
+-- ---- notificaciones (notifications; FK -> clientes) ------------------------
+-- Notif de obra ganada para Juan (cliente 3). `objetivo` (targetId) = el id del
+-- registroDeSubasta de su compra del reloj (registro 1) -> el botón del detalle
+-- deep-linkea a /profile/transactions/1, donde elige envío / retiro. Es el
+-- punto de entrada real al flujo de envíos (antes enterrado en Multas y pagos).
+INSERT INTO notificaciones (identificador, cliente, titulo, cuerpo, ruta, objetivo) VALUES
+  (1, 3, '¡Ganaste una subasta!', 'Te quedaste con el Reloj de bolsillo de oro. Elegí cómo querés recibirlo: envío a domicilio o retiro personal.', 'winProduct', 1);
 
 PRAGMA foreign_keys = ON;

@@ -25,6 +25,7 @@ export const notificationsRouter = {
         title: n.title,
         body: n.body,
         route: n.route,
+        targetId: n.targetId,
         createdAt: toIso(n.createdAt),
       }));
     }),
@@ -46,6 +47,7 @@ export const notificationsRouter = {
         title: row.title,
         body: row.body,
         route: row.route,
+        targetId: row.targetId,
         createdAt: toIso(row.createdAt),
       };
     }),
@@ -72,6 +74,7 @@ export const notificationsRouter = {
           title: input.title,
           body: input.body,
           route: input.route,
+          targetId: input.targetId ?? null,
         })
         .returning({ id: notifications.id });
 

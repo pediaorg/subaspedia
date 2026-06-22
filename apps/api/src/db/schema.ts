@@ -452,6 +452,10 @@ export const notifications = sqliteTable(
     route: text("ruta", {
       enum: ["winProduct", "sanction", "paymentMethod", "proposal", "auction"],
     }).notNull(),
+    // Id de la entidad destino para deep-linkear al detalle. Polimórfico según
+    // `route` (winProduct -> venta, auction -> subasta, etc.), por eso es un
+    // entero suelto SIN FK y nullable (una notif puede no tener destino).
+    targetId: integer("objetivo"),
     createdAt: text("creadoEn").notNull().default(sql`(current_timestamp)`),
   },
   t => [
