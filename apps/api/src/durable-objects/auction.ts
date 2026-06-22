@@ -197,6 +197,26 @@ export class AuctionRoom extends DurableObject<Env> {
     return penalty != null;
   }
 
+  // ---- Propiedad del bien --------------------------------------------------
+
+  /**
+   * `true` si el cliente es el dueño del producto subastado: no se puede pujar
+   * por un bien propio. `clients.id`, `owners.id` y `products.duenio` son todos
+   * el mismo `people.id`, así que basta con comparar el `clientId` que puja con
+   * el `ownerId` del producto del ítem.
+   */
+  private async isProductOwner(
+    itemId: number,
+    clientId: number,
+  ): Promise<boolean> {
+    const item = await createDb(this.env.DB).query.catalogItems.findFirst({
+      where: { id: itemId },
+      columns: {},
+      with: { product: { columns: { ownerId: true } } },
+    });
+    return item?.product?.ownerId === clientId;
+  }
+
   // ---- Cálculo de límites de puja -----------------------------------------
 
   private bounds(snap: Snapshot): { min: number; max: number | null } {
@@ -280,6 +300,14 @@ export class AuctionRoom extends DurableObject<Env> {
         code: "FORBIDDEN",
         message:
           "Tenés una multa pendiente de pago. Saldala para volver a participar en subastas",
+      };
+
+    // Dueño del bien => no puede pujar por algo propio.
+    if (await this.isProductOwner(snap.itemId, params.clientId))
+      return {
+        ok: false,
+        code: "FORBIDDEN",
+        message: "No podés pujar por un producto que es de tu propiedad",
       };
 
     const cap = await this.capFor(params.clientId);
