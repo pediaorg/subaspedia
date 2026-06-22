@@ -5,14 +5,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { NAV_ITEMS } from "./items";
 import { NavItem } from "./nav-item";
 
-const SHOWN: string[] = [
-  "/",
-  "/auctions",
-  "/new-product",
-  "/rank-up",
-  "/faq",
-  "/profile",
-];
+const SHOWN: string[] = ["/", "/auctions", "/new-product", "/profile"];
 
 // Subpantallas (que caerían bajo SHOWN por prefijo) donde la barra NO debe
 // aparecer: flujos full-screen con su propio chrome, como el alta de medio de
