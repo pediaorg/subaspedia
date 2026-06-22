@@ -35,6 +35,7 @@ export function PagosSection() {
         <PaymentRow
           key={pm.id}
           id={pm.id}
+          clientId={pm.clientId}
           type={pm.type}
           details={pm.details}
           clientName={pm.clientName}
@@ -47,6 +48,7 @@ export function PagosSection() {
 
 function PaymentRow({
   id,
+  clientId,
   type,
   details,
   clientName,
@@ -56,11 +58,23 @@ function PaymentRow({
   type: string;
   details: string | null;
   clientName: string | null;
+  clientId: number;
   onAccepted: () => void;
 }) {
   const [amount, setAmount] = useState("");
+  const notify = api.notifications.create.useMutation();
   const accept = api.backoffice.acceptPaymentMethod.useMutation({
-    onSuccess: onAccepted,
+    onSuccess: async (_, variables) => {
+      // Usamos variables.amount para asegurar el número exacto que se guardó
+      await notify.mutateAsync({
+        clientId: clientId,
+        title: "Medio de pago verificado",
+        body: `Tu garantía ha sido aprobada. Tienes un nuevo límite de compra de $${variables.amount}.`,
+        route: "paymentMethod",
+      });
+
+      onAccepted();
+    },
   });
 
   const parsed = Number(amount);
@@ -83,11 +97,11 @@ function PaymentRow({
         />
         <Button
           size="sm"
-          disabled={!valid || accept.isPending}
+          disabled={!valid || accept.isPending || notify.isPending}
           onPress={() => accept.mutate({ paymentMethodId: id, amount: parsed })}
         >
           <Text className="text-sm font-semibold text-white">
-            {accept.isPending ? "..." : "Aceptar"}
+            {accept.isPending || notify.isPending ? "..." : "Aceptar"}
           </Text>
         </Button>
       </View>
