@@ -1,9 +1,20 @@
 import type { Currency } from "@subaspedia/types";
+import type { UserCategory } from "@subaspedia/types/user";
 
 import { photoUri } from "@/lib/photo";
 
 export const RANKS = ["Común", "Especial", "Plata", "Oro", "Platino"] as const;
 export type Ranks = (typeof RANKS)[number];
+
+// Rango (etiqueta en español) -> categoría del dominio (enum en inglés), para
+// pasarle el rango de la subasta al RankBadge.
+export const RANK_TO_CATEGORY: Record<Ranks, UserCategory> = {
+  Común: "common",
+  Especial: "special",
+  Plata: "silver",
+  Oro: "gold",
+  Platino: "platinum",
+};
 
 export type Auction = {
   id: string;
