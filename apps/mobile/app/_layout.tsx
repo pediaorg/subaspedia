@@ -79,7 +79,7 @@ const styles = StyleSheet.create({
     flex: 1,
     width: "100%",
     ...(isWeb
-      ? { maxWidth: 480, position: "relative", backgroundColor: "#ffffff" }
+      ? { maxWidth: 624, position: "relative", backgroundColor: "#ffffff" }
       : null),
   },
 });
