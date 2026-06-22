@@ -109,6 +109,21 @@ function categoryLabel(category: AuctionCategory): string {
   return PRODUCT_CATEGORIES.find(c => c.value === category)?.label ?? category;
 }
 
+/**
+ * Botón que apunta al universal link del detalle de una compra. Lleva al ganador
+ * directo a la transacción, donde ve la factura y elige envío / retiro. Si la
+ * sesión venció, la app cae al login (limitación conocida del guard/refresh).
+ */
+function transactionButton(recordId: number, label: string): string {
+  const origin = env.WEB_ORIGIN ?? DEFAULT_WEB_ORIGIN;
+  const url = `${origin}/profile/transactions/${recordId}`;
+  return `
+    <p style="margin: 24px 0;">
+      <a href="${url}" style="display: inline-block; background: #111; color: #fff; text-decoration: none; padding: 12px 20px; border-radius: 8px; font-weight: 600;">${label}</a>
+    </p>
+  `;
+}
+
 /** Botón que apunta al link de set-password (un solo uso) con el token. */
 function setPasswordButton(token: string, label: string): string {
   const origin = env.WEB_ORIGIN ?? DEFAULT_WEB_ORIGIN;
@@ -159,7 +174,12 @@ export async function sendPaymentMethodVerifiedEmail(
   });
 }
 
-/** Avisa al ganador de una subasta sobre el importe a pagar. */
+/**
+ * Avisa al ganador de una subasta sobre el importe a pagar y lo lleva al detalle
+ * de su compra. `commission` y `shippingCost` llegan ya como MONTOS (la comisión
+ * resuelta sobre la puja y el envío por defecto), para que el total del mail
+ * coincida con la factura de la transacción.
+ */
 export async function sendAuctionWinEmail(args: {
   to: string;
   winnerName: string;
@@ -168,6 +188,7 @@ export async function sendAuctionWinEmail(args: {
   commission: number;
   shippingCost: number;
   currency: "ARS" | "USD";
+  recordId: number;
 }): Promise<void> {
   const total = args.bidAmount + args.commission + args.shippingCost;
   const currencySymbol = args.currency === "ARS" ? "$" : "USD ";
@@ -201,8 +222,8 @@ export async function sendAuctionWinEmail(args: {
         </table>
       </div>
 
-      <p style="color: #666; font-size: 13px;">Iniciá sesión en la app para ver los detalles de tu compra y elegir cómo proceder con el envío o retiro.</p>
-      ${logoutButton("Ir a Subaspedia")}
+      <p style="color: #666; font-size: 13px;">Entrá a la app para ver el detalle de tu compra y elegir cómo recibirla: envío a domicilio o retiro personal.</p>
+      ${transactionButton(args.recordId, "Ver mi compra")}
     `),
   });
 }

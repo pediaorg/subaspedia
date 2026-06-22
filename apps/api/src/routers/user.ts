@@ -32,11 +32,7 @@ import {
 } from "@/api/db/schema";
 import { toIso } from "@/api/lib/date";
 import { firstPhotoToImg } from "@/api/lib/photo";
-
-// Costo de envío fijo por moneda. La consigna no define un cálculo: se fija un
-// monto redondo que hereda la moneda de la subasta (las de USD se cobran en
-// USD). Source of truth del back; al elegir envío se snapshotea a enviosVenta.
-const SHIPPING_COST = { ARS: 23000, USD: 25 } as const;
+import { SHIPPING_COST } from "@/api/lib/shipping";
 
 // Arma el detalle (factura) de una compra del client logueado. Lo comparten
 // transactionById (lectura) y setDelivery (devuelve el detalle ya actualizado).
