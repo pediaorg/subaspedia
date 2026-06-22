@@ -22,9 +22,9 @@
 --   * 2 postores con pujas; Juan gana el reloj -> queda en registroDeSubasta
 --   * 1 medio de pago verificado para Juan (habilita pujar / claim del JWT)
 --   * 1 usuario logueable: juancasablanca@jamon.com / password123
---   * Juan también es OWNER: 4 productos propios (productos 3-6) que cubren los
---     estados de "Mis productos" sin propuesta (under_review/approved/rejected/
---     auctioned). Sirven para GET /products del perfil.
+--   * Juan también es OWNER: 4 productos propios (productos 3-6) cuyo estado en
+--     "Mis productos" sale de su cotización (en revisión/tasado/rechazado/
+--     aceptado). El producto 4 ('tasado') abre la pantalla de propuesta.
 --
 -- NOTA (refactor 2026-06-01): ya no existe la tabla `users`. Las credenciales
 -- (email + hashContrasenia) viven en `personas`. El usuario logueable ES la
@@ -39,6 +39,7 @@ DELETE FROM multas;
 DELETE FROM registroDeSubasta;
 DELETE FROM pujos;
 DELETE FROM asistentes;
+DELETE FROM cotizaciones;
 DELETE FROM itemsCatalogo;
 DELETE FROM catalogos;
 DELETE FROM fotos;
@@ -129,12 +130,12 @@ INSERT INTO monedasSubasta (subasta, moneda) VALUES
 INSERT INTO productos (identificador, fecha, disponible, descripcionCatalogo, descripcionCompleta, revisor, duenio, seguro, nombre) VALUES
   (1, '2026-11-01', 1, 'Reloj de bolsillo siglo XIX', 'Reloj de bolsillo de oro, siglo XIX, en excelente estado de conservación.', 1, 4, 'POL-001', 'Reloj de bolsillo de oro'),
   (2, '2026-11-05', 1, 'Óleo sobre tela',             'Paisaje al óleo sobre tela, autor anónimo, con marco original.',          1, 4, NULL,      'Óleo sobre tela'),
-  -- Productos subidos por Juan (dueño 3). Cubren los estados que ve "Mis
-  -- productos" sin pasar por la propuesta (no hay ninguno 'tasado'/appraised):
-  --   3 -> sin itemCatalogo        => under_review (recién subido, en tasación)
-  --   4 -> itemCatalogo 'aceptado'  => approved
-  --   5 -> itemCatalogo 'rechazado' => rejected
-  --   6 -> itemCatalogo 'subastado' => auctioned (+ registroDeSubasta con la venta)
+  -- Productos subidos por Juan (dueño 3). Su estado en "Mis productos" sale de
+  -- la cotización (tabla cotizaciones, más abajo):
+  --   3 -> cotización 'en revisión' => under_review (recién subido)
+  --   4 -> cotización 'tasado'      => appraised (propuesta a aceptar/rechazar)
+  --   5 -> cotización 'rechazado'   => rejected
+  --   6 -> cotización 'aceptado'    => approved (+ registroDeSubasta con la venta)
   (3, '2026-06-06', 0, 'None',                 'Cámara de fotos vintage en su estuche original de cuero.', NULL, 3, NULL, 'Cámara vintage'),
   (4, '2026-06-02', 1, 'Guitarra criolla',     'Guitarra criolla de luthier, caja de cedro macizo.',       1,    3, NULL, 'Guitarra criolla'),
   (5, '2026-05-20', 0, 'None',                 'Cuadro de paisaje al óleo, sin firma identificable.',      1,    3, NULL, 'Cuadro sin firma'),
@@ -162,19 +163,42 @@ INSERT INTO catalogos (identificador, descripcion, subasta, responsable) VALUES
   (2, 'Catálogo Subasta Abril 2027 (USD)', 2, 1);
 
 -- ---- itemsCatalogo (catalog_items; FK -> catalogos, productos; checks: precioBase/comision > 0.01)
--- `estado` (enum) reemplazó a la vieja columna `subastado`. El reloj (item 1) ya
--- se remató -> 'subastado'; el óleo (item 2) está aceptado y a la espera -> 'aceptado'.
-INSERT INTO itemsCatalogo (identificador, catalogo, producto, precioBase, comision, estado) VALUES
-  (1, 1, 1, 180000, 12, 'subastado'),
-  (2, 1, 2, 90000,  10, 'aceptado'),
-  -- itemsCatalogo de los productos de Juan (le dan su `status` a "Mis productos").
-  (3, 1, 4, 50000,  10, 'aceptado'),
-  (4, 1, 5, 30000,  10, 'rechazado'),
-  (5, 1, 6, 120000, 12, 'subastado'),
+-- `subastado` (0/1) es la columna original de EstructuraActual: ¿el item ya se
+-- remató? El ciclo de cotización (en revisión/tasado/aceptado/rechazado) ya NO
+-- vive acá -> se movió a la tabla `cotizaciones`. precioBase/comision se copian
+-- desde la cotización al cotizar el bien. Rematados (subastado=1): items 1, 5, 7.
+INSERT INTO itemsCatalogo (identificador, catalogo, producto, precioBase, comision, subastado) VALUES
+  (1, 1, 1, 180000, 12, 1),
+  (2, 1, 2, 90000,  10, 0),
+  -- itemsCatalogo de los productos de Juan.
+  (3, 1, 4, 50000,  10, 0),
+  (4, 1, 5, 30000,  10, 0),
+  (5, 1, 6, 120000, 12, 1),
   -- Item del catálogo USD (subasta 2): precioBase y comisión en dólares.
-  (6, 2, 7, 1500, 5, 'aceptado'),
-  -- El lingote de Juan (producto 8) ya se remató en la subasta 2 -> 'subastado'.
-  (7, 2, 8, 2000, 8, 'subastado');
+  (6, 2, 7, 1500, 5, 0),
+  -- El lingote de Juan (producto 8) ya se remató en la subasta 2.
+  (7, 2, 8, 2000, 8, 1);
+
+-- ---- cotizaciones (quotes; FK -> productos; 1:1 con producto) --------------
+-- La empresa emite una cotización por cada bien subido por un usuario. Nace en
+-- 'en revisión' (precio/comisión/mensaje en NULL); al cotizar pasa a 'tasado'
+-- (se cargan los 3 y precioBase/comision se copian al itemsCatalogo); el dueño
+-- la lleva a 'aceptado'/'rechazado'. precioBase de la cotización == el del
+-- itemsCatalogo. Los productos de Juan (3-6, 8) le dan su status a "Mis
+-- productos"; el producto 4 ('tasado') es el que abre la pantalla de propuesta.
+INSERT INTO cotizaciones (identificador, producto, precioBase, comision, mensaje, estado) VALUES
+  -- Bienes de Lucía (dueño 4): ya aceptados / en subasta.
+  (1, 1, 180000, 12, 'Pieza de relojería fina en excelente estado, apta para subasta de categoría oro.', 'aceptado'),
+  (2, 2, 90000,  10, 'Oleo con marco original; lo incluimos en la proxima subasta de arte.', 'aceptado'),
+  -- Bienes de Juan (dueño 3): cubren los 4 estados de "Mis productos".
+  (3, 3, NULL, NULL, NULL, 'en revisión'),
+  (4, 4, 50000,  10, 'Guitarra de luthier en muy buen estado. Proponemos este valor base y comision para la proxima subasta.', 'tasado'),
+  (5, 5, 30000,  10, 'No pudimos confirmar la autoria del cuadro; el valor base ofrecido es conservador.', 'rechazado'),
+  (6, 6, 120000, 12, 'Vajilla Limoges completa; excelente para una subasta de antiguedades.', 'aceptado'),
+  -- Bien de Lucía en el catálogo USD.
+  (7, 7, 1500,   5,  'Moneda de plata de edicion limitada; ingresa al catalogo en dolares.', 'aceptado'),
+  -- Bien de Juan rematado en la subasta 2 (USD).
+  (8, 8, 2000,   8,  'Lingote de plata de inversion; ingresa al catalogo en dolares.', 'aceptado');
 
 -- ---- asistentes (attendees; FK -> clientes, subastas) ----------------------
 INSERT INTO asistentes (identificador, numeroPostor, cliente, subasta) VALUES

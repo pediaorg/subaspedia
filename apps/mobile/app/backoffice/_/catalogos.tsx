@@ -57,7 +57,7 @@ export function CatalogosSection() {
             selected={selected.includes(it.id)}
             onPress={() => toggle(it.id)}
             title={it.productName}
-            subtitle={`Base $${it.basePrice} · Comisión $${it.commission}`}
+            subtitle={`Base $${it.basePrice} · Comisión ${it.commission}%`}
           />
         ))}
 

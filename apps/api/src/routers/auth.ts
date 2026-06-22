@@ -153,7 +153,8 @@ export const authRouter = {
       });
       if (!already) {
         await context.db.insert(people).values({
-          name: `${pending.name} ${pending.lastName}`.trim(),
+          name: pending.name,
+          lastName: pending.lastName,
           address: pending.address,
           document: pending.document,
           status: "active",

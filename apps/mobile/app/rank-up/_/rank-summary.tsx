@@ -121,7 +121,7 @@ export function RankSummary() {
         <View className="gap-1">
           <View className="flex flex-row items-center justify-between">
             <Text className="text-base text-left font-semibold">Actividad</Text>
-            <Link href="/profile/auctions" asChild>
+            <Link href="/profile/stats" asChild>
               <Pressable className="active:opacity-60">
                 <Text className="text-sm text-primary underline">
                   Ver historial de subastas

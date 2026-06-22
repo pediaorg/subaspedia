@@ -25,12 +25,8 @@ type FeaturedItem = {
 
 const CARD_HEIGHT = 256;
 
-// TODO: cambiar este push. Por ahora lleva a /auctions pasando el id como parámetro.
 function goToAuction(auctionId: number) {
-  router.push({
-    pathname: "/auctions",
-    params: { auctionId: String(auctionId) },
-  });
+  router.push(`/auctions/${auctionId}`);
 }
 
 export function FeaturedCarousel() {

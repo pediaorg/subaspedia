@@ -274,13 +274,55 @@ export const catalogItems = sqliteTable(
       .references(() => products.id),
     basePrice: real("precioBase").notNull(),
     commission: real("comision").notNull(),
-    state: text("estado", {
-      enum: ["en revisión", "tasado", "aceptado", "rechazado", "subastado"],
-    }),
+    // ¿El item ya se remató? Columna original de EstructuraActual (si/no). El
+    // ciclo de vida de la cotización (en revisión/tasado/aceptado/rechazado) NO
+    // vive más acá: se movió a la tabla `cotizaciones` (quotes).
+    auctioned: boolean("subastado"),
   },
   t => [
     check("chk_base_price", sql`${t.basePrice} > 0.01`),
     check("chk_commission", sql`${t.commission} > 0.01`),
+  ],
+);
+
+// Cotización que la empresa emite para un bien subido por un usuario. Tabla
+// NUEVA (no está en la estructura legacy). 1:1 con el producto (productId
+// unique). La fila NACE en estado 'en revisión' cuando el usuario sube el bien
+// (sin precio/comisión/mensaje); el backoffice la pasa a 'tasado' (cargando
+// precioBase + comision + mensaje) o a 'rechazado' (mensaje = causa del
+// rechazo, que la consigna exige mostrar al dueño). Luego el dueño la lleva a
+// 'aceptado'/'rechazado'. Que precio/comisión/mensaje sean obligatorios al
+// tasar/rechazar es regla de TRANSICIÓN -> vive en la capa de app, por eso las
+// columnas son nullable (en 'en revisión' van todas en null). `precioBase` y
+// `comision` se copian al `catalogItem` cuando se cotiza.
+export const quotes = sqliteTable(
+  "cotizaciones",
+  {
+    id: integer("identificador").primaryKey({ autoIncrement: true }),
+    productId: integer("producto")
+      .notNull()
+      .unique()
+      .references(() => products.id),
+    basePrice: real("precioBase"),
+    commission: real("comision"),
+    message: text("mensaje"),
+    state: text("estado", {
+      enum: ["en revisión", "tasado", "aceptado", "rechazado"],
+    }).notNull(),
+  },
+  t => [
+    check(
+      "chk_quote_base_price",
+      sql`${t.basePrice} IS NULL OR ${t.basePrice} > 0.01`,
+    ),
+    check(
+      "chk_quote_commission",
+      sql`${t.commission} IS NULL OR ${t.commission} > 0.01`,
+    ),
+    check(
+      "chk_quote_state",
+      sql`${t.state} IN ('en revisión', 'tasado', 'aceptado', 'rechazado')`,
+    ),
   ],
 );
 
