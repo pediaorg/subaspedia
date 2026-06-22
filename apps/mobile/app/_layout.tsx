@@ -5,7 +5,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "burnt/web";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { Platform, StyleSheet, View } from "react-native";
+import { LogBox, Platform, StyleSheet, View } from "react-native";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
@@ -18,6 +18,16 @@ import { queryClient } from "@/lib/query-client";
 // tipo teléfono y la centramos, con los márgenes laterales en un gris neutro,
 // para que no se vea estirada a lo ancho. En nativo no se toca nada.
 const isWeb = Platform.OS === "web";
+
+// Silenciamos dos warnings de DEV que NO son de la app: los emite la librería de
+// estilos buggeada (NativeWind 5 preview / react-native-css@3.0.7) al inyectar
+// global.css en el mount (ver stack: styleEffect.run / __react_native_css_style_
+// collection.inject). No aparecen en release. Ver memoria
+// react-native-css-textalign-crash. Para volver a verlos, comentá esto.
+LogBox.ignoreLogs([
+  "Can't perform a React state update on a component that hasn't mounted yet",
+  "Text strings must be rendered within a <Text> component",
+]);
 
 export default function RootLayout() {
   return (

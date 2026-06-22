@@ -67,7 +67,12 @@ export default function VerifyScreen() {
           placeholder="000000"
           returnKeyType="go"
           onSubmitEditing={submit}
-          className="bg-secondary border-none text-center text-lg tracking-[8px]"
+          // El centrado va por `style` y NO por className: `text-center` en un
+          // TextInput crashea en native (bug de react-native-css@3.0.7 / NativeWind
+          // 5 preview: `path.split is not a function`). Ver memoria
+          // react-native-css-textalign-crash.
+          style={{ textAlign: "center" }}
+          className="bg-secondary border-none text-lg tracking-[8px]"
         />
       </FormField>
 
