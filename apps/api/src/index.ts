@@ -9,7 +9,6 @@ import { secureHeaders } from "hono/secure-headers";
 import { createDb } from "@/api/db";
 import { dbExplorer } from "@/api/db-explorer";
 import { photos } from "@/api/db/schema";
-import { dbExplorer } from "@/api/db-explorer";
 import { AuctionRoom } from "@/api/durable-objects/auction";
 import type { CookieDirective } from "@/api/lib/auth";
 import {

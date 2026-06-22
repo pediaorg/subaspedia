@@ -2,6 +2,7 @@ import { Stack } from "expo-router";
 import { useMemo, useState } from "react";
 import { ActivityIndicator, ScrollView, Text, View } from "react-native";
 
+import { MenuButton } from "@/components/app-header/menu-button";
 import { AuctionCard } from "@/components/auction-card";
 import { CatalogDialog } from "@/components/auctions/catalog-dialog";
 import { ProductDialog } from "@/components/auctions/product-dialog";
@@ -88,6 +89,7 @@ export default function AuctionsScreen() {
       >
         <View className="flex flex-row items-center justify-between mb-4">
           <Text className="text-2xl font-bold">Subastas</Text>
+          <MenuButton />
         </View>
         <SearchBar
           placeholder="Buscar subastas..."

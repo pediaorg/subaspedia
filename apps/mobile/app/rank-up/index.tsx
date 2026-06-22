@@ -1,6 +1,8 @@
 import { Stack } from "expo-router";
-import { ScrollView } from "react-native";
+import { ScrollView, View } from "react-native";
 
+import { BackButton } from "@/components/app-header/back-button";
+import { MenuButton } from "@/components/app-header/menu-button";
 import { LoginPrompt } from "@/components/login-prompt";
 import { Separator } from "@/components/ui/separator";
 import { Text } from "@/components/ui/text";
@@ -19,9 +21,15 @@ export default function RankUp() {
         contentContainerClassName="gap-4 p-4 pb-12"
         keyboardShouldPersistTaps="handled"
       >
-        <Text variant="h1" className="text-left font-bold">
-          Rango
-        </Text>
+        <View className="flex-row items-center justify-between">
+          <View className="flex-row items-center gap-3">
+            <BackButton />
+            <Text variant="h3" className="text-left font-bold">
+              Rango
+            </Text>
+          </View>
+          <MenuButton />
+        </View>
         <Separator className="bg-border" />
         {isAuthed ? (
           <RankSummary />
