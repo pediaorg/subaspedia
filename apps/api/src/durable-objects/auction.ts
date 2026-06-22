@@ -11,7 +11,13 @@ import {
   MIN_BID_INCREMENT_RATE,
 } from "@subaspedia/types";
 import { createDb } from "@/api/db";
-import { attendees, auctionRecords, auctions, bids } from "@/api/db/schema";
+import {
+  attendees,
+  auctionRecords,
+  auctions,
+  bids,
+  catalogItems,
+} from "@/api/db/schema";
 import type { Env } from "@/api/index";
 import { sendAuctionWinEmail } from "@/api/lib/email";
 import { SHIPPING_COST } from "@/api/lib/shipping";
@@ -34,6 +40,11 @@ type BidResult =
 // "caliente" de la sala para no ir a buscar todo a la DB en cada puja.
 type Snapshot = {
   auctionId: number;
+  // Catálogo completo, en orden de remate. La subasta recorre estos ítems uno
+  // por uno; `itemIndex` marca cuál se está rematando ahora. `itemId` y
+  // `basePrice` (abajo) son del ítem actual, espejados desde acá.
+  items: { id: number; basePrice: number }[];
+  itemIndex: number;
   itemId: number;
   status: "open" | "closed";
   currency: "ARS" | "USD";
@@ -49,6 +60,10 @@ type Snapshot = {
   // resta de su garantía: cuando lo superan, se libera. Modela el "ir restando
   // del saldo en memoria" sin volver a la DB.
   reserved: Record<number, number>;
+  // Monto que cada cliente ya GANÓ (comprometió) en ítems cerrados de esta
+  // misma subasta. Se descuenta de su garantía para los ítems siguientes: una
+  // vez que se queda con un bien, le queda menos saldo para los próximos.
+  committed: Record<number, number>;
 };
 
 /**
@@ -86,23 +101,33 @@ export class AuctionRoom extends DurableObject<Env> {
     });
     if (!auction) return null;
 
-    // Modelo simplificado (consistente con el resto de la app): se subasta el
-    // primer ítem del primer catálogo de la subasta.
+    // Catálogo completo: todos los ítems del primer catálogo de la subasta, en
+    // orden de id (= orden de remate). La subasta los recorre uno por uno.
     const catalog = await db.query.catalogs.findFirst({
       where: { auctionId },
       columns: { id: true },
     });
-    const item = catalog
-      ? await db.query.catalogItems.findFirst({
+    const itemRows = catalog
+      ? await db.query.catalogItems.findMany({
           where: { catalogId: catalog.id },
-          columns: { id: true, basePrice: true },
+          orderBy: (t, { asc }) => asc(t.id),
+          columns: { id: true, basePrice: true, auctioned: true },
         })
-      : undefined;
-    if (!item) return null;
+      : [];
+    if (itemRows.length === 0) return null;
 
-    // Mejor puja existente (para reanudar una subasta ya empezada).
+    const items = itemRows.map(it => ({ id: it.id, basePrice: it.basePrice }));
+
+    // Arrancamos en el primer ítem que todavía no se remató. Si ya están todos
+    // rematados, la subasta está terminada.
+    const firstPending = itemRows.findIndex(it => !it.auctioned);
+    const itemIndex = firstPending === -1 ? items.length - 1 : firstPending;
+    const allDone = firstPending === -1;
+    const current = items[itemIndex];
+
+    // Mejor puja existente del ítem actual (para reanudar uno ya empezado).
     const top = await db.query.bids.findFirst({
-      where: { itemId: item.id },
+      where: { itemId: current.id },
       orderBy: (t, { desc }) => desc(t.amount),
       columns: { amount: true },
       with: {
@@ -128,21 +153,42 @@ export class AuctionRoom extends DurableObject<Env> {
 
     this.snap = {
       auctionId,
-      itemId: item.id,
-      status: (auction.status ?? "open") as "open" | "closed",
+      items,
+      itemIndex,
+      itemId: current.id,
+      status: allDone ? "closed" : ((auction.status ?? "open") as "open"),
       currency: auction.currencyRow?.currency ?? "ARS",
       category: (auction.category ?? "common") as Category,
-      basePrice: item.basePrice,
+      basePrice: current.basePrice,
       currentBid: top?.amount ?? 0,
       leader,
-      // No reanudamos el contador de una subasta preexistente: arranca con la
-      // primera puja nueva. Evita cerrarla apenas se carga.
+      // No reanudamos el contador de un ítem preexistente: arranca con la
+      // primera puja nueva. Evita cerrarlo apenas se carga.
       deadline: null,
       caps: {},
       reserved: leader ? { [leader.clientId]: top?.amount ?? 0 } : {},
+      // No reconstruimos lo comprometido en ítems ya cerrados al reanudar
+      // (igual que el deadline): el saldo en memoria se rearma con las pujas
+      // nuevas. La garantía sigue acotada por el tope total de la DB.
+      committed: {},
     };
     await this.persist();
     return this.snap;
+  }
+
+  /**
+   * Apunta el snapshot al ítem `index` y resetea el estado caliente de la puja
+   * (nadie pujó todavía por el ítem nuevo). No persiste ni difunde: lo hace
+   * quien llama.
+   */
+  private setCurrentItem(snap: Snapshot, index: number): void {
+    const it = snap.items[index];
+    snap.itemIndex = index;
+    snap.itemId = it.id;
+    snap.basePrice = it.basePrice;
+    snap.currentBid = 0;
+    snap.leader = null;
+    snap.deadline = null;
   }
 
   private async persist(): Promise<void> {
@@ -244,6 +290,9 @@ export class AuctionRoom extends DurableObject<Env> {
     return {
       type: "state",
       auctionId: snap.auctionId,
+      itemId: snap.itemId,
+      itemNumber: snap.itemIndex + 1,
+      itemCount: snap.items.length,
       status: snap.status,
       currency: snap.currency,
       basePrice: snap.basePrice,
@@ -340,15 +389,18 @@ export class AuctionRoom extends DurableObject<Env> {
         message: "Ya tenés la puja más alta",
       };
 
-    // Saldo en memoria: garantía menos lo ya comprometido en otras pujas
-    // ganadoras (acá, modelo de un ítem, es 0). El cliente libera su propia
-    // reserva al re-pujar. cap === null => sin tope monetario.
-    if (cap !== null && cap !== undefined && amount > cap)
-      return {
-        ok: false,
-        code: "BAD_REQUEST",
-        message: `Tu garantía (${cap}) no alcanza para esta puja`,
-      };
+    // Saldo en memoria: garantía menos lo ya comprometido en ítems que este
+    // cliente ya ganó en esta subasta. El cliente libera su propia reserva del
+    // ítem actual al re-pujar (no se descuenta acá). cap === null => sin tope.
+    if (cap !== null && cap !== undefined) {
+      const available = round2(cap - (snap.committed[params.clientId] ?? 0));
+      if (amount > available)
+        return {
+          ok: false,
+          code: "BAD_REQUEST",
+          message: `Tu garantía disponible (${available}) no alcanza para esta puja`,
+        };
+    }
 
     // Persistir la puja en D1 (sistema de registro). Garantiza el orden y que
     // quede registrada antes de confirmarle al postor.
@@ -436,32 +488,75 @@ export class AuctionRoom extends DurableObject<Env> {
       return;
     }
 
-    // Cierre: el último postor pasa a ser el nuevo dueño (la puja ganadora ya
-    // quedó marcada winner=true en D1). Marcamos la subasta como cerrada.
+    const db = createDb(this.env.DB);
+
+    // --- Cierre del ÍTEM actual ---------------------------------------------
+    // El último postor se queda con la pieza (su puja ya está winner=true en
+    // D1). Capturamos ganador/monto antes de avanzar, porque setCurrentItem
+    // resetea el estado caliente.
+    const closedItemId = snap.itemId;
+    const winner = snap.leader;
+    const amount = snap.currentBid;
+
+    // Marcar el ítem como rematado (idempotente: si la alarma corre dos veces,
+    // simplemente lo deja en true). Sirve además para reanudar en el ítem justo.
+    await db
+      .update(catalogItems)
+      .set({ auctioned: true })
+      .where(eq(catalogItems.id, closedItemId));
+
+    // Registrar la venta y avisar al ganador. Si falla (p. ej. el mail), no
+    // bloquea el avance: el ítem igual queda cerrado.
+    if (winner?.clientId) {
+      try {
+        await this.finalizeWin(snap);
+      } catch (err) {
+        console.error(
+          `[auction ${snap.auctionId}] Error registrando la venta / email del ítem ${closedItemId}:`,
+          err,
+        );
+      }
+      // Lo ganado se descuenta de su garantía para los próximos ítems.
+      snap.committed[winner.clientId] =
+        (snap.committed[winner.clientId] ?? 0) + amount;
+    }
+
+    const nextIndex = snap.itemIndex + 1;
+    const hasNext = nextIndex < snap.items.length;
+
+    // Aviso de cierre del ítem (la UI puede mostrar "vendido" / pasar al próximo).
+    this.broadcast({
+      type: "item-closed",
+      auctionId: snap.auctionId,
+      itemId: closedItemId,
+      winner,
+      amount,
+      hasNext,
+    });
+
+    if (hasNext) {
+      // --- Pasar al SIGUIENTE ítem -------------------------------------------
+      // La subasta sigue abierta; arranca el próximo ítem sin contador (se
+      // activa con la primera puja, igual que el primero).
+      this.setCurrentItem(snap, nextIndex);
+      await this.persist();
+      this.broadcast(this.stateMsg(snap));
+      return;
+    }
+
+    // --- Era el ÚLTIMO ítem: cierre de la SUBASTA ---------------------------
     snap.status = "closed";
     await this.persist();
-
-    const db = createDb(this.env.DB);
     await db
       .update(auctions)
       .set({ status: "closed" })
       .where(eq(auctions.id, snap.auctionId));
 
-    // Registrar la venta y avisar al ganador (con el link a su compra).
-    if (snap.leader?.clientId) {
-      this.finalizeWin(snap).catch(err => {
-        console.error(
-          `[auction ${snap.auctionId}] Error registrando la venta / email de ganador:`,
-          err,
-        );
-      });
-    }
-
     this.broadcast({
       type: "closed",
       auctionId: snap.auctionId,
-      winner: snap.leader,
-      amount: snap.currentBid,
+      winner,
+      amount,
     });
   }
 

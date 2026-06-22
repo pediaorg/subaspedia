@@ -69,7 +69,6 @@ export default function AuctionDetailScreen() {
   );
 
   const auction = useMemo(() => rawAuction ?? null, [rawAuction]);
-  const bids = useMemo(() => rawBids ?? [], [rawBids]);
 
   // Suscripción en vivo a la subasta (Durable Object). Trae la puja actual,
   // quién la tiene y el deadline, y es el ÚNICO canal de pujas (sendBid). Las
@@ -83,6 +82,30 @@ export default function AuctionDetailScreen() {
   } = useAuctionRoom(isValidId ? auctionId : null);
   const secondsLeft = useCountdown(liveState?.deadline ?? null);
 
+  // La subasta recorre el catálogo ítem por ítem. El ítem "actual" lo dicta el
+  // estado en vivo (liveState.itemId); si todavía no llegó, mostramos el primero.
+  const allItems = useMemo(
+    () => auction?.catalogs?.[0]?.items ?? [],
+    [auction],
+  );
+  const currentItem = useMemo(
+    () =>
+      (liveState?.itemId != null
+        ? allItems.find(it => it.id === liveState.itemId)
+        : null) ??
+      allItems[0] ??
+      null,
+    [allItems, liveState?.itemId],
+  );
+
+  // Solo las pujas del ítem que se está rematando ahora (las de ítems ya
+  // cerrados no se mezclan en la lista).
+  const bids = useMemo(() => {
+    const all = rawBids ?? [];
+    if (!currentItem) return all;
+    return all.filter(b => b.itemId === currentItem.id);
+  }, [rawBids, currentItem]);
+
   // Cada vez que el DO difunde un cambio, refrescamos la lista de pujas y el
   // detalle (que vienen de la DB) para mantener todo en sync.
   useEffect(() => {
@@ -91,7 +114,7 @@ export default function AuctionDetailScreen() {
   }, [liveState, liveClosed, queryClient]);
 
   // Valores mostrados: priorizan el estado en vivo del WS y caen al de la API.
-  const basePrice = auction?.catalogs?.[0]?.items?.[0]?.basePrice ?? 0;
+  const basePrice = currentItem?.basePrice ?? 0;
   const currentPrice =
     liveState?.currentBid && liveState.currentBid > 0
       ? liveState.currentBid
@@ -208,7 +231,11 @@ export default function AuctionDetailScreen() {
                 <Image
                   source={{
                     uri:
-                      (auction.photoId ? photoUri(auction.photoId) : null) ??
+                      (currentItem?.product?.photos?.[0]?.id
+                        ? photoUri(currentItem.product.photos[0].id)
+                        : auction.photoId
+                          ? photoUri(auction.photoId)
+                          : null) ??
                       "https://images.unsplash.com/photo-1590483864073-2b28c5a93df6?q=80&w=800&auto=format&fit=crop",
                   }}
                   className="w-full h-full"
@@ -221,12 +248,16 @@ export default function AuctionDetailScreen() {
                 <View className="flex-row justify-between items-start mb-2">
                   <View className="flex-1 mr-4">
                     <Text className="text-3xl font-black text-gray-900 leading-tight">
-                      {auction.catalogs?.[0]?.items?.[0]?.product?.name ||
-                        "Juego de té"}
+                      {currentItem?.product?.name || "Juego de té"}
                     </Text>
                     <Text className="text-gray-500 font-semibold mt-1">
                       {auction.date || "27/10/2026"}
                     </Text>
+                    {liveState?.itemCount && liveState.itemCount > 1 ? (
+                      <Text className="text-blue-700 font-bold mt-1 text-xs">
+                        Lote {liveState.itemNumber} de {liveState.itemCount}
+                      </Text>
+                    ) : null}
                   </View>
                   <View className="bg-blue-800 flex-row items-center px-3 py-1.5 rounded-full shadow-sm">
                     <Ionicons name="play" size={12} color="white" />
@@ -238,8 +269,7 @@ export default function AuctionDetailScreen() {
 
                 {/* Descripción */}
                 <Text className="text-gray-600 text-base leading-relaxed mb-6">
-                  {auction.catalogs?.[0]?.items?.[0]?.product
-                    ?.fullDescription ||
+                  {currentItem?.product?.fullDescription ||
                     "Inspirado en la tradición británica, este juego de té combina detalles delicados con la nostalgia de las mejores sobremesas."}
                 </Text>
 

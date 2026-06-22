@@ -402,6 +402,7 @@ export const auctionsRouter = {
         id: bid.id,
         user: bid.attendee?.client?.person?.name ?? "Anónimo",
         amount: bid.amount,
+        itemId: bid.itemId,
         itemName: bid.item?.product?.name ?? "Producto",
         bidderNumber: bid.attendee?.bidderNumber,
       }));

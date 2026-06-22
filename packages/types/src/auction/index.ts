@@ -33,6 +33,13 @@ export type AuctionLeader = z.infer<typeof auctionLeader>;
 export const auctionState = z.object({
   type: z.literal("state"),
   auctionId: z.number().int().positive(),
+  // Ítem del catálogo que se está rematando AHORA. La subasta recorre el
+  // catálogo ítem por ítem; este campo le dice al cliente cuál mostrar.
+  itemId: z.number().int().positive(),
+  // Progreso dentro del catálogo (1-based) y total de ítems, para mostrar
+  // "Lote 2 de 5" en la UI.
+  itemNumber: z.number().int().positive(),
+  itemCount: z.number().int().positive(),
   status: z.enum(["open", "closed"]),
   currency,
   basePrice: z.number(),
@@ -68,11 +75,26 @@ export const auctionClosedMsg = z.object({
 
 export type AuctionClosedMsg = z.infer<typeof auctionClosedMsg>;
 
+// Aviso de que se cerró UN ítem del catálogo (se vendió o nadie pujó) y la
+// subasta sigue con el próximo. `hasNext` distingue "pasa al siguiente" del
+// cierre final (que llega aparte como `closed`).
+export const auctionItemClosedMsg = z.object({
+  type: z.literal("item-closed"),
+  auctionId: z.number().int().positive(),
+  itemId: z.number().int().positive(),
+  winner: auctionLeader.nullable(),
+  amount: z.number(),
+  hasNext: z.boolean(),
+});
+
+export type AuctionItemClosedMsg = z.infer<typeof auctionItemClosedMsg>;
+
 // Unión de todo lo que el servidor puede mandar.
 export const auctionServerMsg = z.discriminatedUnion("type", [
   auctionState,
   auctionErrorMsg,
   auctionClosedMsg,
+  auctionItemClosedMsg,
 ]);
 
 export type AuctionServerMsg = z.infer<typeof auctionServerMsg>;
