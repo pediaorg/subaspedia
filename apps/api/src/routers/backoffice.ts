@@ -11,6 +11,7 @@ import {
   catalogs,
   clients,
   employees,
+  insurances,
   paymentMethods,
   penalties,
   people,
@@ -262,6 +263,11 @@ export const backofficeRouter = {
         // La comisión es un PORCENTAJE del precio base (no un monto): 0 < x <= 100.
         commission: z.number().gt(0).max(100),
         message: z.string().trim().min(1),
+        // Datos del seguro (opcionales)
+        insurancePolicyNumber: z.string().trim().optional(),
+        insuranceCompany: z.string().trim().optional(),
+        insuranceAmount: z.number().positive().optional(),
+        insuranceCombined: z.boolean().optional(),
       }),
     )
     .handler(async ({ context, input }) => {
@@ -275,6 +281,53 @@ export const backofficeRouter = {
         throw new ORPCError("CONFLICT", {
           message: "El bien ya tiene una cotización",
         });
+
+      // Validar que si se provee algún campo del seguro, se provean los obligatorios
+      if (
+        input.insurancePolicyNumber ||
+        input.insuranceCompany ||
+        input.insuranceAmount
+      ) {
+        if (
+          !input.insurancePolicyNumber ||
+          !input.insuranceCompany ||
+          !input.insuranceAmount
+        ) {
+          throw new ORPCError("BAD_REQUEST", {
+            message:
+              "Si registrás un seguro, debés ingresar el número de póliza, la compañía y el importe.",
+          });
+        }
+
+        // Insertar o actualizar la póliza de seguro
+        const existingInsurance = await context.db.query.insurances.findFirst({
+          where: { policyNumber: input.insurancePolicyNumber },
+        });
+
+        if (!existingInsurance) {
+          await context.db.insert(insurances).values({
+            policyNumber: input.insurancePolicyNumber,
+            company: input.insuranceCompany,
+            amount: input.insuranceAmount,
+            combinedPolicy: input.insuranceCombined ?? false,
+          });
+        } else {
+          await context.db
+            .update(insurances)
+            .set({
+              company: input.insuranceCompany,
+              amount: input.insuranceAmount,
+              combinedPolicy: input.insuranceCombined ?? false,
+            })
+            .where(eq(insurances.policyNumber, input.insurancePolicyNumber));
+        }
+
+        // Asociar la póliza al producto
+        await context.db
+          .update(products)
+          .set({ insurancePolicy: input.insurancePolicyNumber })
+          .where(eq(products.id, input.productId));
+      }
 
       await context.db
         .update(quotes)

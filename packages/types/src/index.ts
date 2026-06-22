@@ -45,3 +45,4 @@ export type JWTPayload = z.infer<typeof JWT_PAYLOAD>;
 // tipos reutilizan `currency` (definido arriba), así que la referencia ya está
 // resuelta cuando el submódulo se evalúa.
 export * from "./auction";
+export * from "./insurance";
