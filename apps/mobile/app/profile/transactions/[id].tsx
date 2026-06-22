@@ -1,5 +1,5 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { useLocalSearchParams } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { Check, MapPin, Store, Truck } from "lucide-react-native";
 import { Alert, Pressable, ScrollView, Text, View } from "react-native";
 
@@ -17,6 +17,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Avatar, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Icon } from "@/components/ui/icon";
 import { Separator } from "@/components/ui/separator";
@@ -55,6 +56,7 @@ export default function TransactionDetailScreen() {
   const transactionId = Number(id);
   const isValidId = Number.isInteger(transactionId) && transactionId > 0;
   const queryClient = useQueryClient();
+  const router = useRouter();
 
   const { data: tx, isLoading } = api.user.transactionById.useQuery(
     { id: isValidId ? transactionId : 0 },
@@ -250,6 +252,17 @@ export default function TransactionDetailScreen() {
             </AlertDialog>
           </View>
         </Card>
+
+        {/* Confirma el método elegido y vuelve al perfil. El método ya está
+            persistido por setDelivery; este botón solo cierra el flujo. */}
+        <Button
+          size="lg"
+          disabled={isPending}
+          onPress={() => router.push("/profile")}
+          className="mt-2 self-center rounded-full bg-primary px-12 py-4 shadow-none"
+        >
+          <Text className="text-base font-bold text-white">Confirmar</Text>
+        </Button>
       </ScrollView>
     </View>
   );
