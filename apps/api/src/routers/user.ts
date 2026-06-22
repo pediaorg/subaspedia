@@ -2,7 +2,7 @@ import { ORPCError } from "@orpc/server";
 import { and, count, desc, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 
-import { deliveryMethod } from "@subaspedia/types";
+import { type DeliveryMethod, deliveryMethod } from "@subaspedia/types";
 import { createPaymentMethodSchema } from "@subaspedia/types/forms/payment";
 import { insuranceSchema } from "@subaspedia/types/insurance";
 import {
@@ -11,6 +11,8 @@ import {
 } from "@subaspedia/types/payment-method";
 import { penaltySchema, penaltyStatus } from "@subaspedia/types/penalty";
 import {
+  type OrderStatus,
+  type PaymentStatus,
   type TransactionDetail,
   transactionDetailSchema,
   transactionSchema,
@@ -28,11 +30,26 @@ import {
   penalties,
   photos,
   products,
+  salePayments,
   saleShipments,
 } from "@/api/db/schema";
 import { toIso } from "@/api/lib/date";
 import { firstPhotoToImg } from "@/api/lib/photo";
 import { SHIPPING_COST } from "@/api/lib/shipping";
+
+// Deriva el estado que ve el usuario (badge) combinando el estado de PAGO
+// (persistido en pagosVenta; ausencia = todavía sin pagar) con el método de
+// ENTREGA. Es la única fuente del `status`: nunca se persiste.
+function deriveOrderStatus(
+  paymentState: PaymentStatus | undefined,
+  method: DeliveryMethod,
+): OrderStatus {
+  if (!paymentState) return "unpaid";
+  if (paymentState === "pending") return "pending";
+  if (paymentState === "rejected") return "rejected";
+  // accepted: el desenlace depende de la entrega elegida.
+  return method === "pickup" ? "picked_up" : "paid";
+}
 
 // Arma el detalle (factura) de una compra del client logueado. Lo comparten
 // transactionById (lectura) y setDelivery (devuelve el detalle ya actualizado).
@@ -53,6 +70,7 @@ async function loadTransactionDetail(
       },
       auction: { columns: { date: true }, with: { currencyRow: true } },
       shipment: { columns: { deliveryMethod: true, shippingCost: true } },
+      payment: { columns: { state: true } },
       client: { with: { person: { columns: { address: true } } } },
     },
   });
@@ -78,7 +96,7 @@ async function loadTransactionDetail(
     currency,
     date: toIso(r.auction.date),
     auctionId: r.auctionId,
-    status: method === "pickup" ? "picked_up" : "paid",
+    status: deriveOrderStatus(r.payment?.state, method),
     deliveryMethod: method,
     bidAmount: r.amount,
     commissionAmount,
@@ -290,6 +308,8 @@ export const userRouter = {
           },
           // Entrega elegida (tabla satélite). Sin fila = default 'shipping'.
           shipment: { columns: { deliveryMethod: true, shippingCost: true } },
+          // Pago (tabla satélite). Sin fila = todavía sin pagar (unpaid).
+          payment: { columns: { state: true } },
         },
       });
 
@@ -322,10 +342,10 @@ export const userRouter = {
             currency,
             date: toIso(r.auction.date),
             auctionId: r.auctionId,
-            // El registro existe -> la subasta se ganó y pagó. El estado refleja
-            // la elección de entrega: retiro -> 'picked_up', envío -> 'paid'.
-            status:
-              method === "pickup" ? ("picked_up" as const) : ("paid" as const),
+            // Estado derivado de (pago × entrega): sin fila de pago = "unpaid"
+            // (habilita "Pagar"); pending/rejected del backoffice; aceptado ->
+            // 'picked_up' (retiro) o 'paid' (envío).
+            status: deriveOrderStatus(r.payment?.state, method),
             deliveryMethod: method,
             shippingCost,
           },
@@ -374,6 +394,53 @@ export const userRouter = {
           target: saleShipments.recordId,
           set: { deliveryMethod: input.deliveryMethod, shippingCost },
         });
+
+      return loadTransactionDetail(context, input.id);
+    }),
+
+  // PUT /users/me/transactions/{id}/pay — el ganador paga la compra con un medio
+  // verificado. Inserta la fila pagosVenta en 'pending': queda esperando que el
+  // backoffice apruebe o rechace. Guards: la compra es suya, el medio es suyo y
+  // está verificado, y no hay un pago previo. Devuelve el detalle actualizado.
+  payTransaction: authed
+    .input(
+      z.object({
+        id: z.number().int().positive(),
+        paymentMethodId: z.number().int().positive(),
+      }),
+    )
+    .output(transactionDetailSchema)
+    .handler(async ({ context, input }) => {
+      // La compra debe ser del client logueado y no estar ya pagada.
+      const record = await context.db.query.auctionRecords.findFirst({
+        where: { id: input.id, clientId: context.userId },
+        columns: { id: true },
+        with: { payment: { columns: { recordId: true } } },
+      });
+      if (!record)
+        throw new ORPCError("NOT_FOUND", { message: "Compra no encontrada" });
+      if (record.payment)
+        throw new ORPCError("CONFLICT", { message: "La compra ya fue pagada" });
+
+      // El medio de pago debe ser del client y estar verificado.
+      const method = await context.db.query.paymentMethods.findFirst({
+        where: { id: input.paymentMethodId, clientId: context.userId },
+        columns: { id: true, verified: true },
+      });
+      if (!method)
+        throw new ORPCError("NOT_FOUND", {
+          message: "Medio de pago no encontrado",
+        });
+      if (!method.verified)
+        throw new ORPCError("FORBIDDEN", {
+          message: "El medio de pago no está verificado",
+        });
+
+      await context.db.insert(salePayments).values({
+        recordId: input.id,
+        paymentMethodId: input.paymentMethodId,
+        state: "pending",
+      });
 
       return loadTransactionDetail(context, input.id);
     }),
