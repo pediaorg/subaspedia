@@ -3,23 +3,41 @@ import { z } from "zod";
 import { deliveryMethod } from "../delivery";
 import { currency } from "../index";
 
-// Estado del pedido tras ganar y pagar una subasta. La consigna define que el
-// comprador paga el envío a la dirección declarada O retira personalmente (y en
-// ese caso pierde el seguro) -> de ahí los estados de entrega.
+// Estado de PAGO de una compra ganada (lo que se PERSISTE en la satélite
+// pagosVenta y decide el backoffice). El estado "impago" no se persiste: es la
+// AUSENCIA de fila (igual que "shipping" es la ausencia de fila en envíos).
+//   pending  -> el ganador pagó; espera que el backoffice lo apruebe
+//   accepted -> el backoffice confirmó el pago
+//   rejected -> el backoffice lo rechazó (se le emite una multa automática)
+export const paymentStatus = z.enum(["pending", "accepted", "rejected"]);
+
+export type PaymentStatus = z.infer<typeof paymentStatus>;
+
+// Estado del pedido que VE el usuario en el badge. NO se persiste: el back lo
+// DERIVA de (estado de pago × método de entrega). Combina el ciclo de pago
+// (unpaid/pending/rejected) con el desenlace de entrega (paid = envío pagado,
+// picked_up = retirado). `shipped`/`delivered` quedan como deuda cosmética
+// (nadie los setea hoy).
 export const orderStatus = z.enum([
-  "paid", // pagado, todavía no despachado
+  "unpaid", // ganada, todavía sin pagar -> habilita el botón "Pagar"
+  "pending", // pagada por el ganador, esperando aprobación del backoffice
+  "paid", // pago aprobado (entrega por envío)
   "shipped", // en camino a la dirección declarada
   "delivered", // entregado por envío
-  "picked_up", // retirado en persona
+  "picked_up", // pago aprobado + retirado en persona
+  "rejected", // pago rechazado por el backoffice
 ]);
 
 export type OrderStatus = z.infer<typeof orderStatus>;
 
 export const ORDER_STATUS_LABELS = [
+  { value: orderStatus.enum.unpaid, label: "A pagar" },
+  { value: orderStatus.enum.pending, label: "Pendiente" },
   { value: orderStatus.enum.paid, label: "Pagado" },
   { value: orderStatus.enum.shipped, label: "En camino" },
   { value: orderStatus.enum.delivered, label: "Entregado" },
   { value: orderStatus.enum.picked_up, label: "Retirado" },
+  { value: orderStatus.enum.rejected, label: "Rechazado" },
 ] as { value: OrderStatus; label: string }[];
 
 // Una transacción del historial = una compra concretada (bien adquirido). Los
