@@ -9,11 +9,15 @@ import { Separator } from "@/components/ui/separator";
 import { Text } from "@/components/ui/text";
 import { api } from "@/lib/api";
 
-// Cada tipo lleva al usuario a la pantalla relevante. winProduct y sanction
-// caen en la misma vista de "Multas y pagos" (winProduct -> ver el cobro,
-// sanction -> ver la multa); proposal va al listado de productos del dueño
-// (donde está la propuesta de cotización), paymentMethod a los medios de pago
-// y auction al index (TODO: linkear al detalle cuando el id viaje también).
+// Cada tipo lleva al usuario a la pantalla relevante con un botón único:
+// sanction -> ver la multa, proposal -> listado de productos del dueño (donde
+// está la propuesta), paymentMethod -> medios de pago y auction -> index
+// (TODO: linkear al detalle cuando el id viaje también).
+//
+// winProduct es la EXCEPCIÓN: no navega a una pantalla, sino que pide decidir el
+// método de entrega de la obra ganada (envío / retiro). Por eso su footer se
+// renderiza aparte (ver WinProductActions) y su entrada acá queda sin usar; se
+// mantiene solo para satisfacer el Record completo de NotificationRoute.
 const TARGET: Record<NotificationRoute, { href: string; label: string }> = {
   paymentMethod: {
     href: "/profile/payment-methods",
@@ -36,6 +40,42 @@ const TARGET: Record<NotificationRoute, { href: string; label: string }> = {
     label: "Ver subastas",
   },
 };
+
+// Footer especial para notificaciones de obra ganada (winProduct): en vez de
+// navegar, el usuario elige cómo recibir la obra. La acción real (registrar el
+// envío / coordinar el retiro) todavía no está definida en el back -> por ahora
+// los handlers son placeholders.
+function WinProductActions() {
+  const choose = (method: "shipping" | "pickup") => {
+    // TODO: disparar la acción real de envío/retiro cuando exista el endpoint.
+    void method;
+  };
+
+  return (
+    <View className="mt-4 gap-3">
+      <Text className="text-center text-sm text-gray-500">
+        ¿Cómo querés recibir tu obra?
+      </Text>
+      <View className="flex-row gap-3">
+        <Button
+          size="lg"
+          variant="outline"
+          onPress={() => choose("shipping")}
+          className="flex-1 rounded-full"
+        >
+          <Text className="font-bold">Envío</Text>
+        </Button>
+        <Button
+          size="lg"
+          onPress={() => choose("pickup")}
+          className="flex-1 rounded-full"
+        >
+          <Text className="font-bold text-white">Ir a buscarlo</Text>
+        </Button>
+      </View>
+    </View>
+  );
+}
 
 function formatDateTime(iso: string) {
   const d = new Date(iso);
@@ -79,7 +119,7 @@ export default function NotificationDetail() {
           >
             <ArrowLeft />
           </Pressable>
-          <Text variant="h2" className="font-bold">
+          <Text variant="h3" className="font-bold">
             Notificación
           </Text>
         </View>
@@ -107,15 +147,19 @@ export default function NotificationDetail() {
 
             <Text className="text-base leading-6">{data.body}</Text>
 
-            <Button
-              size="lg"
-              onPress={() => router.push(TARGET[data.route].href as never)}
-              className="self-center mt-4 rounded-full px-8"
-            >
-              <Text className="font-bold text-white">
-                {TARGET[data.route].label}
-              </Text>
-            </Button>
+            {data.route === "winProduct" ? (
+              <WinProductActions />
+            ) : (
+              <Button
+                size="lg"
+                onPress={() => router.push(TARGET[data.route].href as never)}
+                className="self-center mt-4 rounded-full px-8"
+              >
+                <Text className="font-bold text-white">
+                  {TARGET[data.route].label}
+                </Text>
+              </Button>
+            )}
           </View>
         )}
       </ScrollView>

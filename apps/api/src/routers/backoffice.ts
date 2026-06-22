@@ -233,6 +233,9 @@ export const backofficeRouter = {
         name: products.name,
         fullDescription: products.fullDescription,
         date: products.date,
+        // Dueño del bien (= persona que lo subió). Se usa como destinatario de
+        // la notificación de propuesta cuando se lo cotiza (ver cotizaciones.tsx).
+        ownerId: products.ownerId,
       })
       .from(products)
       .leftJoin(catalogItems, eq(catalogItems.productId, products.id))
@@ -297,12 +300,15 @@ export const backofficeRouter = {
         commission: true,
         state: true,
       },
-      with: { product: { columns: { name: true } } },
+      with: { product: { columns: { name: true, ownerId: true } } },
     });
 
     return rows.map(({ product, ...it }) => ({
       ...it,
       productName: product?.name ?? "Bien",
+      // Dueño del bien: destinatario de la notificación al confirmar la
+      // cotización (producto aceptado -> Mis productos).
+      ownerId: product?.ownerId ?? null,
     }));
   }),
 
