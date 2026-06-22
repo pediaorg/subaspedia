@@ -1,8 +1,9 @@
 import { useRouter } from "expo-router";
 import { Image, Pressable, Text, View } from "react-native";
 
+import RankBadge from "@/components/profile/rank-badge";
 import { Button } from "@/components/ui/button";
-import type { Auction } from "@/lib/auctions";
+import { type Auction, RANK_TO_CATEGORY } from "@/lib/auctions";
 
 type AuctionCardProps = {
   auction: Auction;
@@ -23,6 +24,10 @@ export function AuctionCard({
         source={{ uri: auction.images[0] ?? "https://placehold.co/800x600" }}
         className="w-full h-40 rounded-t-md"
       />
+      {/* Rango de la subasta, esquina superior derecha. */}
+      <View className="absolute right-2 top-2 z-10">
+        <RankBadge category={RANK_TO_CATEGORY[auction.rank]} />
+      </View>
       <View className="h-12 bg-primary flex flex-row rounded-b-md justify-between items-center px-4 shadow-[0px_-4px_8px_rgba(0,0,0,0.30)]">
         <Pressable className="p-1" hitSlop={8} onPress={onOpenCatalog}>
           <Text className="text-white font-bold">Catálogo</Text>
