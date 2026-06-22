@@ -3,7 +3,8 @@ import * as Burnt from "burnt";
 import * as ImagePicker from "expo-image-picker";
 import { router, useLocalSearchParams } from "expo-router";
 import { Controller, useForm } from "react-hook-form";
-import { ScrollView, View } from "react-native";
+import { View } from "react-native";
+import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 
 import {
   type RegisterStep1Input,
@@ -89,7 +90,7 @@ export default function RegisterScreen() {
   return (
     <View className="flex-1 bg-white">
       <RegisterHeader />
-      <ScrollView
+      <KeyboardAwareScrollView
         contentContainerClassName="grow justify-center gap-4 px-6 pb-12"
         keyboardShouldPersistTaps="handled"
       >
@@ -266,7 +267,7 @@ export default function RegisterScreen() {
           Te enviaremos un código de verificación a tu email para completar el
           registro.
         </Text>
-      </ScrollView>
+      </KeyboardAwareScrollView>
     </View>
   );
 }

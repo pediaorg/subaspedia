@@ -5,6 +5,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "burnt/web";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
+import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { AccessGuard } from "@/components/access-guard";
@@ -15,34 +16,36 @@ import { queryClient } from "@/lib/query-client";
 export default function RootLayout() {
   return (
     <SafeAreaProvider>
-      <QueryClientProvider client={queryClient}>
-        <Stack>
-          <Stack.Screen name="index" options={{ headerShown: false }} />
-          <Stack.Screen name="profile" options={{ headerShown: false }} />
-          <Stack.Screen
-            name="login"
-            options={{
-              headerShown: false,
-              presentation: "transparentModal",
-              animation: "slide_from_bottom",
-            }}
-          />
-          <Stack.Screen name="register" options={{ headerShown: false }} />
-          <Stack.Screen name="logout" options={{ headerShown: false }} />
-        </Stack>
+      <KeyboardProvider>
+        <QueryClientProvider client={queryClient}>
+          <Stack>
+            <Stack.Screen name="index" options={{ headerShown: false }} />
+            <Stack.Screen name="profile" options={{ headerShown: false }} />
+            <Stack.Screen
+              name="login"
+              options={{
+                headerShown: false,
+                presentation: "transparentModal",
+                animation: "slide_from_bottom",
+              }}
+            />
+            <Stack.Screen name="register" options={{ headerShown: false }} />
+            <Stack.Screen name="logout" options={{ headerShown: false }} />
+          </Stack>
 
-        <BottomNav />
+          <BottomNav />
 
-        <AccessGuard />
+          <AccessGuard />
 
-        <NotificationToaster />
+          <NotificationToaster />
 
-        <StatusBar style="auto" />
+          <StatusBar style="auto" />
 
-        <PortalHost />
+          <PortalHost />
 
-        <Toaster position="bottom-right" />
-      </QueryClientProvider>
+          <Toaster position="bottom-right" />
+        </QueryClientProvider>
+      </KeyboardProvider>
     </SafeAreaProvider>
   );
 }

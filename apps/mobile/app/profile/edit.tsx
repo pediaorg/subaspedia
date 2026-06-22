@@ -4,6 +4,7 @@ import { router } from "expo-router";
 import { CameraIcon } from "lucide-react-native";
 import { useState } from "react";
 import { Alert, Pressable, Text, View } from "react-native";
+import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 
 import type { UpdateProfileInput, User } from "@subaspedia/types/user";
 import EditData from "@/components/profile/edit/edit-data";
@@ -141,7 +142,12 @@ function EditProfileForm({ user }: { user: User }) {
   };
 
   return (
-    <View className="flex-1 px-4 gap-6">
+    <KeyboardAwareScrollView
+      bottomOffset={20}
+      showsVerticalScrollIndicator={false}
+      className="flex-1"
+      contentContainerClassName="px-4 gap-6 pb-6"
+    >
       {/* Editar perfil */}
       <View className="gap-4">
         <Text className="font-bold text-3xl">Editar perfil</Text>
@@ -270,6 +276,6 @@ function EditProfileForm({ user }: { user: User }) {
           </Button>
         </Card>
       </View>
-    </View>
+    </KeyboardAwareScrollView>
   );
 }

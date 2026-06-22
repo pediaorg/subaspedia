@@ -1,6 +1,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { router, useLocalSearchParams } from "expo-router";
-import { Alert, ScrollView, Text, View } from "react-native";
+import { Alert, Text, View } from "react-native";
+import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 
 import {
   AlertDialog,
@@ -99,7 +100,7 @@ export default function ProposalScreen() {
         <Separator className="bg-gray-500" />
       </View>
 
-      <ScrollView contentContainerClassName="pb-4 gap-4">
+      <KeyboardAwareScrollView contentContainerClassName="pb-4 gap-4">
         <Card className="border-0 p-4 drop-shadow-2xl/10 gap-4">
           <View className="flex-row items-center gap-3">
             <Avatar alt={product.name} className="size-16 rounded-full">
@@ -147,7 +148,7 @@ export default function ProposalScreen() {
               : "Si aceptás la propuesta el producto pasará al estado “Aprobado”. Si la rechazás, pasará al estado “Rechazado” y no se incluirá en ninguna subasta."}
           </Text>
         </Card>
-      </ScrollView>
+      </KeyboardAwareScrollView>
 
       {!isRejected && (
         <View className="flex-row gap-3 pb-6">
