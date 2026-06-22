@@ -206,6 +206,12 @@ export const relations = defineRelations(schema, r => ({
       from: r.auctionRecords.id,
       to: r.saleShipments.recordId,
     }),
+    // Pago de la venta (tabla satélite pagosVenta). 0..1: sin fila = todavía
+    // sin pagar (unpaid).
+    payment: r.one.salePayments({
+      from: r.auctionRecords.id,
+      to: r.salePayments.recordId,
+    }),
   },
   auctionCurrencies: {
     auction: r.one.auctions({
@@ -217,6 +223,16 @@ export const relations = defineRelations(schema, r => ({
     record: r.one.auctionRecords({
       from: r.saleShipments.recordId,
       to: r.auctionRecords.id,
+    }),
+  },
+  salePayments: {
+    record: r.one.auctionRecords({
+      from: r.salePayments.recordId,
+      to: r.auctionRecords.id,
+    }),
+    paymentMethod: r.one.paymentMethods({
+      from: r.salePayments.paymentMethodId,
+      to: r.paymentMethods.id,
     }),
   },
   penalties: {

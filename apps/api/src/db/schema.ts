@@ -406,6 +406,36 @@ export const saleShipments = sqliteTable(
   ],
 );
 
+// Pago de una venta (registroDeSubasta). Tabla satélite 1:1, mismo patrón que
+// enviosVenta: extiende el legacy sin tocarlo. La fila SOLO existe una vez que
+// el ganador apretó "Pagar" (ausencia = todavía sin pagar). `estado` es la
+// máquina de estados del PAGO que decide el backoffice:
+//   pending  -> el ganador pagó, espera aprobación
+//   accepted -> el backoffice confirmó el pago
+//   rejected -> el backoffice lo rechazó (se emite multa automática)
+// El enum va inline (igual que el resto del schema); su fuente lógica es
+// `paymentStatus` de @subaspedia/types — mantenerlos alineados.
+export const salePayments = sqliteTable(
+  "pagosVenta",
+  {
+    recordId: integer("registro")
+      .primaryKey()
+      .references(() => auctionRecords.id),
+    paymentMethodId: integer("medioPago")
+      .notNull()
+      .references(() => paymentMethods.id),
+    state: text("estado", {
+      enum: ["pending", "accepted", "rejected"],
+    }).notNull(),
+  },
+  t => [
+    check(
+      "chk_payment_state",
+      sql`${t.state} IN ('pending', 'accepted', 'rejected')`,
+    ),
+  ],
+);
+
 // Multas del client (penalties). Tabla NUEVA (no estaba en la estructura
 // legacy). Causal única de dominio = falta de pago (10% de lo ofertado, 72hs
 // para presentar fondos). La moneda se denormaliza acá (columna propia) porque

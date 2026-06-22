@@ -38,6 +38,7 @@ PRAGMA foreign_keys = OFF;
 DELETE FROM notificaciones;
 DELETE FROM multas;
 DELETE FROM enviosVenta;
+DELETE FROM pagosVenta;
 DELETE FROM registroDeSubasta;
 DELETE FROM pujos;
 DELETE FROM asistentes;
@@ -236,6 +237,16 @@ INSERT INTO registroDeSubasta (identificador, subasta, duenio, producto, cliente
 -- con 'pickup' (retiro): no suma envío y dispara el aviso de pérdida de seguro.
 INSERT INTO enviosVenta (registro, metodoEntrega, costoEnvio) VALUES
   (4, 'pickup', 0);
+
+-- ---- pagosVenta (sale_payments) — tabla satélite de pago de la venta -------
+-- 1:1 con registroDeSubasta. La fila SOLO existe una vez que el ganador apretó
+-- "Pagar" (ausencia = todavía sin pagar -> estado "A pagar" + botón Pagar).
+-- El reloj de Juan (registro 1, ARS) NO tiene fila: queda impago para que Juan
+-- lo pague EN VIVO (-> 'pending' -> el backoffice lo resuelve). La moneda
+-- (registro 4, USD) nace 'pending' (Juan ya la pagó con su medio verificado id
+-- 1) para que el backoffice tenga algo que aprobar/rechazar de entrada.
+INSERT INTO pagosVenta (registro, medioPago, estado) VALUES
+  (4, 1, 'pending');
 
 -- ---- multas (penalties; FK -> clientes, subastas) --------------------------
 -- Multas de Juan (cliente 3), una por estado para la pantalla "Multas y pagos".
