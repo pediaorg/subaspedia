@@ -1,5 +1,5 @@
 import { router, useLocalSearchParams } from "expo-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { View } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 
@@ -11,8 +11,13 @@ import { Text } from "@/components/ui/text";
 import { api } from "@/lib/api";
 
 export default function VerifyScreen() {
-  const { email } = useLocalSearchParams<{ email: string }>();
-  const [code, setCode] = useState("");
+  // `code` llega cuando se entra desde el botón del mail: viene pre-cargado y se
+  // confirma solo (ver el efecto de abajo).
+  const { email, code: codeParam } = useLocalSearchParams<{
+    email: string;
+    code?: string;
+  }>();
+  const [code, setCode] = useState(codeParam ?? "");
 
   const verify = api.auth.verifyCode.useMutation({
     onSuccess: () => router.replace("/register/pending"),
@@ -22,6 +27,21 @@ export default function VerifyScreen() {
     if (code.length === VERIFICATION_CODE_LENGTH && !verify.isPending)
       verify.mutate({ email, code });
   };
+
+  // Llegó desde el link del mail con el código: confirmar automáticamente una
+  // sola vez. `verify.mutate` es estable; sin código válido o sin email no hace
+  // nada.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: disparo único al montar con el code del link
+  useEffect(() => {
+    if (
+      codeParam &&
+      email &&
+      codeParam.length === VERIFICATION_CODE_LENGTH &&
+      !verify.isPending
+    )
+      verify.mutate({ email, code: codeParam });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <KeyboardAwareScrollView

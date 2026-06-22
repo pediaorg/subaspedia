@@ -88,6 +88,23 @@ async function sendEmail(args: {
   }
 }
 
+/**
+ * Botón que abre la pantalla de verificación con el email y el código ya
+ * cargados, para confirmar de un toque sin tipear nada. El código viaja igual
+ * como texto arriba por si el cliente de mail bloquea links.
+ */
+function verifyButton(to: string, code: string, label: string): string {
+  const origin = env.WEB_ORIGIN ?? DEFAULT_WEB_ORIGIN;
+  const url = `${origin}/register/verify?email=${encodeURIComponent(
+    to,
+  )}&code=${encodeURIComponent(code)}`;
+  return `
+    <p style="margin: 24px 0;">
+      <a href="${url}" style="display: inline-block; background: #111; color: #fff; text-decoration: none; padding: 12px 20px; border-radius: 8px; font-weight: 600;">${label}</a>
+    </p>
+  `;
+}
+
 /** Envía el código de verificación por email. */
 export async function sendVerificationEmail(
   to: string,
@@ -100,7 +117,8 @@ export async function sendVerificationEmail(
       <h1 style="font-size: 20px;">Verificá tu cuenta</h1>
       <p>Usá este código para completar tu registro en Subaspedia:</p>
       <p style="font-size: 32px; font-weight: 700; letter-spacing: 6px;">${code}</p>
-      <p style="color: #666; font-size: 13px;">El código vence en 15 minutos. Si no fuiste vos, ignorá este mensaje.</p>
+      ${verifyButton(to, code, "Verificar mi cuenta")}
+      <p style="color: #666; font-size: 13px;">O ingresá el código manualmente en la app. Vence en 15 minutos. Si no fuiste vos, ignorá este mensaje.</p>
     `),
   });
 }
