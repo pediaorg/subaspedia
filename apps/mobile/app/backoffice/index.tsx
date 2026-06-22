@@ -9,6 +9,7 @@ import { CatalogosSection } from "./_/catalogos";
 import { CotizacionesSection } from "./_/cotizaciones";
 import { InfraccionesSection } from "./_/infracciones";
 import { PagosSection } from "./_/pagos";
+import { PagosSubastaSection } from "./_/pagos-subasta";
 import { PostoresSection } from "./_/postores";
 import { SubastasSection } from "./_/subastas";
 
@@ -20,6 +21,11 @@ import { SubastasSection } from "./_/subastas";
 const TABS = [
   { value: "postores", label: "Postores", Section: PostoresSection },
   { value: "pagos", label: "Pagos", Section: PagosSection },
+  {
+    value: "pagos-subasta",
+    label: "Pagos subasta",
+    Section: PagosSubastaSection,
+  },
   {
     value: "cotizaciones",
     label: "Cotizaciones",
