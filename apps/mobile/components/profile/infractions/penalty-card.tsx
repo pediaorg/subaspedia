@@ -27,8 +27,9 @@ const ICON_COLOR: Record<PenaltyStatus, string> = {
 };
 
 export default function PenaltyCard({ penalty }: PenaltyProps) {
-  // Solo las multas impagas se pueden pagar; una pagada no ofrece acción.
-  const canPay = penalty.status !== "paid";
+  // Solo se puede pagar mientras está pendiente. Una vencida (pasadas las 72hs)
+  // ya no es pagable en la app, y una pagada no ofrece acción.
+  const canPay = penalty.status === "pending";
 
   return (
     <Card className="flex-row items-center border-0 h-24 gap-3 p-2 drop-shadow-xl/2 z-20">

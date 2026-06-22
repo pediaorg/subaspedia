@@ -79,6 +79,19 @@ export default function PenaltyPaymentDialog({
   function handlePay() {
     if (isPending) return; // evita el doble-submit (reintentos -> 409)
     if (selectedId === null) return; // el botón Pagar solo aparece con medio elegido
+    // Vencida (pasadas las 72hs) ya no se puede pagar. Cubre el caso de que la
+    // multa venza con el dialog abierto: el back también lo rechaza.
+    if (
+      penalty.status === "overdue" ||
+      new Date(penalty.dueDate) < new Date()
+    ) {
+      Alert.alert(
+        "No se pudo pagar",
+        "La multa venció y ya no se puede pagar.",
+      );
+      handleOpenChange(false);
+      return;
+    }
     payPenalty({
       id: penalty.id,
       status: "paid",

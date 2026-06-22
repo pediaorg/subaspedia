@@ -501,15 +501,21 @@ export const userRouter = {
         });
 
       // La multa debe ser del client logueado. En DB solo hay pending/paid: una
-      // multa "vencida" es la misma fila pending, así que sigue siendo pagable.
+      // multa "vencida" es la misma fila pending con venceEl ya pasado.
       const penalty = await context.db.query.penalties.findFirst({
         where: { id: input.id, clientId: context.userId },
-        columns: { status: true },
+        columns: { status: true, dueDate: true },
       });
       if (!penalty)
         throw new ORPCError("NOT_FOUND", { message: "Multa no encontrada" });
       if (penalty.status === "paid")
         throw new ORPCError("CONFLICT", { message: "La multa ya está pagada" });
+      // Pasadas las 72hs (venceEl) la multa queda vencida y ya no se puede pagar
+      // en la app (el caso se deriva a la justicia, fuera del alcance del sistema).
+      if (new Date(penalty.dueDate) < new Date())
+        throw new ORPCError("FORBIDDEN", {
+          message: "La multa venció y ya no se puede pagar",
+        });
 
       // El medio de pago debe ser del client y estar verificado (mismo criterio
       // que canPayPenaltyWith en el front). TODO(moneda): validar que el medio
