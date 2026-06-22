@@ -6,12 +6,22 @@ import { Badge } from "@/components/ui/badge";
 type BadgeProps = { status: OrderStatus };
 
 // Mismo molde visual que los badges de productos y multas (w-32 h-5 + sombra de
-// texto). Color por etapa del pedido: ámbar=pagado, azul=en camino,
-// verde=entregado, gris=retirado.
+// texto). Color por etapa: naranja=a pagar, azul=pendiente/en camino,
+// ámbar=pagado, verde=entregado, gris=retirado, rojo=rechazado.
 const BADGE_CONFIG: Record<
   OrderStatus,
   { label: string; containerClass: string; outlineColor: string }
 > = {
+  unpaid: {
+    label: "A pagar",
+    containerClass: "bg-[#E0A458]",
+    outlineColor: "#8A5E1F",
+  },
+  pending: {
+    label: "Pendiente",
+    containerClass: "bg-[#82AED8]",
+    outlineColor: "#35597A",
+  },
   paid: {
     label: "Pagado",
     containerClass: "bg-[#D8B582]",
@@ -31,6 +41,11 @@ const BADGE_CONFIG: Record<
     label: "Retirado",
     containerClass: "bg-[#C3C9CE]",
     outlineColor: "#5A6168",
+  },
+  rejected: {
+    label: "Rechazado",
+    containerClass: "bg-[#D88282]",
+    outlineColor: "#7A3535",
   },
 };
 

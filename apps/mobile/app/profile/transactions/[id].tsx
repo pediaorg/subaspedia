@@ -5,6 +5,7 @@ import { Alert, Pressable, ScrollView, Text, View } from "react-native";
 
 import type { DeliveryMethod } from "@subaspedia/types";
 import OrderStatusBadge from "@/components/profile/transactions/order-status-badge";
+import TransactionPaymentDialog from "@/components/profile/transactions/transaction-payment-dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -103,11 +104,14 @@ export default function TransactionDetailScreen() {
   }
 
   const isPickup = tx.deliveryMethod === "pickup";
+  // El método de entrega solo se puede cambiar mientras la compra esté impaga;
+  // una vez pagada, el total quedó fijado y la elección se bloquea.
+  const isUnpaid = tx.status === "unpaid";
 
   // No es destructivo elegir envío -> mutación directa. Retiro pasa por la
   // confirmación del seguro (AlertDialog) antes de llamar acá.
   const choose = (method: DeliveryMethod) => {
-    if (isPending || method === tx.deliveryMethod) return;
+    if (isPending || !isUnpaid || method === tx.deliveryMethod) return;
     setDelivery({ id: transactionId, deliveryMethod: method });
   };
 
@@ -173,7 +177,7 @@ export default function TransactionDetailScreen() {
               accessibilityRole="button"
               accessibilityLabel="Elegir envío a domicilio"
               onPress={() => choose("shipping")}
-              disabled={isPending}
+              disabled={isPending || !isUnpaid}
               className={`flex-row items-center gap-3 rounded-2xl px-4 py-3 active:opacity-70 ${
                 isPickup
                   ? "bg-white drop-shadow-md/20"
@@ -204,7 +208,7 @@ export default function TransactionDetailScreen() {
                 <Pressable
                   accessibilityRole="button"
                   accessibilityLabel="Elegir retiro personal"
-                  disabled={isPending}
+                  disabled={isPending || !isUnpaid}
                   className={`flex-row items-center gap-3 rounded-2xl px-4 py-3 active:opacity-70 ${
                     isPickup
                       ? "bg-primary/10 border border-primary"
@@ -253,16 +257,25 @@ export default function TransactionDetailScreen() {
           </View>
         </Card>
 
-        {/* Confirma el método elegido y vuelve al perfil. El método ya está
-            persistido por setDelivery; este botón solo cierra el flujo. */}
-        <Button
-          size="lg"
-          disabled={isPending}
-          onPress={() => router.push("/profile")}
-          className="mt-2 self-center rounded-full bg-primary px-12 py-4 shadow-none"
-        >
-          <Text className="text-base font-bold text-white">Confirmar</Text>
-        </Button>
+        {/* Impaga -> "Pagar" (elige medio verificado -> deja la compra
+            'pending' -> vuelve al perfil). Ya pagada/resuelta -> solo "Volver al
+            perfil". */}
+        {isUnpaid ? (
+          <TransactionPaymentDialog
+            transaction={tx}
+            onPaid={() => router.push("/profile")}
+          />
+        ) : (
+          <Button
+            size="lg"
+            onPress={() => router.push("/profile")}
+            className="mt-2 self-center rounded-full bg-primary px-12 py-4 shadow-none"
+          >
+            <Text className="text-base font-bold text-white">
+              Volver al perfil
+            </Text>
+          </Button>
+        )}
       </ScrollView>
     </View>
   );
