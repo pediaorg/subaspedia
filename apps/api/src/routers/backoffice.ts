@@ -861,4 +861,131 @@ export const backofficeRouter = {
 
       return { success: true };
     }),
+
+  // --- Ascensos de Rango ---
+
+  pendingRankUps: pub.handler(async ({ context }) => {
+    const USD_TO_ARS = 1000;
+
+    const rows = await context.db.query.clients.findMany({
+      columns: { id: true, category: true },
+      with: {
+        person: { columns: { name: true, lastName: true } },
+        paymentMethods: {
+          columns: { type: true, verified: true },
+        },
+        auctionRecords: {
+          columns: { id: true },
+        },
+        attendees: {
+          with: {
+            bids: {
+              columns: { amount: true },
+              with: {
+                item: {
+                  with: {
+                    catalog: {
+                      with: {
+                        auction: {
+                          with: {
+                            currencyRow: { columns: { currency: true } },
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    const RANKS = ["common", "special", "silver", "gold", "platinum"] as const;
+
+    const suggestions = rows
+      .map(client => {
+        const pms = client.paymentMethods.filter(p => p.verified);
+        const numPms = pms.length;
+        const hasBankAccount = pms.some(p => p.type === "bank_account");
+        const hasChecks = pms.some(p => p.type === "certified_check");
+        const wonAuctions = client.auctionRecords.length;
+
+        let bidSumARS = 0;
+        for (const attendee of client.attendees) {
+          for (const bid of attendee.bids) {
+            const currency =
+              bid.item?.catalog?.auction?.currencyRow?.currency ?? "ARS";
+            bidSumARS +=
+              currency === "USD" ? bid.amount * USD_TO_ARS : bid.amount;
+          }
+        }
+
+        let maxRank: (typeof RANKS)[number] = "common";
+
+        if (hasChecks && wonAuctions >= 10) {
+          maxRank = "platinum";
+        } else if (hasBankAccount && wonAuctions >= 1) {
+          maxRank = "gold";
+        } else if (numPms >= 3 && bidSumARS >= 20000) {
+          maxRank = "silver";
+        } else if (numPms >= 2) {
+          maxRank = "special";
+        }
+
+        const currentIdx = RANKS.indexOf(
+          (client.category as (typeof RANKS)[number]) ?? "common",
+        );
+        const maxIdx = RANKS.indexOf(maxRank);
+
+        if (maxIdx > currentIdx) {
+          return {
+            clientId: client.id,
+            name:
+              [client.person?.name, client.person?.lastName]
+                .filter(Boolean)
+                .join(" ") || `Cliente #${client.id}`,
+            currentCategory: client.category ?? "common",
+            suggestedCategory: maxRank,
+            // Info extra útil para la UI
+            stats: {
+              numPms,
+              hasBankAccount,
+              hasChecks,
+              wonAuctions,
+              bidSumARS,
+            },
+          };
+        }
+        return null;
+      })
+      .filter(x => x !== null);
+
+    return suggestions;
+  }),
+
+  approveRankUp: pub
+    .input(
+      z.object({
+        clientId: z.number().int().positive(),
+        category: auctionCategory,
+      }),
+    )
+    .handler(async ({ context, input }) => {
+      const client = await context.db.query.clients.findFirst({
+        where: { id: input.clientId },
+        columns: { id: true },
+      });
+      if (!client) {
+        throw new ORPCError("NOT_FOUND", { message: "Cliente no encontrado" });
+      }
+
+      await context.db
+        .update(clients)
+        .set({ category: input.category })
+        .where(eq(clients.id, input.clientId));
+
+      return { success: true };
+    }),
 };
