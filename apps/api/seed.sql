@@ -36,6 +36,7 @@ PRAGMA foreign_keys = OFF;
 
 -- ---- Limpieza (orden inverso a las dependencias FK) ------------------------
 DELETE FROM multas;
+DELETE FROM enviosVenta;
 DELETE FROM registroDeSubasta;
 DELETE FROM pujos;
 DELETE FROM asistentes;
@@ -174,8 +175,8 @@ INSERT INTO itemsCatalogo (identificador, catalogo, producto, precioBase, comisi
   (3, 1, 4, 50000,  10, 0),
   (4, 1, 5, 30000,  10, 0),
   (5, 1, 6, 120000, 12, 1),
-  -- Item del catálogo USD (subasta 2): precioBase y comisión en dólares.
-  (6, 2, 7, 1500, 5, 0),
+  -- Item del catálogo USD (subasta 2): la moneda se la lleva Juan (registro 4).
+  (6, 2, 7, 1500, 5, 1),
   -- El lingote de Juan (producto 8) ya se remató en la subasta 2.
   (7, 2, 8, 2000, 8, 1);
 
@@ -220,7 +221,20 @@ INSERT INTO registroDeSubasta (identificador, subasta, duenio, producto, cliente
   (2, 1, 3, 6, 5, 135000, 12),
   -- El lingote (producto 8) de Juan (dueño 3) se lo lleva Ana (cliente 5) en la
   -- subasta 2 (USD): salePrice en dólares para "Mis productos" de Juan.
-  (3, 2, 3, 8, 5, 2200, 8);
+  (3, 2, 3, 8, 5, 2200, 8),
+  -- Juan (cliente 3) COMPRA la moneda (producto 7) de Lucía (dueño 4) en la
+  -- subasta 2 (USD): le da una compra en dólares a "Multas y pagos" -> tab
+  -- Pagos. Junto con el reloj (registro 1, ARS) cubre ambas monedas de envío.
+  (4, 2, 4, 7, 3, 1800, 5);
+
+-- ---- enviosVenta (sale_shipments) — tabla satélite de envío/entrega --------
+-- 1:1 con registroDeSubasta. La fila SOLO existe cuando el comprador eligió;
+-- su ausencia = default 'shipping' (la lectura va LEFT JOIN + COALESCE). Por eso
+-- el reloj de Juan (registro 1, ARS) NO tiene fila acá: cae al default envío y
+-- la factura le suma el costo ARS. La moneda (registro 4, USD) sí tiene fila,
+-- con 'pickup' (retiro): no suma envío y dispara el aviso de pérdida de seguro.
+INSERT INTO enviosVenta (registro, metodoEntrega, costoEnvio) VALUES
+  (4, 'pickup', 0);
 
 -- ---- multas (penalties; FK -> clientes, subastas) --------------------------
 -- Multas de Juan (cliente 3), una por estado para la pantalla "Multas y pagos".

@@ -2,15 +2,20 @@ import { ORPCError } from "@orpc/server";
 import { and, count, desc, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 
+import { deliveryMethod } from "@subaspedia/types";
 import { createPaymentMethodSchema } from "@subaspedia/types/forms/payment";
 import {
   MAX_PAYMENT_METHODS,
   paymentMethodSchema,
 } from "@subaspedia/types/payment-method";
 import { penaltySchema, penaltyStatus } from "@subaspedia/types/penalty";
-import { transactionSchema } from "@subaspedia/types/transaction";
+import {
+  type TransactionDetail,
+  transactionDetailSchema,
+  transactionSchema,
+} from "@subaspedia/types/transaction";
 import { bidHistorySchema, rankSummarySchema } from "@subaspedia/types/user";
-import { authed } from "@/api/context";
+import { authed, type Context } from "@/api/context";
 import {
   attendees,
   auctionRecords,
@@ -20,9 +25,70 @@ import {
   paymentMethods,
   penalties,
   products,
+  saleShipments,
 } from "@/api/db/schema";
 import { toIso } from "@/api/lib/date";
 import { firstPhotoToImg } from "@/api/lib/photo";
+
+// Costo de envío fijo por moneda. La consigna no define un cálculo: se fija un
+// monto redondo que hereda la moneda de la subasta (las de USD se cobran en
+// USD). Source of truth del back; al elegir envío se snapshotea a enviosVenta.
+const SHIPPING_COST = { ARS: 23000, USD: 25 } as const;
+
+// Arma el detalle (factura) de una compra del client logueado. Lo comparten
+// transactionById (lectura) y setDelivery (devuelve el detalle ya actualizado).
+// El método de entrega se resuelve con default 'shipping' (ausencia de fila en
+// enviosVenta = envío); la dirección se lee EN VIVO de personas y se omite si es
+// retiro. Lanza NOT_FOUND si la compra no es del usuario o le faltan datos.
+async function loadTransactionDetail(
+  context: Context & { userId: number },
+  id: number,
+): Promise<TransactionDetail> {
+  const r = await context.db.query.auctionRecords.findFirst({
+    where: { id, clientId: context.userId },
+    columns: { id: true, amount: true, commission: true, auctionId: true },
+    with: {
+      product: {
+        columns: { id: true, name: true },
+        with: { photos: { columns: { id: true } } },
+      },
+      auction: { columns: { date: true }, with: { currencyRow: true } },
+      shipment: { columns: { deliveryMethod: true, shippingCost: true } },
+      client: { with: { person: { columns: { address: true } } } },
+    },
+  });
+  if (!r?.product || !r.auction?.date)
+    throw new ORPCError("NOT_FOUND", { message: "Compra no encontrada" });
+
+  const currency = r.auction.currencyRow?.currency ?? "ARS";
+  const method = r.shipment?.deliveryMethod ?? "shipping";
+  const shippingCost =
+    method === "shipping"
+      ? (r.shipment?.shippingCost ?? SHIPPING_COST[currency])
+      : 0;
+  const commissionAmount = (r.amount * r.commission) / 100;
+
+  return {
+    id: r.id,
+    productName: r.product.name,
+    img: firstPhotoToImg(
+      r.product.photos[0]?.id,
+      context.apiOrigin,
+      r.product.id,
+    ),
+    currency,
+    date: toIso(r.auction.date),
+    auctionId: r.auctionId,
+    status: method === "pickup" ? "picked_up" : "paid",
+    deliveryMethod: method,
+    bidAmount: r.amount,
+    commissionAmount,
+    shippingCost,
+    total: r.amount + commissionAmount + shippingCost,
+    shippingAddress:
+      method === "shipping" ? (r.client?.person?.address ?? null) : null,
+  };
+}
 
 export const userRouter = {
   // GET /users/me/payment-methods — los medios de pago del client logueado.
@@ -223,6 +289,8 @@ export const userRouter = {
             columns: { date: true },
             with: { currencyRow: true },
           },
+          // Entrega elegida (tabla satélite). Sin fila = default 'shipping'.
+          shipment: { columns: { deliveryMethod: true, shippingCost: true } },
         },
       });
 
@@ -231,6 +299,15 @@ export const userRouter = {
         // tienen producto y fecha. Si por un dato inconsistente faltara alguno,
         // omitimos la fila: productName/date son no-nullable en transactionSchema.
         if (!r.product || !r.auction?.date) return [];
+        const currency = r.auction.currencyRow?.currency ?? "ARS";
+        // Default = envío: ausencia de fila satélite se trata como 'shipping'.
+        const method = r.shipment?.deliveryMethod ?? "shipping";
+        const shippingCost =
+          method === "shipping"
+            ? (r.shipment?.shippingCost ?? SHIPPING_COST[currency])
+            : 0;
+        // `comision` es un PORCENTAJE de la puja (no un monto), p. ej. 12 = 12%.
+        const commissionAmount = (r.amount * r.commission) / 100;
         return [
           {
             id: r.id,
@@ -240,19 +317,66 @@ export const userRouter = {
               context.apiOrigin,
               r.product.id,
             ),
-            // Total pagado = puja + comisión. `comision` es un PORCENTAJE de la
-            // puja (no un monto), p. ej. 12 = 12%. TODO(envío): sumar el costo
-            // de envío cuando se modele.
-            amount: r.amount + (r.amount * r.commission) / 100,
-            currency: r.auction.currencyRow?.currency ?? "ARS",
+            // Total pagado = puja + comisión + envío (el envío suma solo si el
+            // método resuelto es 'shipping').
+            amount: r.amount + commissionAmount + shippingCost,
+            currency,
             date: toIso(r.auction.date),
             auctionId: r.auctionId,
-            // El registro existe -> la subasta se ganó y pagó. TODO(pedido):
-            // derivar shipped/delivered/picked_up cuando se modele el envío.
-            status: "paid" as const,
+            // El registro existe -> la subasta se ganó y pagó. El estado refleja
+            // la elección de entrega: retiro -> 'picked_up', envío -> 'paid'.
+            status:
+              method === "pickup" ? ("picked_up" as const) : ("paid" as const),
+            deliveryMethod: method,
+            shippingCost,
           },
         ];
       });
+    }),
+
+  // GET /users/me/transactions/{id} — detalle (factura) de una compra. Desglosa
+  // puja + comisión + envío y muestra la dirección declarada (si es envío).
+  transactionById: authed
+    .input(z.object({ id: z.number().int().positive() }))
+    .output(transactionDetailSchema)
+    .handler(({ context, input }) => loadTransactionDetail(context, input.id)),
+
+  // PUT /users/me/transactions/{id}/delivery — el comprador elige envío o
+  // retiro. Envío (default) snapshotea el costo por moneda; retiro lo deja en 0
+  // (y pierde el seguro, avisado en el front). Upsert en la satélite enviosVenta.
+  setDelivery: authed
+    .input(z.object({ id: z.number().int().positive(), deliveryMethod }))
+    .output(transactionDetailSchema)
+    .handler(async ({ context, input }) => {
+      // La compra debe ser del client logueado. Traemos la moneda de la subasta
+      // para fijar el costo de envío.
+      const record = await context.db.query.auctionRecords.findFirst({
+        where: { id: input.id, clientId: context.userId },
+        columns: { id: true },
+        with: {
+          auction: { columns: { id: true }, with: { currencyRow: true } },
+        },
+      });
+      if (!record)
+        throw new ORPCError("NOT_FOUND", { message: "Compra no encontrada" });
+
+      const currency = record.auction?.currencyRow?.currency ?? "ARS";
+      const shippingCost =
+        input.deliveryMethod === "shipping" ? SHIPPING_COST[currency] : 0;
+
+      await context.db
+        .insert(saleShipments)
+        .values({
+          recordId: input.id,
+          deliveryMethod: input.deliveryMethod,
+          shippingCost,
+        })
+        .onConflictDoUpdate({
+          target: saleShipments.recordId,
+          set: { deliveryMethod: input.deliveryMethod, shippingCost },
+        });
+
+      return loadTransactionDetail(context, input.id);
     }),
 
   // GET /users/me/penalties — las multas del client logueado. Causal única de

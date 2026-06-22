@@ -14,6 +14,13 @@ export type AuctionCategory = z.infer<typeof auctionCategory>;
 // index -> auction -> index. Se re-exporta acá para no cambiar el punto de
 // importación público (`@subaspedia/types`).
 export { type Currency, currency } from "./currency";
+// `deliveryMethod` (envío/retiro) sigue el mismo patrón que `currency`: módulo
+// hoja sin dependencias, re-exportado acá para el consumo público.
+export {
+  DELIVERY_METHOD_LABELS,
+  type DeliveryMethod,
+  deliveryMethod,
+} from "./delivery";
 
 export const PRODUCT_CATEGORIES = [
   { value: auctionCategory.enum.common, label: "Común" },

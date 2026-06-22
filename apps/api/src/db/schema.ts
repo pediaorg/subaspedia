@@ -378,6 +378,34 @@ export const auctionRecords = sqliteTable(
   ],
 );
 
+// Envío/entrega de una venta (registroDeSubasta). Tabla satélite 1:1, mismo
+// patrón que monedasSubasta: extiende el legacy `registroDeSubasta` sin tocar su
+// estructura. La fila SOLO existe cuando el comprador eligió explícitamente; su
+// ausencia = default 'shipping' (la lectura va LEFT JOIN + COALESCE en el
+// handler). Por eso NO se snapshotea la dirección: en 'shipping' se lee en vivo
+// de `personas`, y en 'pickup' se ignora. El costo SÍ se fija acá (snapshot por
+// si cambia la constante del back); en 'pickup' es 0. El enum va inline (igual
+// que el resto del schema); su fuente lógica es `deliveryMethod` de
+// @subaspedia/types — mantenerlos alineados.
+export const saleShipments = sqliteTable(
+  "enviosVenta",
+  {
+    recordId: integer("registro")
+      .primaryKey()
+      .references(() => auctionRecords.id),
+    deliveryMethod: text("metodoEntrega", {
+      enum: ["shipping", "pickup"],
+    }).notNull(),
+    shippingCost: real("costoEnvio").notNull(),
+  },
+  t => [
+    check(
+      "chk_delivery_method",
+      sql`${t.deliveryMethod} IN ('shipping', 'pickup')`,
+    ),
+  ],
+);
+
 // Multas del client (penalties). Tabla NUEVA (no estaba en la estructura
 // legacy). Causal única de dominio = falta de pago (10% de lo ofertado, 72hs
 // para presentar fondos). La moneda se denormaliza acá (columna propia) porque
