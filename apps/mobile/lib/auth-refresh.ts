@@ -6,7 +6,7 @@ import type { AppClient } from "@/api/rpc";
 import { authStore } from "@/lib/auth";
 
 const isWeb = Platform.OS === "web";
-const API_URL = process.env.EXPO_PUBLIC_API_URL ?? "http://192.168.1.11:8787";
+const API_URL = process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:8787";
 
 // Margen para refrescar el access token un poco antes de que su TTL llegue a 0,
 // evitando mandar un request que el server rechazaría por vencido.

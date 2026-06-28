@@ -17,7 +17,7 @@ function withAuth(req: Request, token: string): Request {
 }
 
 const link = new RPCLink({
-  url: `${process.env.EXPO_PUBLIC_API_URL ?? "http://192.168.1.11:8787"}/rpc`,
+  url: `${process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:8787"}/rpc`,
   headers: () => {
     const h: Record<string, string> = {};
     if (!isWeb) h["X-Client"] = "native";
