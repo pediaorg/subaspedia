@@ -119,24 +119,45 @@ export function ProductDialog({
                 <Text className="text-lg font-bold text-white">
                   Precio base
                 </Text>
-                <View className="rounded-full bg-white/25 px-4 py-1">
-                  <Text
-                    className="font-semibold text-white"
-                    style={
-                      isAuthed
-                        ? undefined
-                        : {
-                            color: "transparent",
-                            textShadowColor: "rgba(255,255,255,0.95)",
-                            textShadowOffset: { width: 0, height: 0 },
-                            textShadowRadius: 8,
-                          }
-                    }
-                  >
-                    {formatMoney(product.basePrice, product.currency)}
-                  </Text>
+                <View className="relative rounded-full bg-white/25 px-4 py-1 overflow-hidden">
+                  {isAuthed ? (
+                    <Text className="font-semibold text-white">
+                      {formatMoney(product.basePrice, product.currency)}
+                    </Text>
+                  ) : (
+                    <Text
+                      className="font-semibold text-white"
+                      style={{ letterSpacing: -1 }}
+                    >
+                      {"•".repeat(
+                        Math.max(
+                          5,
+                          formatMoney(product.basePrice, product.currency)
+                            .length,
+                        ),
+                      )}
+                    </Text>
+                  )}
+                  {!isAuthed && (
+                    <View
+                      pointerEvents="none"
+                      style={{
+                        position: "absolute",
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        backgroundColor: "rgba(255,255,255,0.45)",
+                      }}
+                    />
+                  )}
                 </View>
               </View>
+              {!isAuthed && (
+                <Text className="text-xs text-muted-foreground text-center -mt-1">
+                  Iniciá sesión para ver el precio base.
+                </Text>
+              )}
             </View>
           </ScrollView>
         </DialogContent>
