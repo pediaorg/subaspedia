@@ -1,6 +1,6 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { router, useLocalSearchParams } from "expo-router";
-import { Alert, Text, View } from "react-native";
+import { Alert, Pressable, Text, View } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -16,7 +16,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Avatar, AvatarImage } from "@/components/ui/avatar";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { api } from "@/lib/api";
@@ -99,7 +99,7 @@ export default function ProposalScreen() {
         <Text className="font-bold text-3xl">
           {isRejected ? "Motivo del rechazo" : "Propuesta"}
         </Text>
-        <Separator className="bg-gray-500" />
+        <Separator className="bg-border" />
       </View>
 
       <KeyboardAwareScrollView
@@ -118,7 +118,7 @@ export default function ProposalScreen() {
             </View>
           </View>
 
-          <Separator className="bg-gray-300" />
+          <Separator className="bg-border" />
 
           {product.proposalText && (
             <Text className="text-sm text-gray-700 leading-5">
@@ -160,72 +160,83 @@ export default function ProposalScreen() {
           className="flex-row gap-3 pt-2"
           style={{ paddingBottom: insets.bottom + 16 }}
         >
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button
-                variant="destructive"
-                disabled={isPending}
-                className="flex-1 rounded-xl"
-              >
-                <Text className="font-bold text-white">
-                  {isPending ? "..." : "Rechazar"}
-                </Text>
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent
-              className="bg-primary-foreground"
-              overlayClassName="backdrop-blur-md bg-black/30"
-            >
-              <AlertDialogHeader>
-                <AlertDialogTitle>¿Rechazar la propuesta?</AlertDialogTitle>
-                <AlertDialogDescription className="text-gray-700">
-                  El producto pasará al estado “Rechazado” y no se incluirá en
-                  ninguna subasta. Esta acción no se puede deshacer.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>
-                  <Text>Cancelar</Text>
-                </AlertDialogCancel>
-                <AlertDialogAction
-                  onPress={handleReject}
-                  className={buttonVariants({ variant: "destructive" })}
+          <View className="flex-1">
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Rechazar propuesta"
+                  disabled={isPending}
+                  className="h-12 w-full items-center justify-center rounded-xl bg-destructive active:bg-destructive/90"
                 >
-                  <Text className="font-bold text-white">Sí, rechazar</Text>
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
+                  <Text className="font-bold text-white">
+                    {isPending ? "..." : "Rechazar"}
+                  </Text>
+                </Pressable>
+              </AlertDialogTrigger>
+              <AlertDialogContent
+                className="bg-primary-foreground"
+                overlayClassName="backdrop-blur-md bg-black/30"
+              >
+                <AlertDialogHeader>
+                  <AlertDialogTitle>¿Rechazar la propuesta?</AlertDialogTitle>
+                  <AlertDialogDescription className="text-gray-700">
+                    El producto pasará al estado “Rechazado” y no se incluirá en
+                    ninguna subasta. Esta acción no se puede deshacer.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>
+                    <Text>Cancelar</Text>
+                  </AlertDialogCancel>
+                  <AlertDialogAction
+                    onPress={handleReject}
+                    className={buttonVariants({ variant: "destructive" })}
+                  >
+                    <Text className="font-bold text-white">Sí, rechazar</Text>
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </View>
 
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button disabled={isPending} className="flex-1 rounded-xl">
-                <Text className="font-bold text-white">
-                  {isPending ? "..." : "Aceptar"}
-                </Text>
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent
-              className="bg-primary-foreground"
-              overlayClassName="backdrop-blur-md bg-black/30"
-            >
-              <AlertDialogHeader>
-                <AlertDialogTitle>¿Aceptar la propuesta?</AlertDialogTitle>
-                <AlertDialogDescription className="text-gray-700">
-                  El producto pasará al estado “Aprobado” y será incluido en una
-                  subasta futura con el valor base y la comisión propuestos.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>
-                  <Text>Cancelar</Text>
-                </AlertDialogCancel>
-                <AlertDialogAction onPress={handleAccept}>
-                  <Text className="font-bold text-white">Sí, aceptar</Text>
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
+          <View className="flex-1">
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Aceptar propuesta"
+                  disabled={isPending}
+                  className="h-12 w-full items-center justify-center rounded-xl bg-primary active:bg-primary/90"
+                >
+                  <Text className="font-bold text-white">
+                    {isPending ? "..." : "Aceptar"}
+                  </Text>
+                </Pressable>
+              </AlertDialogTrigger>
+              <AlertDialogContent
+                className="bg-primary-foreground"
+                overlayClassName="backdrop-blur-md bg-black/30"
+              >
+                <AlertDialogHeader>
+                  <AlertDialogTitle>¿Aceptar la propuesta?</AlertDialogTitle>
+                  <AlertDialogDescription className="text-gray-700">
+                    El producto pasará al estado “Aprobado” y será incluido en
+                    una subasta futura con el valor base y la comisión
+                    propuestos.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>
+                    <Text>Cancelar</Text>
+                  </AlertDialogCancel>
+                  <AlertDialogAction onPress={handleAccept}>
+                    <Text className="font-bold text-white">Sí, aceptar</Text>
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </View>
         </View>
       )}
     </View>

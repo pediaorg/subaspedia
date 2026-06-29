@@ -44,13 +44,13 @@ const STYLE: Record<
   auction: {
     Icon: Gavel,
     iconClass: "text-primary",
-    bgClass: "bg-primary/15",
+    bgClass: "bg-sky-100",
   },
 };
 
-const SIZE_CLASS = {
-  sm: "size-10",
-  lg: "size-14",
+const SIZE_PX = {
+  sm: 40,
+  lg: 56,
 };
 
 export function NotificationIcon({
@@ -63,14 +63,16 @@ export function NotificationIcon({
   className?: string;
 }) {
   const { Icon, iconClass, bgClass } = STYLE[route];
+  const dim = SIZE_PX[size];
   return (
     <View
-      className={cn(
-        "items-center justify-center rounded-full",
-        SIZE_CLASS[size],
-        bgClass,
-        className,
-      )}
+      style={{
+        width: dim,
+        height: dim,
+        borderRadius: dim / 2,
+        overflow: "hidden",
+      }}
+      className={cn("items-center justify-center", bgClass, className)}
     >
       <Icon size={size === "lg" ? 28 : 20} className={iconClass} />
     </View>

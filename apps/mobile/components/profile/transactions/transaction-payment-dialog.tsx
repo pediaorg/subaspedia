@@ -1,6 +1,6 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { BadgeCheck, ChevronRight } from "lucide-react-native";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Alert, Pressable, Text, View } from "react-native";
 
 import {
@@ -41,6 +41,9 @@ export default function TransactionPaymentDialog({
 }: TransactionPaymentDialogProps) {
   const [open, setOpen] = useState(false);
   const [selectedId, setSelectedId] = useState<number | null>(null);
+  // Bloquea el doble-submit: isPending de la mutación no flipea en el mismo
+  // tick que el tap, así que dos tappeos rápidos largaban dos requests.
+  const submittingRef = useRef(false);
   const queryClient = useQueryClient();
 
   // Medios de pago del usuario; el selector solo ofrece los verificados.
@@ -61,14 +64,23 @@ export default function TransactionPaymentDialog({
             input: { id: transaction.id },
           }),
         });
+        // Cerramos el dialog y dejamos que la animación de salida del Portal
+        // termine ANTES de navegar; si navegamos mientras el contenido
+        // portaleado todavía está animando, rn-primitives/reanimated puede
+        // quedar apuntando a un host desmontado y cerrar la app.
         handleOpenChange(false);
-        onPaid();
+        setTimeout(() => {
+          submittingRef.current = false;
+          onPaid();
+        }, 220);
       },
-      onError: error =>
+      onError: error => {
+        submittingRef.current = false;
         Alert.alert(
           "No se pudo pagar",
           error.message || "Intentá de nuevo más tarde.",
-        ),
+        );
+      },
     });
 
   function handleOpenChange(next: boolean) {
@@ -77,8 +89,11 @@ export default function TransactionPaymentDialog({
   }
 
   function handlePay() {
-    if (isPending) return; // evita el doble-submit (reintentos -> 409)
+    // isPending no flipea sincrónicamente al llamar mutate; usamos un ref para
+    // descartar el segundo tap antes de que la mutación lo bloquee.
+    if (submittingRef.current || isPending) return;
     if (selectedId === null) return;
+    submittingRef.current = true;
     payTransaction({ id: transaction.id, paymentMethodId: selectedId });
   }
 
@@ -87,7 +102,7 @@ export default function TransactionPaymentDialog({
       <Button
         size="lg"
         onPress={() => setOpen(true)}
-        className="mt-2 self-center rounded-full bg-primary px-12 py-4 shadow-none"
+        className="mt-2 h-12 self-center rounded-full bg-primary px-12 shadow-none"
       >
         <Text className="text-base font-bold text-white">Pagar</Text>
       </Button>

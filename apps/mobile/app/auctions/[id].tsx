@@ -24,7 +24,7 @@ import { CatalogDialog } from "@/components/auctions/catalog-dialog";
 import { ProductDialog } from "@/components/auctions/product-dialog";
 import { api } from "@/lib/api";
 import { useAuctionRoom, useCountdown } from "@/lib/auction-socket";
-import type { Product } from "@/lib/auctions";
+import { categoryAtLeast, type Product } from "@/lib/auctions";
 import { useAuth } from "@/lib/auth";
 import { formatMoney } from "@/lib/format";
 import { photoUri } from "@/lib/photo";
@@ -194,6 +194,28 @@ export default function AuctionDetailScreen() {
             <TouchableOpacity
               onPress={() => router.back()}
               className="mt-4 bg-blue-800 px-4 py-2 rounded-full"
+            >
+              <Text className="text-white font-semibold">Volver</Text>
+            </TouchableOpacity>
+          </View>
+        ) : isAuthed &&
+          auction.category &&
+          !categoryAtLeast(category, auction.category) ? (
+          // TPO: la categoría del usuario debe ser ≥ a la de la subasta para
+          // acceder. Si no alcanza, se le explica y se le ofrece volver.
+          <View className="flex-1 justify-center items-center px-8">
+            <Ionicons name="lock-closed" size={48} color="#F59E0B" />
+            <Text className="text-gray-800 text-lg font-bold text-center mt-4">
+              Rango insuficiente
+            </Text>
+            <Text className="text-gray-600 text-center mt-2">
+              Esta subasta es de rango{" "}
+              {CATEGORY_LABELS[auction.category] ?? auction.category}. Necesitás
+              ese rango o uno superior para entrar.
+            </Text>
+            <TouchableOpacity
+              onPress={() => router.back()}
+              className="mt-6 bg-blue-800 px-6 py-3 rounded-full"
             >
               <Text className="text-white font-semibold">Volver</Text>
             </TouchableOpacity>

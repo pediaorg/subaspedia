@@ -66,10 +66,15 @@ export function CatalogDialog({
                     {product.category}
                   </Text>
                   <Button
-                    className="bg-primary mt-2 self-start rounded-lg h-9 px-4"
+                    className="bg-primary mt-2 self-start rounded-lg h-9 px-5"
                     onPress={() => onSelectProduct(product)}
                   >
-                    <Text className="font-semibold text-white">Ver más</Text>
+                    <Text
+                      numberOfLines={1}
+                      className="font-semibold text-white"
+                    >
+                      Ver más
+                    </Text>
                   </Button>
                 </View>
               </View>

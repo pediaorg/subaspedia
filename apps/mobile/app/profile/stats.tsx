@@ -28,7 +28,7 @@ export default function ProfileStats() {
     <View className="flex-1 px-4 gap-5">
       <View className="gap-4">
         <Text className="font-bold text-3xl">Estadísticas</Text>
-        <Separator className="bg-gray-500" />
+        <Separator className="bg-border" />
       </View>
 
       <Tabs value={tab} onValueChange={setTab} className="flex-1">

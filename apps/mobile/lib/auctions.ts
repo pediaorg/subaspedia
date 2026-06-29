@@ -16,6 +16,37 @@ export const RANK_TO_CATEGORY: Record<Ranks, UserCategory> = {
   Platino: "platinum",
 };
 
+// Orden de los rangos según el TPO: común < especial < plata < oro < platino.
+// Lo usamos para decidir si un usuario puede entrar/pujar en una subasta de
+// determinada categoría (su categoría debe ser ≥ a la de la subasta).
+export const CATEGORY_ORDER: Record<UserCategory, number> = {
+  common: 0,
+  special: 1,
+  silver: 2,
+  gold: 3,
+  platinum: 4,
+};
+
+export function categoryAtLeast(
+  have: UserCategory | null | undefined,
+  need: UserCategory,
+): boolean {
+  if (!have) return false;
+  return CATEGORY_ORDER[have] >= CATEGORY_ORDER[need];
+}
+
+const CATEGORY_LABEL_ES: Record<UserCategory, string> = {
+  common: "Común",
+  special: "Especial",
+  silver: "Plata",
+  gold: "Oro",
+  platinum: "Platino",
+};
+
+export function categoryLabel(c: UserCategory): string {
+  return CATEGORY_LABEL_ES[c];
+}
+
 export type Auction = {
   id: string;
   name: string;

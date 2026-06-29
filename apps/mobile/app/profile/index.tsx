@@ -196,7 +196,7 @@ export default function Profile() {
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
-            <Separator className="mt-3 bg-gray-500" />
+            <Separator className="mt-3 bg-border" />
           </View>
         </View>
       </View>

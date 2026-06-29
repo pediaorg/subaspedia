@@ -24,6 +24,30 @@ import { SHIPPING_COST } from "@/api/lib/shipping";
 
 type Category = "common" | "special" | "silver" | "gold" | "platinum";
 
+// Rango de la subasta vs rango del usuario: el postor solo puede acceder/pujar
+// si su categoría es ≥ la categoría de la subasta. Orden del enunciado:
+// común < especial < plata < oro < platino.
+const CATEGORY_ORDER: Record<Category, number> = {
+  common: 0,
+  special: 1,
+  silver: 2,
+  gold: 3,
+  platinum: 4,
+};
+
+function categoryAtLeast(have: Category | null, need: Category): boolean {
+  if (!have) return false;
+  return CATEGORY_ORDER[have] >= CATEGORY_ORDER[need];
+}
+
+const CATEGORY_LABEL: Record<Category, string> = {
+  common: "Común",
+  special: "Especial",
+  silver: "Plata",
+  gold: "Oro",
+  platinum: "Platino",
+};
+
 // Resultado de un intento de puja. Discriminado para que el router lo mapee a
 // un ORPCError sin acoplarse a los códigos HTTP.
 type BidResult =
@@ -226,6 +250,21 @@ export class AuctionRoom extends DurableObject<Env> {
     return cap;
   }
 
+  // ---- Categoría / rango del cliente --------------------------------------
+
+  /**
+   * Categoría del cliente (rango). Devuelve null si el postor todavía no fue
+   * aprobado (sin categoría asignada por la empresa). El TPO exige que la
+   * categoría del usuario sea ≥ a la de la subasta para poder acceder y pujar.
+   */
+  private async categoryFor(clientId: number): Promise<Category | null> {
+    const row = await createDb(this.env.DB).query.clients.findFirst({
+      where: { id: clientId },
+      columns: { category: true },
+    });
+    return (row?.category ?? null) as Category | null;
+  }
+
   // ---- Multas (penalties) -------------------------------------------------
 
   /**
@@ -340,6 +379,16 @@ export class AuctionRoom extends DurableObject<Env> {
         ok: false,
         code: "BAD_REQUEST",
         message: "El tiempo de puja venció",
+      };
+
+    // Rango insuficiente => no puede ni acceder ni pujar (TPO: "la categoría
+    // de la subasta debe ser menor o igual que la propia").
+    const userCategory = await this.categoryFor(params.clientId);
+    if (!categoryAtLeast(userCategory, snap.category))
+      return {
+        ok: false,
+        code: "FORBIDDEN",
+        message: `Necesitás rango ${CATEGORY_LABEL[snap.category]} o superior para pujar en esta subasta`,
       };
 
     // Multa impaga => no puede participar en ninguna subasta hasta saldarla.
@@ -646,6 +695,20 @@ export class AuctionRoom extends DurableObject<Env> {
     // postor. Sin él la conexión es de solo lectura (espectador).
     const userIdHeader = request.headers.get("X-User-Id");
     const clientId = userIdHeader ? Number(userIdHeader) : null;
+
+    // Guard de rango: si hay usuario autenticado, su categoría debe ser ≥ a la
+    // de la subasta (TPO). Sin esto un postor de menor rango podría conectarse
+    // y ver el stream/pujas de una subasta a la que no debería acceder. Si NO
+    // hay token (espectador anónimo) lo dejamos pasar como solo-lectura por
+    // ahora — el front igual exige sesión antes de entrar.
+    if (clientId !== null && Number.isInteger(clientId) && clientId > 0) {
+      const userCategory = await this.categoryFor(clientId);
+      if (!categoryAtLeast(userCategory, snap.category))
+        return new Response(
+          `Necesitás rango ${CATEGORY_LABEL[snap.category]} o superior para entrar a esta subasta`,
+          { status: 403 },
+        );
+    }
 
     const { 0: client, 1: server } = new WebSocketPair();
     this.ctx.acceptWebSocket(server);

@@ -1,11 +1,17 @@
 import { useRouter } from "expo-router";
-import { Image, Pressable, Text as RNText, View } from "react-native";
+import { Alert, Image, Pressable, Text as RNText, View } from "react-native";
 
 import { Text } from "@/components/ui/text";
 
 import RankBadge from "@/components/profile/rank-badge";
 import { Button } from "@/components/ui/button";
-import { type Auction, RANK_TO_CATEGORY } from "@/lib/auctions";
+import { useAuth } from "@/lib/auth";
+import {
+  type Auction,
+  categoryAtLeast,
+  categoryLabel,
+  RANK_TO_CATEGORY,
+} from "@/lib/auctions";
 
 type AuctionCardProps = {
   auction: Auction;
@@ -19,6 +25,14 @@ export function AuctionCard({
   onEnter,
 }: AuctionCardProps) {
   const router = useRouter();
+  const auth = useAuth();
+
+  // TPO: el postor solo puede acceder a la subasta si su categoría es ≥ a la
+  // categoría de la subasta. Si el usuario no está logueado dejamos que el
+  // AccessGuard maneje la redirección al login (no bloqueamos acá).
+  const auctionCategory = RANK_TO_CATEGORY[auction.rank];
+  const rankBlocked =
+    auth.isAuthed && !categoryAtLeast(auth.category, auctionCategory);
 
   return (
     <View className="w-full mt-3 mb-5 drop-shadow-xl/50 rounded-md bg-white overflow-hidden transition delay-150 duration-300 ease-in-out hover:-translate-y-1 active:-translate-y-1">
@@ -51,9 +65,20 @@ export function AuctionCard({
           </View>
         </Pressable>
         <Button
-          className="border border-border h-9 px-5 bg-white rounded-full drop-shadow-lg hover:bg-white/90 active:bg-white/90"
+          className={`border border-border h-9 px-5 rounded-full drop-shadow-lg ${
+            rankBlocked
+              ? "bg-gray-200 opacity-80"
+              : "bg-white hover:bg-white/90 active:bg-white/90"
+          }`}
           size="sm"
           onPress={() => {
+            if (rankBlocked) {
+              Alert.alert(
+                "Rango insuficiente",
+                `Necesitás rango ${categoryLabel(auctionCategory)} o superior para entrar a esta subasta.`,
+              );
+              return;
+            }
             // Si pasaste una función desde el padre (index.tsx), la ejecuta.
             // Si no, hace la navegación estándar.
             if (onEnter) {
@@ -63,7 +88,13 @@ export function AuctionCard({
             }
           }}
         >
-          <Text className="text-primary font-bold">Entrar</Text>
+          <Text
+            className={
+              rankBlocked ? "text-gray-600 font-bold" : "text-primary font-bold"
+            }
+          >
+            {rankBlocked ? "Sin acceso" : "Entrar"}
+          </Text>
         </Button>
       </View>
     </View>

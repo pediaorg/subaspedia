@@ -11,7 +11,7 @@ type BadgeProps = { category: UserCategory };
 // .svg importado) para poder usar un id de gradiente único por instancia con
 // useId: react-native-svg pierde el relleno de gradientes con id fijo al
 // desmontar/remontar la pantalla (navegar y volver). "common" no tiene relleno.
-type Gradient = {
+export type RankGradient = {
   x1: number;
   y1: number;
   x2: number;
@@ -19,7 +19,10 @@ type Gradient = {
   stops: { offset: number; color: string }[];
 };
 
-const TIER: Record<UserCategory, { label: string; fill: Gradient | null }> = {
+export const RANK_GRADIENTS: Record<
+  UserCategory,
+  { label: string; fill: RankGradient | null }
+> = {
   common: { label: "COMUN", fill: null },
   special: {
     label: "ESPECIAL",
@@ -94,7 +97,7 @@ const TIER: Record<UserCategory, { label: string; fill: Gradient | null }> = {
 };
 
 export default function RankBadge({ category }: BadgeProps) {
-  const { label, fill } = TIER[category];
+  const { label, fill } = RANK_GRADIENTS[category];
   // useId trae ":" (inválido en ids SVG / url(#...)); lo limpiamos.
   const gradientId = `rankGrad${useId().replace(/:/g, "")}`;
 

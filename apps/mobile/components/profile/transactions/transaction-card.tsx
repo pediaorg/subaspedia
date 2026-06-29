@@ -23,7 +23,7 @@ export default function TransactionCard({ transaction }: TransactionProps) {
   return (
     <Link href={`/profile/transactions/${transaction.id}`} asChild>
       <Pressable accessibilityRole="button" className="active:opacity-70">
-        <Card className="flex-row items-center border-0 h-24 gap-3 p-2 drop-shadow-xl/2 z-20">
+        <Card className="flex-row items-center border-0 gap-3 p-3 drop-shadow-xl/2 z-20">
           <Avatar
             alt={transaction.productName}
             className="size-20 rounded-full"

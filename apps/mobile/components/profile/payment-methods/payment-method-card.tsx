@@ -1,4 +1,10 @@
 import { AlertCircle, BadgeCheck, Trash2 } from "lucide-react-native";
+// Colores tailwind hardcodeados: el wrapper Icon mapea `text-*` a `style.color`
+// pero los íconos de Lucide leen el color por la prop `color`, no por style.
+// Si no se pasa explícitamente quedan con el stroke transparente/negro.
+const VERIFIED_COLOR = "#15803d"; // green-700
+const UNVERIFIED_COLOR = "#d97706"; // amber-600
+const TRASH_COLOR = "#4b5563"; // gray-600
 import { Pressable, Text, View } from "react-native";
 
 import {
@@ -16,7 +22,6 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Card } from "@/components/ui/card";
-import { Icon } from "@/components/ui/icon";
 
 type PaymentMethodCardProps = {
   method: PaymentMethod;
@@ -35,11 +40,11 @@ export default function PaymentMethodCard({
 }: PaymentMethodCardProps) {
   return (
     <Card className="flex-row items-center gap-3 border-0 rounded-2xl bg-white px-4 py-3 drop-shadow-md/20">
-      <Icon
-        as={method.verified ? BadgeCheck : AlertCircle}
-        size={28}
-        className={method.verified ? "text-green-700" : "text-amber-600"}
-      />
+      {method.verified ? (
+        <BadgeCheck size={28} color={VERIFIED_COLOR} />
+      ) : (
+        <AlertCircle size={28} color={UNVERIFIED_COLOR} />
+      )}
       <View className="flex-1 flex-col gap-0.5">
         <Text className="font-bold text-sm text-gray-800" numberOfLines={1}>
           {typeLabel(method.type)}
@@ -61,7 +66,7 @@ export default function PaymentMethodCard({
             accessibilityLabel="Eliminar medio de pago"
             className="active:opacity-60 p-1"
           >
-            <Icon as={Trash2} size={20} className="text-gray-600" />
+            <Trash2 size={20} color={TRASH_COLOR} />
           </Pressable>
         </AlertDialogTrigger>
         <AlertDialogContent

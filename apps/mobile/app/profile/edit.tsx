@@ -151,15 +151,15 @@ function EditProfileForm({ user }: { user: User }) {
       {/* Editar perfil */}
       <View className="gap-4">
         <Text className="font-bold text-3xl">Editar perfil</Text>
-        <Separator className="bg-gray-500" />
+        <Separator className="bg-border" />
         {/* Card con cosas */}
         <Card className="flex-col items-stretch border-0 p-4 drop-shadow-2xl/10 gap-3">
           <View className="size-28 self-center">
             <Pressable
               onPress={handlePickAvatar}
-              className="active:opacity-60 border border-white absolute size-6 bg-primary justify-center items-center rounded-xl bottom-0 right-0   z-10"
+              className="active:opacity-60 border-2 border-white absolute size-9 bg-primary justify-center items-center rounded-full bottom-0 right-0 z-10"
             >
-              <CameraIcon className="size-4 color-white" />
+              <CameraIcon size={18} color="white" />
             </Pressable>
             <Avatar
               alt="avatar"

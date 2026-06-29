@@ -95,7 +95,7 @@ export default function NotificationDetail() {
           </Pressable>
         </View>
 
-        <Separator className="bg-[#D9D9D9]" />
+        <Separator className="bg-border" />
 
         {isLoading && <Text className="text-gray-500">Cargando…</Text>}
         {error && (

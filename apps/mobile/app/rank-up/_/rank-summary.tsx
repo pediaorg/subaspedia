@@ -1,8 +1,9 @@
 import { Link } from "expo-router";
-import { Check, Info, Star, X } from "lucide-react-native";
+import { Check, Info, X } from "lucide-react-native";
 import { ActivityIndicator, Pressable, View } from "react-native";
 
 import { USER_CATEGORIES, type UserCategory } from "@subaspedia/types/user";
+import RankStar from "@/components/profile/rank-star";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Text } from "@/components/ui/text";
@@ -76,7 +77,11 @@ export function RankSummary() {
         <View className="gap-1">
           <Text className="text-2xl text-left font-bold">Tu categoría</Text>
           <View className="flex flex-row items-center gap-2">
-            <Star size={20} className="text-yellow-400 fill-yellow-400" />
+            {data.category ? (
+              <RankStar category={data.category} size={22} />
+            ) : (
+              <RankStar category="common" size={22} />
+            )}
             <Text className="text-lg text-left font-bold uppercase">
               {categoryLabel}
             </Text>

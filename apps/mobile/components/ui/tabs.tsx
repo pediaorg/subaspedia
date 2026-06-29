@@ -39,8 +39,8 @@ function TabsTrigger({
   return (
     <TextClassContext.Provider
       value={cn(
-        "text-foreground dark:text-muted-foreground text-sm font-medium",
-        value === props.value && "dark:text-foreground",
+        "text-muted-foreground text-sm font-medium",
+        value === props.value && "text-foreground font-semibold",
       )}
     >
       <TabsPrimitive.Trigger
@@ -50,8 +50,11 @@ function TabsTrigger({
             web: "focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:outline-ring inline-flex cursor-default whitespace-nowrap transition-[color,box-shadow] focus-visible:outline-1 focus-visible:ring-[3px] disabled:pointer-events-none [&_svg]:pointer-events-none [&_svg]:shrink-0",
           }),
           props.disabled && "opacity-50",
+          // Tab activo: blanco con borde visible. En tema claro --background y
+          // --muted resuelven al mismo celeste, así que bg-background dejaba al
+          // activo idéntico al inactivo (no se distinguía).
           props.value === value &&
-            "bg-background dark:border-foreground/10 dark:bg-input/30",
+            "bg-white border-border shadow-sm shadow-black/10 dark:border-foreground/10 dark:bg-input/30",
           className,
         )}
         {...props}

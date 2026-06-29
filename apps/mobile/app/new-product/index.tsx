@@ -73,7 +73,7 @@ export default function PostProduct() {
           <MenuButton />
         </View>
 
-        <Separator className="bg-gray-300" />
+        <Separator className="bg-border" />
         {isAuthed ? (
           <>
             <View className="bg-warning flex-row items-center gap-3 rounded-lg p-3">

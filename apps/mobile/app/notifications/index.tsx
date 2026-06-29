@@ -24,7 +24,7 @@ function NotificationRow({ notification }: { notification: Notification }) {
     <Pressable
       onPress={() => router.push(`/notifications/${notification.id}` as never)}
     >
-      <Card className="bg-white drop-shadow-md/40 border-none flex-row items-center gap-4 p-4">
+      <Card className="bg-white drop-shadow-md/40 border-0 flex-row items-center gap-4 p-4">
         <NotificationIcon route={notification.route} />
         <View className="flex-1">
           <Text
@@ -70,7 +70,7 @@ export default function Notifications() {
           </View>
           <MenuButton />
         </View>
-        <Separator className="bg-[#D9D9D9]" />
+        <Separator className="bg-border" />
 
         {isLoading && <Text className="text-gray-500">Cargando…</Text>}
         {error && (

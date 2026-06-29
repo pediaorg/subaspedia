@@ -119,7 +119,7 @@ export default function TransactionDetailScreen() {
     <View className="flex-1 px-4 gap-5">
       <View className="gap-4">
         <Text className="font-bold text-3xl">Detalle de compra</Text>
-        <Separator className="bg-gray-500" />
+        <Separator className="bg-border" />
       </View>
 
       <ScrollView contentContainerClassName="pb-8 gap-4">
@@ -153,7 +153,7 @@ export default function TransactionDetailScreen() {
               />
             )}
           </View>
-          <Separator className="bg-gray-300" />
+          <Separator className="bg-border" />
           <Row label="Total" value={formatMoney(tx.total, tx.currency)} bold />
         </Card>
 
@@ -269,7 +269,7 @@ export default function TransactionDetailScreen() {
           <Button
             size="lg"
             onPress={() => router.push("/profile")}
-            className="mt-2 self-center rounded-full bg-primary px-12 py-4 shadow-none"
+            className="mt-2 h-12 self-center rounded-full bg-primary px-12 shadow-none"
           >
             <Text className="text-base font-bold text-white">
               Volver al perfil

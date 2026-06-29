@@ -1,7 +1,6 @@
-import { Text } from "react-native";
+import { Text, View } from "react-native";
 
 import type { OrderStatus } from "@subaspedia/types/transaction";
-import { Badge } from "@/components/ui/badge";
 
 type BadgeProps = { status: OrderStatus };
 
@@ -52,9 +51,12 @@ const BADGE_CONFIG: Record<
 export default function OrderStatusBadge({ status }: BadgeProps) {
   const config = BADGE_CONFIG[status];
   return (
-    <Badge className={`w-32 h-5 mt-4 ${config.containerClass}`}>
+    <View
+      className={`self-start mt-1 px-3 py-1 rounded-full ${config.containerClass}`}
+    >
       <Text
-        className="text-white font-bold"
+        numberOfLines={1}
+        className="text-white font-bold text-xs"
         style={{
           textShadowColor: config.outlineColor,
           textShadowOffset: { width: 0, height: 0 },
@@ -63,6 +65,6 @@ export default function OrderStatusBadge({ status }: BadgeProps) {
       >
         {config.label}
       </Text>
-    </Badge>
+    </View>
   );
 }

@@ -6,6 +6,7 @@ import PenaltyCard from "@/components/profile/infractions/penalty-card";
 import TransactionCard from "@/components/profile/transactions/transaction-card";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Text as ThemedText } from "@/components/ui/text";
 import { api } from "@/lib/api";
 
 export default function UserPenalties() {
@@ -28,16 +29,16 @@ export default function UserPenalties() {
     <View className="flex-1 px-4 gap-5">
       <View className="gap-4">
         <Text className="font-bold text-3xl">Multas y pagos</Text>
-        <Separator className="bg-gray-500" />
+        <Separator className="bg-border" />
       </View>
 
       <Tabs value={tab} onValueChange={setTab} className="flex-1">
         <TabsList>
           <TabsTrigger value="penalties">
-            <Text>Multas</Text>
+            <ThemedText>Multas</ThemedText>
           </TabsTrigger>
           <TabsTrigger value="transactions">
-            <Text>Pagos</Text>
+            <ThemedText>Pagos</ThemedText>
           </TabsTrigger>
         </TabsList>
 
@@ -58,8 +59,11 @@ export default function UserPenalties() {
 
           <ScrollView
             showsVerticalScrollIndicator={false}
-            contentContainerClassName="gap-6 pt-4"
-            contentContainerStyle={{ paddingBottom: insets.bottom + 96 }}
+            contentContainerStyle={{
+              paddingTop: 16,
+              paddingBottom: insets.bottom + 96,
+              gap: 20,
+            }}
           >
             {penalties?.map(penalty => (
               <PenaltyCard key={penalty.id} penalty={penalty} />
@@ -88,8 +92,11 @@ export default function UserPenalties() {
 
           <ScrollView
             showsVerticalScrollIndicator={false}
-            contentContainerClassName="gap-6 pt-4"
-            contentContainerStyle={{ paddingBottom: insets.bottom + 96 }}
+            contentContainerStyle={{
+              paddingTop: 16,
+              paddingBottom: insets.bottom + 96,
+              gap: 20,
+            }}
           >
             {transactions?.map(transaction => (
               <TransactionCard key={transaction.id} transaction={transaction} />
