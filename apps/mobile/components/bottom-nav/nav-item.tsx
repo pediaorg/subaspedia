@@ -24,15 +24,17 @@ export function NavItem({ icon, label, active, onPress }: Props) {
       accessibilityState={{ selected: active }}
     >
       <View
-        className={`flex-row items-center rounded-full px-4 py-2.5 ${
-          active ? "bg-card" : ""
-        }`}
+        style={{
+          borderRadius: 999,
+          overflow: "hidden",
+          backgroundColor: active ? "#ffffff" : "transparent",
+          flexDirection: "row",
+          alignItems: "center",
+          paddingHorizontal: 16,
+          paddingVertical: 10,
+        }}
       >
-        <Icon
-          as={icon}
-          size={24}
-          className={active ? "text-primary" : "text-primary-foreground"}
-        />
+        <Icon as={icon} size={24} color={active ? "#1f7ad9" : "#ffffff"} />
         {active && (
           <Text
             numberOfLines={1}

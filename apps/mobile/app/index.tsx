@@ -18,7 +18,7 @@ export default function HomeScreen() {
       <Stack.Screen options={{ headerShown: false }} />
       <ScrollView
         className="flex-1"
-        contentContainerClassName="gap-5 p-4 pb-12"
+        contentContainerClassName="gap-5 p-4 pb-32"
         showsVerticalScrollIndicator={false}
       >
         <View className="flex-row items-start justify-between">

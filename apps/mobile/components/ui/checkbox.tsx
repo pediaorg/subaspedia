@@ -41,6 +41,7 @@ function Checkbox({
         <Icon
           as={Check}
           size={12}
+          color="#ffffff"
           strokeWidth={Platform.OS === "web" ? 2.5 : 3.5}
           className={cn("text-primary-foreground", iconClassName)}
         />

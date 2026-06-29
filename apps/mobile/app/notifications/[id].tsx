@@ -125,9 +125,11 @@ export default function NotificationDetail() {
                 <Button
                   size="lg"
                   onPress={() => router.push(target.href as never)}
-                  className="self-center mt-4 rounded-full px-8"
+                  className="self-center mt-4 h-12 rounded-full px-8"
                 >
-                  <Text className="font-bold text-white">{target.label}</Text>
+                  <Text numberOfLines={1} className="font-bold text-white">
+                    {target.label}
+                  </Text>
                 </Button>
               );
             })()}

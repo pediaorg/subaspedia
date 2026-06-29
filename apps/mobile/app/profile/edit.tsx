@@ -146,15 +146,15 @@ function EditProfileForm({ user }: { user: User }) {
       bottomOffset={20}
       showsVerticalScrollIndicator={false}
       className="flex-1"
-      contentContainerClassName="px-4 gap-6 pb-6"
+      contentContainerClassName="px-4 gap-6 pb-32"
     >
       {/* Editar perfil */}
       <View className="gap-4">
         <Text className="font-bold text-3xl">Editar perfil</Text>
         <Separator className="bg-gray-500" />
         {/* Card con cosas */}
-        <Card className="flex-col items-center border-0 p-4 drop-shadow-2xl/10 gap-3">
-          <View className="size-28">
+        <Card className="flex-col items-stretch border-0 p-4 drop-shadow-2xl/10 gap-3">
+          <View className="size-28 self-center">
             <Pressable
               onPress={handlePickAvatar}
               className="active:opacity-60 border border-white absolute size-6 bg-primary justify-center items-center rounded-xl bottom-0 right-0   z-10"
@@ -171,11 +171,11 @@ function EditProfileForm({ user }: { user: User }) {
           <Separator className="bg-primary" />
 
           {/* Campos para completar */}
-          <View className="flex-col w-full gap-4 pb-5 items-start">
+          <View className="flex-col w-full gap-4 pb-5 items-stretch">
             {/* Datos personales */}
-            <View className="">
+            <View className="w-full">
               <Text className="font-bold text-lg">Personal</Text>
-              <View className="flex-row gap-4">
+              <View className="flex-col">
                 <EditData
                   label={"Nombre"}
                   placeholder={"Ej. María"}
@@ -193,7 +193,7 @@ function EditProfileForm({ user }: { user: User }) {
                   onChangeText={text => setForm({ ...form, surname: text })}
                 />
               </View>
-              <View className="flex-row gap-4">
+              <View className="flex-col">
                 <EditData
                   label={"Dirección Legal"}
                   placeholder={"Ej. Av. Corrientes 1234"}
@@ -203,7 +203,7 @@ function EditProfileForm({ user }: { user: User }) {
                   onChangeText={text => setForm({ ...form, address: text })}
                 />
                 {/* País: select real contra GET /countries (setea country_id) */}
-                <View className="flex-col flex-1 py-2 gap-1 items-start">
+                <View className="flex-col w-full py-2 gap-1 items-start">
                   <Label
                     nativeID="country"
                     className="font-bold text-gray-600 text-xs"
@@ -267,7 +267,7 @@ function EditProfileForm({ user }: { user: User }) {
           </View>
           <Button
             disabled={isPending}
-            className="w-33 rounded-xl h-8"
+            className="self-center w-40 rounded-xl h-10"
             onPress={handleSave}
           >
             <Text className="font-bold color-white text-lg">

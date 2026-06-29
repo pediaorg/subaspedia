@@ -288,7 +288,7 @@ export default function AuctionDetailScreen() {
                         <Image
                           key={product.id}
                           source={{ uri: product.image }}
-                          className={`w-8 h-8 rounded-full border-2 border-white shadow-sm ${
+                          className={`w-8 h-8 rounded-full border-2 border-white bg-gray-200 shadow-sm ${
                             index === 0 ? "" : "-ml-3"
                           }`}
                         />

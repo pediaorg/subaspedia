@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Image, Pressable, ScrollView, View } from "react-native";
+import { Dimensions, Image, Pressable, ScrollView, View } from "react-native";
 
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
@@ -72,7 +72,13 @@ export function ProductDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       {product && (
-        <DialogContent className="max-h-[85vh] w-[92vw] max-w-[92vw] gap-0 bg-white p-5">
+        <DialogContent
+          className="gap-0 bg-white p-5"
+          style={{
+            width: Dimensions.get("window").width - 32,
+            maxHeight: Dimensions.get("window").height * 0.85,
+          }}
+        >
           <DialogTitle className="text-primary text-2xl font-bold">
             {product.name}
           </DialogTitle>
@@ -80,7 +86,7 @@ export function ProductDialog({
 
           <ScrollView
             showsVerticalScrollIndicator={false}
-            className="min-h-0 flex-1"
+            style={{ maxHeight: Dimensions.get("window").height * 0.72 }}
             contentContainerClassName="gap-4 pb-1"
           >
             <Image

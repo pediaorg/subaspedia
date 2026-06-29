@@ -84,7 +84,7 @@ export default function AuctionsScreen() {
       <Stack.Screen options={{ headerShown: false }} />
       <ScrollView
         className="flex-1"
-        contentContainerClassName=" p-4 pb-12"
+        contentContainerClassName=" p-4 pb-32"
         keyboardShouldPersistTaps="handled"
       >
         <View className="flex flex-row items-center justify-between mb-4">

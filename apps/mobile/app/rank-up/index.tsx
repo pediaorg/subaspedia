@@ -18,7 +18,7 @@ export default function RankUp() {
       <Stack.Screen options={{ headerShown: false }} />
       <ScrollView
         className="flex-1"
-        contentContainerClassName="gap-4 p-4 pb-12"
+        contentContainerClassName="gap-4 p-4 pb-32"
         keyboardShouldPersistTaps="handled"
       >
         <View className="flex-row items-center justify-between">

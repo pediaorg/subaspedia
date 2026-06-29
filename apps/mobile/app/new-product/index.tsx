@@ -12,7 +12,6 @@ import {
 } from "@subaspedia/types/forms/new-product";
 import { MenuButton } from "@/components/app-header/menu-button";
 import { LoginPrompt } from "@/components/login-prompt";
-import { Alert, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Text } from "@/components/ui/text";
@@ -64,7 +63,7 @@ export default function PostProduct() {
       <Stack.Screen options={{ headerShown: false }} />
       <KeyboardAwareScrollView
         className="flex-1"
-        contentContainerClassName="gap-4 p-4 pb-12"
+        contentContainerClassName="gap-4 p-4 pb-32"
         keyboardShouldPersistTaps="handled"
       >
         <View className="flex-row items-center justify-between">
@@ -77,17 +76,12 @@ export default function PostProduct() {
         <Separator className="bg-gray-300" />
         {isAuthed ? (
           <>
-            <View className="bg-warning drop-shadow-md/40 flex-row items-center gap-2 rounded-lg p-3">
-              <Alert
-                icon={Info}
-                iconClassName="text-white"
-                className="border-none items-center bg-transparent"
-              >
-                <AlertTitle className="text-white">
-                  La empresa puede designar una colección cuando el lote tiene
-                  numerosos artículos
-                </AlertTitle>
-              </Alert>
+            <View className="bg-warning flex-row items-center gap-3 rounded-lg p-3">
+              <Info size={20} color="#ffffff" />
+              <Text className="text-white flex-1 text-sm">
+                La empresa puede designar una colección cuando el lote tiene
+                numerosos artículos
+              </Text>
             </View>
 
             <DataSection control={control} />
@@ -101,7 +95,7 @@ export default function PostProduct() {
               }
               onPress={handleSubmit(onSubmit)}
               size="lg"
-              className="bg-accent-foreground border-0 rounded-2xl py-4 shadow-none focus:outline-none focus-visible:ring-0 focus-visible:border-transparent"
+              className="bg-accent-foreground h-12 border-0 rounded-2xl shadow-none focus:outline-none focus-visible:ring-0 focus-visible:border-transparent"
             >
               <Text className="text-white font-bold text-base">
                 Enviar a revisión

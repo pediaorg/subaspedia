@@ -71,10 +71,12 @@ export function AuctionsPreview() {
         </View>
         <Button
           size="sm"
-          className="rounded-full px-5"
+          className="h-10 rounded-full px-5"
           onPress={() => router.push("/auctions")}
         >
-          <Text className="font-semibold text-primary-foreground">Ver más</Text>
+          <Text numberOfLines={1} className="font-semibold text-white">
+            Ver más
+          </Text>
         </Button>
       </View>
 

@@ -38,7 +38,7 @@ export function RankFilter({ selected, onToggle }: RankFilterProps) {
             onCheckedChange={() => onToggle(rank)}
             closeOnPress={false}
           >
-            {rank}
+            <Text>{rank}</Text>
           </DropdownMenuCheckboxItem>
         ))}
       </DropdownMenuContent>

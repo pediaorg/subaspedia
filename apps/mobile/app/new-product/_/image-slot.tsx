@@ -1,8 +1,7 @@
 import { Image } from "expo-image";
 import { Plus } from "lucide-react-native";
-import { Pressable } from "react-native";
-
-import { Icon } from "@/components/ui/icon";
+import { useState } from "react";
+import { type LayoutChangeEvent, Pressable } from "react-native";
 
 export function ImageSlot({
   uri,
@@ -11,10 +10,19 @@ export function ImageSlot({
   uri: string | null;
   onPress: () => void;
 }) {
+  const [width, setWidth] = useState(0);
+
+  const onLayout = (e: LayoutChangeEvent) => {
+    const w = e.nativeEvent.layout.width;
+    if (w && w !== width) setWidth(w);
+  };
+
   return (
     <Pressable
       onPress={onPress}
-      className="border-white bg-muted/40 active:bg-muted aspect-square w-[30%] items-center justify-center rounded-md border border-dashed"
+      onLayout={onLayout}
+      style={{ width: "31%", height: width || undefined }}
+      className="bg-white/15 active:bg-white/25 overflow-hidden items-center justify-center rounded-md border-2 border-dashed border-white/70"
     >
       {uri ? (
         <Image
@@ -23,7 +31,7 @@ export function ImageSlot({
           contentFit="cover"
         />
       ) : (
-        <Icon as={Plus} size={20} className="text-white" />
+        <Plus size={28} color="#ffffff" />
       )}
     </Pressable>
   );

@@ -24,10 +24,11 @@ export function SearchBar({
         placeholder={placeholder}
         value={value}
         onChangeText={onChangeText}
-        className="bg-secondary h-12 rounded-2xl border-0 pr-11 text-base"
+        style={{ backgroundColor: "hsl(207, 89%, 86%)" }}
+        className="h-12 rounded-2xl border-0 pr-11 text-base"
       />
       <View className="absolute right-4 top-0 bottom-0 justify-center">
-        <Icon as={Search} size={20} className="text-muted-foreground" />
+        <Search size={20} color="#6b7280" />
       </View>
     </View>
   );

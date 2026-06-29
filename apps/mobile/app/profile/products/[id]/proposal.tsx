@@ -2,6 +2,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { router, useLocalSearchParams } from "expo-router";
 import { Alert, Text, View } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import {
   AlertDialog,
@@ -22,6 +23,7 @@ import { api } from "@/lib/api";
 import { formatMoney } from "@/lib/format";
 
 export default function ProposalScreen() {
+  const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
   const productId = Number(id);
   const isValidId = Number.isInteger(productId) && productId > 0;
@@ -100,7 +102,10 @@ export default function ProposalScreen() {
         <Separator className="bg-gray-500" />
       </View>
 
-      <KeyboardAwareScrollView contentContainerClassName="pb-4 gap-4">
+      <KeyboardAwareScrollView
+        className="flex-1"
+        contentContainerClassName="pb-4 gap-4"
+      >
         <Card className="border-0 p-4 drop-shadow-2xl/10 gap-4">
           <View className="flex-row items-center gap-3">
             <Avatar alt={product.name} className="size-16 rounded-full">
@@ -151,7 +156,10 @@ export default function ProposalScreen() {
       </KeyboardAwareScrollView>
 
       {!isRejected && (
-        <View className="flex-row gap-3 pb-6">
+        <View
+          className="flex-row gap-3 pt-2"
+          style={{ paddingBottom: insets.bottom + 16 }}
+        >
           <AlertDialog>
             <AlertDialogTrigger asChild>
               <Button

@@ -103,7 +103,7 @@ export default function ProductCard({ product }: ProductProps) {
         {action && <ActionElement action={action} />}
       </Card>
       {product.status === "under_review" && (
-        <View className="bg-[#6F889B] h-5 self-center items-center w-[85%] rounded-b-lg drop-shadow-2xl/6 z-10">
+        <View className="bg-[#6F889B] py-1 self-center items-center w-[85%] rounded-b-lg drop-shadow-2xl/6 z-10">
           <Text className="text-gray-50 text-xs font-bold">
             En caso de aprobado enviaremos su propuesta
           </Text>

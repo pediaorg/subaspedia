@@ -73,15 +73,15 @@ export function ImagesSection({
   };
 
   return (
-    <Card className="bg-primary drop-shadow-md/40 border-none">
+    <Card className="bg-primary drop-shadow-md/40 border-0">
       <CardHeader className="flex-row items-center justify-between">
         <CardTitle className="text-white text-2xl font-bold">
           Imágenes
         </CardTitle>
-        <Text className="text-white text-sm">mín. {MIN_PRODUCT_IMAGES}</Text>
+        <Text className="text-white/80 text-sm">mín. {MIN_PRODUCT_IMAGES}</Text>
       </CardHeader>
       <CardContent className="gap-3">
-        <View className="flex-row flex-wrap gap-3">
+        <View className="flex-row flex-wrap gap-2">
           {slots.map((slot, i) => (
             <ImageSlot
               key={slot.id}
@@ -90,7 +90,7 @@ export function ImagesSection({
             />
           ))}
         </View>
-        <Text className="text-white text-xs">
+        <Text className="text-white/90 text-xs">
           Seleccioná hasta {MIN_PRODUCT_IMAGES} imágenes del producto. (
           {images.length}/{MIN_PRODUCT_IMAGES})
         </Text>

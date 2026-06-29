@@ -301,7 +301,7 @@ export default function PaymentMethodScreen() {
             size="lg"
             disabled={addPaymentMethod.isPending}
             onPress={onAdd}
-            className="bg-accent-foreground mt-2 self-center rounded-full border-0 px-12 py-4 shadow-none"
+            className="bg-accent-foreground mt-2 h-12 self-center rounded-full border-0 px-12 shadow-none"
           >
             <Text className="text-base font-bold text-white">
               {addPaymentMethod.isPending ? "Agregando..." : "Agregar"}

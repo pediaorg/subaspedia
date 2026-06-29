@@ -7,7 +7,7 @@ import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { LogBox, Platform, StyleSheet, View } from "react-native";
 import { KeyboardProvider } from "react-native-keyboard-controller";
-import { SafeAreaProvider } from "react-native-safe-area-context";
+import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 
 import { AccessGuard } from "@/components/access-guard";
 import { BottomNav } from "@/components/bottom-nav/bottom-nav";
@@ -35,7 +35,7 @@ export default function RootLayout() {
       <KeyboardProvider>
         <QueryClientProvider client={queryClient}>
           <View style={styles.shell}>
-            <View style={styles.column}>
+            <SafeAreaView style={styles.column} edges={["top"]}>
               <Stack>
                 <Stack.Screen name="index" options={{ headerShown: false }} />
                 <Stack.Screen name="profile" options={{ headerShown: false }} />
@@ -69,7 +69,7 @@ export default function RootLayout() {
               <PortalHost />
 
               <Toaster position="bottom-right" />
-            </View>
+            </SafeAreaView>
           </View>
         </QueryClientProvider>
       </KeyboardProvider>

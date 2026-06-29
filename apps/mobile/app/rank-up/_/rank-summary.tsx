@@ -3,7 +3,6 @@ import { Check, Info, Star, X } from "lucide-react-native";
 import { ActivityIndicator, Pressable, View } from "react-native";
 
 import { USER_CATEGORIES, type UserCategory } from "@subaspedia/types/user";
-import { Alert, AlertTitle } from "@/components/ui/alert";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Text } from "@/components/ui/text";
@@ -19,9 +18,9 @@ function CategoryItem({ name, enabled }: { name: string; enabled: boolean }) {
   return (
     <View className="flex flex-row items-center gap-1">
       {enabled ? (
-        <Check size={18} className="text-green-600" />
+        <Check size={18} color="#16a34a" />
       ) : (
-        <X size={18} className="text-destructive" />
+        <X size={18} color="#dc2626" />
       )}
       <Text className="text-base">{name}</Text>
     </View>
@@ -142,17 +141,12 @@ export function RankSummary() {
 
         <Separator className="bg-border" />
 
-        <View className="bg-muted-foreground drop-shadow-md/40 flex-row items-center gap-2 rounded-lg p-1">
-          <Alert
-            icon={Info}
-            iconClassName="text-primary-foreground"
-            className="bg-transparent border-none items-center"
-          >
-            <AlertTitle className="text-primary-foreground">
-              La empresa actualiza tu categoría según tu actividad y diversidad
-              de pagos
-            </AlertTitle>
-          </Alert>
+        <View className="bg-warning flex-row items-center gap-3 rounded-lg p-3">
+          <Info size={20} color="#ffffff" />
+          <Text className="text-white flex-1 text-sm">
+            La empresa actualiza tu categoría según tu actividad y diversidad de
+            pagos
+          </Text>
         </View>
       </CardContent>
     </Card>

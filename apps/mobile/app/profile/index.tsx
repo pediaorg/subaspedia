@@ -170,8 +170,8 @@ export default function Profile() {
           <View className="w-full">
             <AlertDialog>
               <AlertDialogTrigger asChild>
-                <Pressable className="flex-row gap-2 ml-10 pl-1 active:opacity-60">
-                  <LogOut className="size-8 color-secondary-foreground" />
+                <Pressable className="flex-row items-center gap-2 ml-10 pl-1 active:opacity-60">
+                  <LogOut size={28} color="#0d4da0" />
                   <Text className="font-bold text-2xl text-secondary-foreground">
                     Cerrar sesión
                   </Text>
